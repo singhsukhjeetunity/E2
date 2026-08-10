@@ -1,6 +1,7 @@
 #ifndef E2_REPORTING_REPORTING_MQH
 #define E2_REPORTING_REPORTING_MQH
 
-// Reserved for future reporting and export modules.
+#include "E2Logger.mqh"
+#include "E2CsvExporter.mqh"
 
 #endif // E2_REPORTING_REPORTING_MQH
