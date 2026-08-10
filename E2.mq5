@@ -10,11 +10,13 @@
 #include "include\\core\\E2Config.mqh"
 #include "include\\core\\E2Environment.mqh"
 #include "include\\reporting\\Reporting.mqh"
+#include "include\\analysis\\Analysis.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
 E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
+E2MarketData g_market_data;
 ulong g_diagnostic_tick_count=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
@@ -41,6 +43,24 @@ void E2LogStartupDiagnostics(void)
    g_logger.Info("Timeframes: trend="+E2TimeframeName(g_configuration.trend_timeframe)+", zone="+E2TimeframeName(g_configuration.zone_timeframe)+", confirmation="+E2TimeframeName(g_configuration.confirmation_timeframe)+".","Lifecycle");
    g_logger.Info("Flags: tester="+E2YesNo(g_environment.IsTester())+", optimization="+E2YesNo(g_environment.IsOptimization())+", trading="+E2YesNo(g_configuration.trading_enabled)+", logging="+E2YesNo(g_configuration.logging_enabled)+", csv="+E2YesNo(g_configuration.csv_export_enabled)+".","Lifecycle");
   }
+
+void E2LogClosedBarDiagnostic(const string label,const ENUM_TIMEFRAMES timeframe,const datetime evaluation_time)
+  {
+   MqlRates bar;
+   if(g_market_data.GetClosedBarAsOf(_Symbol,timeframe,evaluation_time,bar))
+      g_logger.Debug(label+" closed bar as of "+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+": opened "+TimeToString(bar.time,TIME_DATE|TIME_MINUTES)+".","MarketData");
+  }
+
+void E2RunMarketDataStartupDiagnostic(void)
+  {
+   if(g_environment.IsOptimization())
+      return;
+
+   const datetime evaluation_time=TimeCurrent();
+   E2LogClosedBarDiagnostic("Trend",g_market_data.TrendTimeframe(),evaluation_time);
+   E2LogClosedBarDiagnostic("Zone",g_market_data.ZoneTimeframe(),evaluation_time);
+   E2LogClosedBarDiagnostic("Confirmation",g_market_data.ConfirmationTimeframe(),evaluation_time);
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -61,7 +81,9 @@ int OnInit()
 
    g_logger.Info("Configuration validated.","Lifecycle");
    g_logger.Debug("Debug logging is enabled.","Lifecycle");
+   g_market_data.Initialize(g_configuration,g_logger);
    E2LogStartupDiagnostics();
+   E2RunMarketDataStartupDiagnostic();
 
    if(g_configuration.csv_export_enabled)
      {

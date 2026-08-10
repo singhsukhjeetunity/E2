@@ -1,6 +1,6 @@
 #ifndef E2_ANALYSIS_ANALYSIS_MQH
 #define E2_ANALYSIS_ANALYSIS_MQH
 
-// Reserved for future market-analysis modules.
+#include "E2MarketData.mqh"
 
 #endif // E2_ANALYSIS_ANALYSIS_MQH
