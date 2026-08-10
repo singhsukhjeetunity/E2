@@ -1,0 +1,13 @@
+# MetaTrader 5 build artifacts and temporary files
+*.ex5
+*.log
+*.csv
+*.tmp
+*.bak
+*.mq5~
+*.mqh~
+
+# MetaEditor workspace and build metadata
+*.metaeditor
+*.mqlcache
+.vs/
