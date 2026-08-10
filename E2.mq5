@@ -8,17 +8,47 @@
 #property version   "1.00"
 
 #include "include\\core\\E2Config.mqh"
+#include "include\\core\\E2Environment.mqh"
 #include "include\\reporting\\Reporting.mqh"
 
 E2Config g_configuration;
+E2Environment g_environment;
 E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
+ulong g_diagnostic_tick_count=0;
+
+string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
+  {
+   string name=EnumToString(timeframe);
+   StringReplace(name,"PERIOD_","");
+   return(name);
+  }
+
+string E2YesNo(const bool value)
+  {
+   return(value ? "yes" : "no");
+  }
+
+void E2LogStartupDiagnostics(void)
+  {
+   if(g_environment.IsOptimization())
+     {
+      g_logger.Info("Optimization environment detected; detailed startup diagnostics suppressed.","Lifecycle");
+      return;
+     }
+
+   g_logger.Info("Runtime: symbol="+_Symbol+", timeframe="+E2TimeframeName((ENUM_TIMEFRAMES)Period())+", environment="+g_environment.Name()+".","Lifecycle");
+   g_logger.Info("Timeframes: trend="+E2TimeframeName(g_configuration.trend_timeframe)+", zone="+E2TimeframeName(g_configuration.zone_timeframe)+", confirmation="+E2TimeframeName(g_configuration.confirmation_timeframe)+".","Lifecycle");
+   g_logger.Info("Flags: tester="+E2YesNo(g_environment.IsTester())+", optimization="+E2YesNo(g_environment.IsOptimization())+", trading="+E2YesNo(g_configuration.trading_enabled)+", logging="+E2YesNo(g_configuration.logging_enabled)+", csv="+E2YesNo(g_configuration.csv_export_enabled)+".","Lifecycle");
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit()
   {
    E2LoadConfiguration(g_configuration);
+   g_environment.Initialize();
+   g_diagnostic_tick_count=0;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -31,6 +61,7 @@ int OnInit()
 
    g_logger.Info("Configuration validated.","Lifecycle");
    g_logger.Debug("Debug logging is enabled.","Lifecycle");
+   E2LogStartupDiagnostics();
 
    if(g_configuration.csv_export_enabled)
      {
@@ -68,14 +99,14 @@ int OnInit()
 void OnDeinit(const int reason)
   {
    g_csv_exporter.Close();
-   g_logger.Info("E2 deinitialized (reason "+IntegerToString(reason)+").","Lifecycle");
+   g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
+   g_logger.Info("E2 deinitialized.","Lifecycle");
   }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |
 //+------------------------------------------------------------------+
 void OnTick()
   {
-//---
-   
+   g_diagnostic_tick_count++;
   }
 //+------------------------------------------------------------------+
