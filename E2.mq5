@@ -13,6 +13,7 @@
 #include "include\\reporting\\Reporting.mqh"
 #include "include\\analysis\\Analysis.mqh"
 #include "include\\risk\\Risk.mqh"
+#include "include\\execution\\Execution.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
@@ -24,7 +25,9 @@ E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
 E2TradePlanner g_trade_planner;
+E2OrderExecutor g_order_executor;
 ulong g_diagnostic_tick_count=0;
+bool g_execution_test_attempted=false;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -123,6 +126,51 @@ void E2RunTradePlanningStartupDiagnostic(void)
    g_trade_planner.CreatePlan(intent,plan);
    g_trade_planner.LogDiagnostic(plan);
   }
+
+void E2RunExecutionTestHarness(void)
+  {
+   if(!g_configuration.execution_test_enabled || g_execution_test_attempted)
+      return;
+
+   if(!g_symbol_info.IsInitialized() || !g_account_info.IsInitialized())
+     {
+      g_logger.Warning("Execution test cannot run because symbol/account data is unavailable.","Execution");
+      g_execution_test_attempted=true;
+      return;
+     }
+
+   E2AccountSpecification account=g_account_info.Specification();
+   if(!g_environment.IsTester() && account.trade_mode!=ACCOUNT_TRADE_MODE_DEMO)
+     {
+      g_logger.Warning("Execution test is restricted to Strategy Tester or demo accounts.","Execution");
+      g_execution_test_attempted=true;
+      return;
+     }
+
+   g_execution_test_attempted=true;
+   MqlTick tick;
+   if(!SymbolInfoTick(_Symbol,tick) || tick.ask<=0.0)
+      return;
+
+   E2SymbolSpecification specification=g_symbol_info.Specification();
+   E2TradeIntent intent;
+   intent.symbol=_Symbol;
+   intent.direction=E2_DIRECTION_BUY;
+   intent.entry_price=tick.ask;
+   intent.stop_loss_price=g_symbol_info.NormalizePrice(intent.entry_price-specification.tick_size*100.0);
+   intent.reward_risk_target=g_configuration.reward_risk_target;
+   intent.strategy_id="execution_test";
+   intent.setup_time=TimeCurrent();
+   intent.reason_tag="explicit test harness";
+   E2TradePlan plan;
+   if(!g_trade_planner.CreatePlan(intent,plan))
+     {
+      g_trade_planner.LogDiagnostic(plan);
+      return;
+     }
+   E2ExecutionResult result;
+   g_order_executor.Execute(plan,"E2 execution test",result);
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -131,6 +179,7 @@ int OnInit()
    E2LoadConfiguration(g_configuration);
    g_environment.Initialize();
    g_diagnostic_tick_count=0;
+   g_execution_test_attempted=false;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -149,6 +198,7 @@ int OnInit()
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_trade_planner.Initialize(g_symbol_info,g_position_sizer,g_logger);
+   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
@@ -203,5 +253,6 @@ void OnDeinit(const int reason)
 void OnTick()
   {
    g_diagnostic_tick_count++;
+   E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+

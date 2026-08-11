@@ -44,6 +44,10 @@ input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of 
 input double InpRewardRiskTarget    = 2.0; // Take-profit target expressed as reward-to-risk (R).
 input E2RiskBase InpRiskBase         = E2_RISK_BASE_BALANCE; // Future sizing base; no sizing is performed in Sprint 2.1.
 
+input group "EXECUTION"
+input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
+input bool   InpExecutionTestEnabled  = false; // Explicit one-attempt test harness; restricted to tester/demo environments.
+
 input group "SESSIONS"
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
 input bool InpEnableNewYorkSession  = true; // Allow future entries during the New York session.
@@ -87,6 +91,8 @@ struct E2Config
    double          risk_percent;
    double          reward_risk_target;
    E2RiskBase      risk_base;
+   double          max_entry_deviation_pips;
+   bool            execution_test_enabled;
 
    bool            enable_london_session;
    bool            enable_new_york_session;
@@ -125,6 +131,8 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.risk_percent                           = InpRiskPercent;
    configuration.reward_risk_target                     = InpRewardRiskTarget;
    configuration.risk_base                              = InpRiskBase;
+   configuration.max_entry_deviation_pips               = InpMaxEntryDeviationPips;
+   configuration.execution_test_enabled                 = InpExecutionTestEnabled;
    configuration.enable_london_session                  = InpEnableLondonSession;
    configuration.enable_new_york_session                = InpEnableNewYorkSession;
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
@@ -154,6 +162,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
      {
       reason = "ADX period must be greater than zero.";
      return(false);
+     }
+   if(configuration.max_entry_deviation_pips < 0.0)
+     {
+      reason = "Maximum entry deviation cannot be negative.";
+      return(false);
      }
    if(configuration.swing_sensitivity < 1)
      {
