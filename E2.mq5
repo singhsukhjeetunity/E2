@@ -23,6 +23,7 @@ E2TrendAnalyzer g_trend_analyzer;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
+E2TradePlanner g_trade_planner;
 ulong g_diagnostic_tick_count=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
@@ -98,7 +99,7 @@ void E2RunSpecificationStartupDiagnostic(void)
      }
   }
 
-void E2RunPositionSizingStartupDiagnostic(void)
+void E2RunTradePlanningStartupDiagnostic(void)
   {
    if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_symbol_info.IsInitialized() || !g_account_info.IsInitialized())
       return;
@@ -108,11 +109,19 @@ void E2RunPositionSizingStartupDiagnostic(void)
       return;
 
    E2SymbolSpecification specification=g_symbol_info.Specification();
-   const double entry_price=tick.ask;
-   const double stop_price=g_symbol_info.NormalizePrice(entry_price-specification.tick_size*100.0);
-   E2PositionSizingResult result;
-   g_position_sizer.Calculate(_Symbol,E2_DIRECTION_BUY,entry_price,stop_price,result);
-   g_position_sizer.LogDiagnostic(result);
+   E2TradeIntent intent;
+   intent.symbol=_Symbol;
+   intent.direction=E2_DIRECTION_BUY;
+   intent.entry_price=tick.ask;
+   intent.stop_loss_price=g_symbol_info.NormalizePrice(intent.entry_price-specification.tick_size*100.0);
+   intent.reward_risk_target=g_configuration.reward_risk_target;
+   intent.strategy_id="diagnostic";
+   intent.setup_time=TimeCurrent();
+   intent.reason_tag="startup sample";
+
+   E2TradePlan plan;
+   g_trade_planner.CreatePlan(intent,plan);
+   g_trade_planner.LogDiagnostic(plan);
   }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -139,13 +148,14 @@ int OnInit()
    if(!g_account_info.Initialize(g_logger))
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
+   g_trade_planner.Initialize(g_symbol_info,g_position_sizer,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunTrendStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
-   E2RunPositionSizingStartupDiagnostic();
+   E2RunTradePlanningStartupDiagnostic();
 
    if(g_configuration.csv_export_enabled)
      {
