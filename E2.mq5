@@ -26,6 +26,7 @@ E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
 E2TradePlanner g_trade_planner;
 E2OrderExecutor g_order_executor;
+E2PositionGuard g_position_guard;
 ulong g_diagnostic_tick_count=0;
 bool g_execution_test_attempted=false;
 
@@ -169,7 +170,11 @@ void E2RunExecutionTestHarness(void)
       return;
      }
    E2ExecutionResult result;
-   g_order_executor.Execute(plan,"E2 execution test",result);
+   if(g_order_executor.Execute(plan,"E2 execution test",result))
+     {
+      E2ExecutionResult duplicate_result;
+      g_order_executor.Execute(plan,"E2 execution test duplicate",duplicate_result);
+     }
   }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -198,7 +203,8 @@ int OnInit()
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_trade_planner.Initialize(g_symbol_info,g_position_sizer,g_logger);
-   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
+   g_position_guard.Initialize(g_configuration,g_logger);
+   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();

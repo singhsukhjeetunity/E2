@@ -6,6 +6,7 @@
 #include "..\\core\\E2SymbolInfo.mqh"
 #include "..\\core\\E2AccountInfo.mqh"
 #include "..\\risk\\E2TradePlanner.mqh"
+#include "E2PositionGuard.mqh"
 
 enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E2_EXECUTION_INVALID_PLAN, E2_EXECUTION_SYMBOL_UNAVAILABLE, E2_EXECUTION_MARKET_PRICE_UNAVAILABLE, E2_EXECUTION_PRICE_DEVIATION_EXCEEDED, E2_EXECUTION_INVALID_CURRENT_GEOMETRY, E2_EXECUTION_BROKER_STOP_CONSTRAINT, E2_EXECUTION_TRADING_NOT_ALLOWED, E2_EXECUTION_INSUFFICIENT_MARGIN, E2_EXECUTION_ORDER_REJECTED, E2_EXECUTION_FAILED };
 
@@ -30,6 +31,7 @@ class E2OrderExecutor
 private:
    CTrade m_trade; E2SymbolInfo *m_symbol_info; E2AccountInfo *m_account_info; E2Logger *m_logger;
    ulong m_magic_number; bool m_trading_enabled; double m_max_entry_deviation_pips;
+   E2PositionGuard *m_guard;
 
    void ResetResult(E2ExecutionResult &result)
      {
@@ -43,10 +45,10 @@ private:
    bool SuccessfulRetcode(const uint code) const { return(code==TRADE_RETCODE_DONE || code==TRADE_RETCODE_DONE_PARTIAL); }
 
 public:
-   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0) {}
-   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2Logger &logger)
+   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0),m_guard(NULL) {}
+   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2PositionGuard &guard,E2Logger &logger)
      {
-      m_symbol_info=&symbol_info; m_account_info=&account_info; m_logger=&logger; m_magic_number=config.expert_magic_number; m_trading_enabled=config.trading_enabled; m_max_entry_deviation_pips=config.max_entry_deviation_pips;
+      m_symbol_info=&symbol_info; m_account_info=&account_info; m_guard=&guard; m_logger=&logger; m_magic_number=config.expert_magic_number; m_trading_enabled=config.trading_enabled; m_max_entry_deviation_pips=config.max_entry_deviation_pips;
       m_trade.SetAsyncMode(false); m_trade.SetExpertMagicNumber(m_magic_number);
      }
 
@@ -54,6 +56,8 @@ public:
      {
       ResetResult(result); result.symbol=plan.symbol; result.direction=plan.direction; result.planned_entry_price=plan.entry_price; result.requested_volume=plan.volume; result.stop_loss_price=plan.stop_loss_price; result.take_profit_price=plan.take_profit_price;
       if(!m_trading_enabled) { Fail(result,E2_EXECUTION_TRADING_DISABLED); return(false); }
+      E2PositionGuardResult guard_result;
+      if(m_guard==NULL || !m_guard.CanOpen(plan,guard_result)) { Fail(result,E2_EXECUTION_INVALID_PLAN,"PositionGuard="+E2PositionGuardStatusName(guard_result.status)); return(false); }
       if(plan.status!=E2_PLAN_VALID || plan.symbol=="" || plan.volume<=0.0 || !MathIsValidNumber(plan.entry_price) || !MathIsValidNumber(plan.stop_loss_price) || !MathIsValidNumber(plan.take_profit_price)) { Fail(result,E2_EXECUTION_INVALID_PLAN); return(false); }
       if(m_symbol_info==NULL || m_account_info==NULL || (!m_symbol_info.IsInitialized() && !m_symbol_info.Refresh(plan.symbol)) || (m_symbol_info.IsInitialized() && m_symbol_info.Specification().symbol!=plan.symbol && !m_symbol_info.Refresh(plan.symbol))) { Fail(result,E2_EXECUTION_SYMBOL_UNAVAILABLE); return(false); }
       E2SymbolSpecification spec=m_symbol_info.Specification();
