@@ -47,6 +47,9 @@ input E2RiskBase InpRiskBase         = E2_RISK_BASE_BALANCE; // Future sizing ba
 input group "EXECUTION"
 input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
 input bool   InpExecutionTestEnabled  = false; // Explicit one-attempt test harness; restricted to tester/demo environments.
+input double InpMaxSpreadPips          = 3.0;  // Provisional broker-generic spread ceiling; set to zero to disable this filter.
+input int    InpMaxQuoteAgeSeconds     = 10;   // Reject quotes older than this; set to zero to disable the age check.
+input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldown after a successful execution.
 
 input group "SESSIONS"
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
@@ -93,6 +96,9 @@ struct E2Config
    E2RiskBase      risk_base;
    double          max_entry_deviation_pips;
    bool            execution_test_enabled;
+   double          max_spread_pips;
+   int             max_quote_age_seconds;
+   int             minimum_seconds_between_executions;
 
    bool            enable_london_session;
    bool            enable_new_york_session;
@@ -133,6 +139,9 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.risk_base                              = InpRiskBase;
    configuration.max_entry_deviation_pips               = InpMaxEntryDeviationPips;
    configuration.execution_test_enabled                 = InpExecutionTestEnabled;
+   configuration.max_spread_pips                        = InpMaxSpreadPips;
+   configuration.max_quote_age_seconds                  = InpMaxQuoteAgeSeconds;
+   configuration.minimum_seconds_between_executions     = InpMinimumSecondsBetweenExecutions;
    configuration.enable_london_session                  = InpEnableLondonSession;
    configuration.enable_new_york_session                = InpEnableNewYorkSession;
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
@@ -166,6 +175,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.max_entry_deviation_pips < 0.0)
      {
       reason = "Maximum entry deviation cannot be negative.";
+     return(false);
+     }
+   if(configuration.max_spread_pips < 0.0 || configuration.max_quote_age_seconds < 0 || configuration.minimum_seconds_between_executions < 0)
+     {
+      reason = "Execution safety values cannot be negative.";
       return(false);
      }
    if(configuration.swing_sensitivity < 1)

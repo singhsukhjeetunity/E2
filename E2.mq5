@@ -27,6 +27,8 @@ E2PositionSizer g_position_sizer;
 E2TradePlanner g_trade_planner;
 E2OrderExecutor g_order_executor;
 E2PositionGuard g_position_guard;
+E2PositionManager g_position_manager;
+E2ExecutionSafety g_execution_safety;
 ulong g_diagnostic_tick_count=0;
 bool g_execution_test_attempted=false;
 
@@ -204,7 +206,9 @@ int OnInit()
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_trade_planner.Initialize(g_symbol_info,g_position_sizer,g_logger);
    g_position_guard.Initialize(g_configuration,g_logger);
-   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_logger);
+   g_position_manager.Initialize(g_configuration,g_logger);
+   g_execution_safety.Initialize(g_configuration,g_logger);
+   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_position_manager,g_execution_safety,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
@@ -259,6 +263,7 @@ void OnDeinit(const int reason)
 void OnTick()
   {
    g_diagnostic_tick_count++;
+   g_position_manager.Refresh();
    E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+
