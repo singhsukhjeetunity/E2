@@ -17,6 +17,7 @@ E2Environment g_environment;
 E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
 E2MarketData g_market_data;
+E2TrendAnalyzer g_trend_analyzer;
 ulong g_diagnostic_tick_count=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
@@ -61,6 +62,18 @@ void E2RunMarketDataStartupDiagnostic(void)
    E2LogClosedBarDiagnostic("Zone",g_market_data.ZoneTimeframe(),evaluation_time);
    E2LogClosedBarDiagnostic("Confirmation",g_market_data.ConfirmationTimeframe(),evaluation_time);
   }
+
+void E2RunTrendStartupDiagnostic(void)
+  {
+   if(g_environment.IsOptimization())
+      return;
+
+   E2TrendResult result;
+   if(g_trend_analyzer.Evaluate(_Symbol,TimeCurrent(),result))
+     {
+      g_logger.Debug("Trend: "+E2TrendStateName(result.state)+", ADX: "+(result.adx_available ? DoubleToString(result.adx_value,2) : "unavailable")+", ADX pass: "+E2YesNo(result.adx_passed)+", structure: high="+E2StructureLabelName(result.latest_high_label)+", low="+E2StructureLabelName(result.latest_low_label)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
+     }
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -82,8 +95,10 @@ int OnInit()
    g_logger.Info("Configuration validated.","Lifecycle");
    g_logger.Debug("Debug logging is enabled.","Lifecycle");
    g_market_data.Initialize(g_configuration,g_logger);
+   g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
+   E2RunTrendStartupDiagnostic();
 
    if(g_configuration.csv_export_enabled)
      {
@@ -120,6 +135,7 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   g_trend_analyzer.Deinitialize();
    g_csv_exporter.Close();
    g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
    g_logger.Info("E2 deinitialized.","Lifecycle");

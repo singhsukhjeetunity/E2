@@ -15,7 +15,8 @@ input ENUM_TIMEFRAMES InpZoneTimeframe         = PERIOD_H1;  // H1 support/resis
 input ENUM_TIMEFRAMES InpConfirmationTimeframe = PERIOD_M15; // M15 entry-confirmation timeframe.
 
 input group "TREND / RANGE"
-input int  InpSwingSensitivity = 3;    // Provisional pivot sensitivity; finalized in Sprint 1.2.
+input int  InpSwingSensitivity = 3;    // Closed bars required on each side to confirm an H4 pivot.
+input int  InpTrendStructureLookbackBars = 80; // Closed trend-timeframe bars used for confirmed-pivot structure.
 input bool InpAdxEnabled        = true; // Use ADX in the future trend/range classifier.
 input int  InpAdxPeriod         = 14;   // ADX calculation period.
 input double InpAdxMinimumThreshold = 20.0; // Provisional ADX trend-strength threshold; finalized in Sprint 1.2.
@@ -62,6 +63,7 @@ struct E2Config
    ENUM_TIMEFRAMES confirmation_timeframe;
 
    int             swing_sensitivity;
+   int             trend_structure_lookback_bars;
    bool            adx_enabled;
    int             adx_period;
    double          adx_minimum_threshold;
@@ -101,6 +103,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.zone_timeframe                         = InpZoneTimeframe;
    configuration.confirmation_timeframe                 = InpConfirmationTimeframe;
    configuration.swing_sensitivity                      = InpSwingSensitivity;
+   configuration.trend_structure_lookback_bars          = InpTrendStructureLookbackBars;
    configuration.adx_enabled                            = InpAdxEnabled;
    configuration.adx_period                             = InpAdxPeriod;
    configuration.adx_minimum_threshold                  = InpAdxMinimumThreshold;
@@ -142,6 +145,16 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.adx_period <= 0)
      {
       reason = "ADX period must be greater than zero.";
+     return(false);
+     }
+   if(configuration.swing_sensitivity < 1)
+     {
+      reason = "Swing sensitivity must be at least one.";
+      return(false);
+     }
+   if(configuration.trend_structure_lookback_bars < (configuration.swing_sensitivity*2+1))
+     {
+      reason = "Trend structure lookback must contain a complete pivot window.";
       return(false);
      }
    if(configuration.minimum_zone_touches < 1)

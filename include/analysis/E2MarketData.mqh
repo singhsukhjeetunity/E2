@@ -165,6 +165,36 @@ public:
 
       return(true);
      }
+
+   bool              GetClosedBarsAsOf(const string symbol,const ENUM_TIMEFRAMES timeframe,const datetime evaluation_time,const int count,MqlRates &bars[])
+     {
+      ArrayResize(bars,0);
+      ArraySetAsSeries(bars,false);
+      if(count<=0)
+         return(false);
+
+      MqlRates latest_closed;
+      if(!GetClosedBarAsOf(symbol,timeframe,evaluation_time,latest_closed))
+         return(false);
+
+      const int platform_shift=iBarShift(symbol,timeframe,latest_closed.time,true);
+      if(platform_shift<0)
+        {
+         ReportDebug("Unable to locate the latest closed bar for an as-of history range.");
+         return(false);
+        }
+
+      ResetLastError();
+      const int copied=CopyRates(symbol,timeframe,platform_shift,count,bars);
+      if(copied!=count)
+        {
+         const int error_code=GetLastError();
+         ArrayResize(bars,0);
+         ReportDebug("Unable to read the requested as-of history range (copied "+IntegerToString(copied)+", error "+IntegerToString(error_code)+").");
+         return(false);
+        }
+      return(true);
+     }
   };
 
 #endif // E2_ANALYSIS_E2MARKETDATA_MQH
