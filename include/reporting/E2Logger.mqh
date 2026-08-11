@@ -27,7 +27,12 @@ public:
    void              Initialize(const bool enabled,const bool debug_enabled)
      {
       m_enabled=enabled;
-      m_debug_enabled=debug_enabled;
+     m_debug_enabled=debug_enabled;
+     }
+
+   bool              IsDebugEnabled(void) const
+     {
+      return(m_enabled && m_debug_enabled);
      }
 
    void              Info(const string message,const string module="")

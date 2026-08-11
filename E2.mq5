@@ -12,6 +12,7 @@
 #include "include\\core\\E2Environment.mqh"
 #include "include\\reporting\\Reporting.mqh"
 #include "include\\analysis\\Analysis.mqh"
+#include "include\\risk\\Risk.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
@@ -21,6 +22,7 @@ E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
+E2PositionSizer g_position_sizer;
 ulong g_diagnostic_tick_count=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
@@ -95,6 +97,23 @@ void E2RunSpecificationStartupDiagnostic(void)
       g_logger.Debug("Account: currency="+account.currency+", balance="+DoubleToString(account.balance,2)+", equity="+DoubleToString(account.equity,2)+", free margin="+DoubleToString(account.free_margin,2)+", leverage="+IntegerToString((int)account.leverage)+".","Specifications");
      }
   }
+
+void E2RunPositionSizingStartupDiagnostic(void)
+  {
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_symbol_info.IsInitialized() || !g_account_info.IsInitialized())
+      return;
+
+   MqlTick tick;
+   if(!SymbolInfoTick(_Symbol,tick) || tick.ask<=0.0)
+      return;
+
+   E2SymbolSpecification specification=g_symbol_info.Specification();
+   const double entry_price=tick.ask;
+   const double stop_price=g_symbol_info.NormalizePrice(entry_price-specification.tick_size*100.0);
+   E2PositionSizingResult result;
+   g_position_sizer.Calculate(_Symbol,E2_DIRECTION_BUY,entry_price,stop_price,result);
+   g_position_sizer.LogDiagnostic(result);
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -119,12 +138,14 @@ int OnInit()
       g_logger.Warning("Symbol specification diagnostics are unavailable for this run.","Lifecycle");
    if(!g_account_info.Initialize(g_logger))
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
+   g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunTrendStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
+   E2RunPositionSizingStartupDiagnostic();
 
    if(g_configuration.csv_export_enabled)
      {
