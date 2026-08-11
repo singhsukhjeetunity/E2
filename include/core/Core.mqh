@@ -1,6 +1,7 @@
 #ifndef E2_CORE_CORE_MQH
 #define E2_CORE_CORE_MQH
 
-// Reserved for future shared E2 infrastructure and domain types.
+#include "E2SymbolInfo.mqh"
+#include "E2AccountInfo.mqh"
 
 #endif // E2_CORE_CORE_MQH

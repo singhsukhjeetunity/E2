@@ -8,6 +8,7 @@
 #property version   "1.00"
 
 #include "include\\core\\E2Config.mqh"
+#include "include\\core\\Core.mqh"
 #include "include\\core\\E2Environment.mqh"
 #include "include\\reporting\\Reporting.mqh"
 #include "include\\analysis\\Analysis.mqh"
@@ -18,6 +19,8 @@ E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
 E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
+E2SymbolInfo g_symbol_info;
+E2AccountInfo g_account_info;
 ulong g_diagnostic_tick_count=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
@@ -74,6 +77,24 @@ void E2RunTrendStartupDiagnostic(void)
       g_logger.Debug("Trend: "+E2TrendStateName(result.state)+", ADX: "+(result.adx_available ? DoubleToString(result.adx_value,2) : "unavailable")+", ADX pass: "+E2YesNo(result.adx_passed)+", structure: high="+E2StructureLabelName(result.latest_high_label)+", low="+E2StructureLabelName(result.latest_low_label)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
      }
   }
+
+void E2RunSpecificationStartupDiagnostic(void)
+  {
+   if(g_environment.IsOptimization())
+      return;
+
+   if(g_symbol_info.IsInitialized())
+     {
+      E2SymbolSpecification symbol=g_symbol_info.Specification();
+      g_logger.Debug("Symbol: "+symbol.symbol+", digits="+IntegerToString(symbol.digits)+", point="+DoubleToString(symbol.point,symbol.digits)+", pip="+DoubleToString(symbol.pip_size,symbol.digits)+", tick size="+DoubleToString(symbol.tick_size,symbol.digits)+", tick value="+DoubleToString(symbol.tick_value,2)+", volume min="+DoubleToString(symbol.volume_min,2)+", max="+DoubleToString(symbol.volume_max,2)+", step="+DoubleToString(symbol.volume_step,2)+".","Specifications");
+     }
+
+   if(g_account_info.IsInitialized())
+     {
+      E2AccountSpecification account=g_account_info.Specification();
+      g_logger.Debug("Account: currency="+account.currency+", balance="+DoubleToString(account.balance,2)+", equity="+DoubleToString(account.equity,2)+", free margin="+DoubleToString(account.free_margin,2)+", leverage="+IntegerToString((int)account.leverage)+".","Specifications");
+     }
+  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -94,11 +115,16 @@ int OnInit()
 
    g_logger.Info("Configuration validated.","Lifecycle");
    g_logger.Debug("Debug logging is enabled.","Lifecycle");
+   if(!g_symbol_info.Initialize(_Symbol,g_logger))
+      g_logger.Warning("Symbol specification diagnostics are unavailable for this run.","Lifecycle");
+   if(!g_account_info.Initialize(g_logger))
+      g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunTrendStartupDiagnostic();
+   E2RunSpecificationStartupDiagnostic();
 
    if(g_configuration.csv_export_enabled)
      {

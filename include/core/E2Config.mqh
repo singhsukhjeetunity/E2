@@ -4,6 +4,12 @@
 // External EA inputs are intentionally kept here. Future modules receive the
 // E2Config structure instead of depending on these input variables directly.
 
+enum E2RiskBase
+  {
+   E2_RISK_BASE_BALANCE,
+   E2_RISK_BASE_EQUITY
+  };
+
 input group "GENERAL"
 input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders.
 input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
@@ -36,7 +42,7 @@ input bool InpEnableBreakPreviousCandleConfirmation = true; // Enable future pre
 input group "RISK"
 input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
 input double InpRewardRiskTarget    = 2.0; // Take-profit target expressed as reward-to-risk (R).
-// The account balance-versus-equity risk base is intentionally deferred to Sprint 3.1.
+input E2RiskBase InpRiskBase         = E2_RISK_BASE_BALANCE; // Future sizing base; no sizing is performed in Sprint 2.1.
 
 input group "SESSIONS"
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
@@ -80,6 +86,7 @@ struct E2Config
 
    double          risk_percent;
    double          reward_risk_target;
+   E2RiskBase      risk_base;
 
    bool            enable_london_session;
    bool            enable_new_york_session;
@@ -117,6 +124,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.enable_break_previous_candle_confirmation = InpEnableBreakPreviousCandleConfirmation;
    configuration.risk_percent                           = InpRiskPercent;
    configuration.reward_risk_target                     = InpRewardRiskTarget;
+   configuration.risk_base                              = InpRiskBase;
    configuration.enable_london_session                  = InpEnableLondonSession;
    configuration.enable_new_york_session                = InpEnableNewYorkSession;
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
