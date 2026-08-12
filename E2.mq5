@@ -21,6 +21,7 @@ E2Config g_configuration;
 E2Environment g_environment;
 E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
+E2TradeReporter g_trade_reporter;
 E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
 E2ZoneAnalyzer g_zone_analyzer;
@@ -253,6 +254,36 @@ void E2RunStrategySignalDiagnostic(void)
       return;
      }
    g_logger.Info("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", direction="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", entryPlan="+DoubleToString(trade_plan.entry_price,spec.digits)+", fill="+DoubleToString(execution.actual_execution_price,spec.digits)+", SL="+DoubleToString(trade_plan.stop_loss_price,spec.digits)+", TP="+DoubleToString(trade_plan.take_profit_price,spec.digits)+", volume="+DoubleToString(trade_plan.volume,4)+", riskTarget="+DoubleToString(trade_plan.target_risk_money,2)+", actualPlannedRisk="+DoubleToString(trade_plan.actual_risk_money,2)+", deal="+StringFormat("%I64u",execution.deal_ticket)+", order="+StringFormat("%I64u",execution.order_ticket)+", reason=EXECUTED.","Trade");
+   E2ReportEntryData report_entry;
+   ZeroMemory(report_entry);
+   report_entry.symbol=_Symbol;
+   report_entry.direction=E2StrategySignalName(result.signal);
+   report_entry.zone_id=result.selected_zone_id;
+   report_entry.zone_role=E2ZoneTypeName(result.selected_zone_role);
+   report_entry.zone_visit=consumed.visit;
+   report_entry.signal_time=evaluation_time;
+   report_entry.confirmation_time=result.confirmation_candle_time;
+   report_entry.session=(session.in_london && session.in_new_york ? "LONDON_NEW_YORK_OVERLAP" : (session.in_london ? "LONDON" : "NEW_YORK"));
+   report_entry.trend=E2TrendStateName(result.trend_state);
+   report_entry.adx=result.adx_value;
+   report_entry.confirmation_engulfing=E2ConfirmationDirectionName(result.engulfing);
+   report_entry.confirmation_pin=E2ConfirmationDirectionName(result.pin_bar);
+   report_entry.confirmation_momentum=E2ConfirmationDirectionName(result.momentum);
+   report_entry.confirmation_previous_break=E2ConfirmationDirectionName(result.previous_break);
+   report_entry.planned_entry=trade_plan.entry_price;
+   report_entry.fill_price=execution.actual_execution_price;
+   report_entry.stop_loss=trade_plan.stop_loss_price;
+   report_entry.take_profit=trade_plan.take_profit_price;
+   report_entry.stop_pips=trade_plan.stop_distance_pips;
+   report_entry.planned_rr=trade_plan.actual_reward_risk;
+   report_entry.volume=trade_plan.volume;
+   report_entry.equity=trade_plan.account_equity;
+   report_entry.target_risk=trade_plan.target_risk_money;
+   report_entry.planned_risk=trade_plan.actual_risk_money;
+   report_entry.planned_risk_pct=trade_plan.actual_risk_percent;
+   report_entry.order_ticket=execution.order_ticket;
+   report_entry.entry_deal=execution.deal_ticket;
+   g_trade_reporter.CaptureEntry(report_entry);
    g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
   }
 
@@ -391,6 +422,8 @@ int OnInit()
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
    g_session_filter.Initialize(g_configuration);
    g_news_filter.Initialize(g_configuration);
+   if(!g_trade_reporter.Initialize(g_configuration.csv_export_enabled,g_configuration.expert_magic_number,_Symbol,g_logger))
+      g_logger.Warning("Trade CSV reporting disabled for this run because initialization failed.","Reporting");
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
@@ -433,9 +466,20 @@ int OnInit()
 void OnDeinit(const int reason)
   {
    g_trend_analyzer.Deinitialize();
+   g_trade_reporter.Reconcile();
+   g_trade_reporter.Summary(g_environment.IsTester());
+   g_trade_reporter.Close();
    g_csv_exporter.Close();
    g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
    g_logger.Info("E2 deinitialized.","Lifecycle");
+  }
+//+------------------------------------------------------------------+
+//| Native trade transaction callback                                |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result)
+  {
+   if(trans.type==TRADE_TRANSACTION_DEAL_ADD)
+      g_trade_reporter.OnDeal(trans.deal);
   }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |

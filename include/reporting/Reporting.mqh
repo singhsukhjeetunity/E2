@@ -3,5 +3,6 @@
 
 #include "E2Logger.mqh"
 #include "E2CsvExporter.mqh"
+#include "E2TradeReporter.mqh"
 
 #endif // E2_REPORTING_REPORTING_MQH
