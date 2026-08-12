@@ -47,7 +47,7 @@ input double InpMomentumBodyMultiplier = 1.5; // Provisional body-size multiple 
 input group "RISK"
 input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
 input double InpRewardRiskTarget    = 2.0; // Take-profit target expressed as reward-to-risk (R).
-input E2RiskBase InpRiskBase         = E2_RISK_BASE_BALANCE; // Future sizing base; no sizing is performed in Sprint 2.1.
+input E2RiskBase InpRiskBase         = E2_RISK_BASE_EQUITY; // E2 trade planning uses account equity as its risk base.
 
 input group "EXECUTION"
 input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.

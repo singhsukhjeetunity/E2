@@ -17,6 +17,8 @@ struct E2SymbolSpecification
    double            volume_min;
    double            volume_max;
    double            volume_step;
+   long              stops_level_points;
+   ENUM_SYMBOL_TRADE_MODE trade_mode;
   };
 
 // Pip convention: a 5- or 3-digit quote has ten points per pip; all other
@@ -85,6 +87,8 @@ public:
       m_specification.volume_min=SymbolInfoDouble(symbol,SYMBOL_VOLUME_MIN);
       m_specification.volume_max=SymbolInfoDouble(symbol,SYMBOL_VOLUME_MAX);
       m_specification.volume_step=SymbolInfoDouble(symbol,SYMBOL_VOLUME_STEP);
+      m_specification.stops_level_points=SymbolInfoInteger(symbol,SYMBOL_TRADE_STOPS_LEVEL);
+      m_specification.trade_mode=(ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(symbol,SYMBOL_TRADE_MODE);
       if(!Validate())
          return(false);
 

@@ -218,6 +218,18 @@ void E2RunStrategySignalDiagnostic(void)
    E2SymbolSpecification spec=g_symbol_info.Specification();
    g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", trend="+E2TrendStateName(result.trend_state)+", ADX="+DoubleToString(result.adx_value,2)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", zoneState="+E2ZoneStateName(result.selected_zone_state)+", zone=["+DoubleToString(result.selected_zone_lower,spec.digits)+","+DoubleToString(result.selected_zone_upper,spec.digits)+"], confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+", confirmation="+E2ConfirmationDirectionName(result.confirmation_direction)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", reason="+E2StrategyReasonName(result.reason)+".","Strategy");
    g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
+   E2StrategyPlanRequest plan_request;
+   plan_request.symbol=_Symbol;
+   plan_request.evaluation_time=evaluation_time;
+   plan_request.valid_strategy_signal=true;
+   plan_request.direction=(result.signal==E2_SIGNAL_LONG ? E2_DIRECTION_BUY : E2_DIRECTION_SELL);
+   plan_request.zone_id=result.selected_zone_id;
+   plan_request.zone_role=E2ZoneTypeName(result.selected_zone_role);
+   plan_request.zone_lower=result.selected_zone_lower;
+   plan_request.zone_upper=result.selected_zone_upper;
+   E2TradePlan trade_plan;
+   g_trade_planner.CreateStrategyPlan(plan_request,trade_plan);
+   g_trade_planner.LogDiagnostic(trade_plan);
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -343,7 +355,7 @@ int OnInit()
    if(!g_account_info.Initialize(g_logger))
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
-   g_trade_planner.Initialize(g_symbol_info,g_position_sizer,g_logger);
+   g_trade_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_logger);
    g_position_guard.Initialize(g_configuration,g_logger);
    g_position_manager.Initialize(g_configuration,g_logger);
    g_execution_safety.Initialize(g_configuration,g_logger);
@@ -358,7 +370,6 @@ int OnInit()
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
-   E2RunTradePlanningStartupDiagnostic();
    E2RunSessionStartupDiagnostics();
    E2RunNewsStartupDiagnostics();
 

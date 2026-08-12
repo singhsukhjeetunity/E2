@@ -83,23 +83,23 @@ private:
          m_logger.Debug(message,"PositionSizer");
      }
 
-   bool CalculateLossPerLot(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,double &loss_per_lot)
+   bool CalculateLoss(const string symbol,const E2TradeDirection direction,const double volume,const double entry_price,const double stop_price,double &loss)
      {
       double profit=0.0;
       const ENUM_ORDER_TYPE order_type=(direction==E2_DIRECTION_BUY ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
       ResetLastError();
-      if(!OrderCalcProfit(order_type,symbol,1.0,entry_price,stop_price,profit))
+      if(!OrderCalcProfit(order_type,symbol,volume,entry_price,stop_price,profit))
         {
          ReportDebug("OrderCalcProfit failed (error "+IntegerToString(GetLastError())+").");
          return(false);
         }
 
-      loss_per_lot=MathAbs(profit);
-      return(loss_per_lot>0.0);
+      loss=MathAbs(profit);
+      return(loss>0.0);
      }
 
 public:
-                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_percent(0.0),m_risk_base(E2_RISK_BASE_BALANCE) {}
+                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_percent(0.0),m_risk_base(E2_RISK_BASE_EQUITY) {}
 
    void              Initialize(const E2Config &configuration,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2Logger &logger)
      {
@@ -107,7 +107,9 @@ public:
       m_account_info=&account_info;
       m_logger=&logger;
       m_risk_percent=configuration.risk_percent;
-      m_risk_base=configuration.risk_base;
+      // Sprint 5.1 fixes E2's planning risk base to equity, irrespective of
+      // account balance movements or legacy configuration values.
+      m_risk_base=E2_RISK_BASE_EQUITY;
      }
 
    bool              Calculate(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,E2PositionSizingResult &result)
@@ -156,7 +158,7 @@ public:
         }
       result.target_risk_money=result.risk_base_value*m_risk_percent/100.0;
 
-      if(!CalculateLossPerLot(symbol,direction,entry_price,stop_price,result.monetary_loss_per_lot))
+      if(!CalculateLoss(symbol,direction,1.0,entry_price,stop_price,result.monetary_loss_per_lot))
         {
          result.status=E2_SIZING_CALCULATION_FAILED;
          return(false);
@@ -179,7 +181,11 @@ public:
          return(false);
         }
 
-      result.actual_risk_money=result.volume*result.monetary_loss_per_lot;
+      if(!CalculateLoss(symbol,direction,result.volume,entry_price,stop_price,result.actual_risk_money))
+        {
+         result.status=E2_SIZING_CALCULATION_FAILED;
+         return(false);
+        }
       const double tolerance=MathMax(0.00000001,result.target_risk_money*0.00000001);
       while(result.actual_risk_money>result.target_risk_money+tolerance)
         {
@@ -189,7 +195,11 @@ public:
             result.status=E2_SIZING_RISK_EXCEEDS_LIMIT;
             return(false);
            }
-         result.actual_risk_money=result.volume*result.monetary_loss_per_lot;
+         if(!CalculateLoss(symbol,direction,result.volume,entry_price,stop_price,result.actual_risk_money))
+           {
+            result.status=E2_SIZING_CALCULATION_FAILED;
+            return(false);
+           }
         }
 
       result.actual_risk_percent=result.actual_risk_money/result.risk_base_value*100.0;
