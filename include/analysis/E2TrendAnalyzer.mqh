@@ -39,6 +39,10 @@ struct E2TrendResult
    bool              adx_available;
    double            adx_value;
    bool              adx_passed;
+   datetime          closed_bar_time;
+   int               h4_available_bars;
+   int               adx_required_bars;
+   string            readiness_reason;
    int               confirmed_pivot_count;
    E2StructureLabel  latest_high_label;
    E2StructureLabel  latest_low_label;
@@ -77,8 +81,6 @@ private:
    bool              m_adx_enabled;
    int               m_adx_period;
    double            m_adx_minimum_threshold;
-   int               m_adx_handle;
-   string            m_adx_symbol;
 
    void ResetResult(E2TrendResult &result)
      {
@@ -86,41 +88,15 @@ private:
       result.adx_available=false;
       result.adx_value=0.0;
       result.adx_passed=false;
+      result.closed_bar_time=0;
+      result.h4_available_bars=0;
+      result.adx_required_bars=0;
+      result.readiness_reason="UNKNOWN";
       result.confirmed_pivot_count=0;
       result.latest_high_label=E2_STRUCTURE_NONE;
       result.latest_low_label=E2_STRUCTURE_NONE;
      }
 
-   void ReportDebug(const string message)
-     {
-      if(m_logger!=NULL)
-         m_logger.Debug(message,"Trend");
-     }
-
-   void ReleaseAdxHandle(void)
-     {
-      if(m_adx_handle!=INVALID_HANDLE)
-         IndicatorRelease(m_adx_handle);
-      m_adx_handle=INVALID_HANDLE;
-      m_adx_symbol="";
-     }
-
-   bool EnsureAdxHandle(const string symbol)
-     {
-      if(m_adx_handle!=INVALID_HANDLE && m_adx_symbol==symbol)
-         return(true);
-
-      ReleaseAdxHandle();
-      ResetLastError();
-      m_adx_handle=iADX(symbol,m_market_data.TrendTimeframe(),m_adx_period);
-      if(m_adx_handle==INVALID_HANDLE)
-        {
-         ReportDebug("Unable to create ADX handle (error "+IntegerToString(GetLastError())+").");
-         return(false);
-        }
-      m_adx_symbol=symbol;
-      return(true);
-     }
 
    bool IsPivotHigh(const MqlRates &bars[],const int index) const
      {
@@ -229,36 +205,101 @@ private:
       return(E2_TREND_RANGE);
      }
 
-   bool ReadClosedAdx(const string symbol,const datetime evaluation_time,double &adx_value)
+   bool ReadInternalAdx(const string symbol,const datetime evaluation_time,E2TrendResult &result)
      {
-      if(!EnsureAdxHandle(symbol))
-         return(false);
-
-      MqlRates closed_bar;
-      if(!m_market_data.GetClosedBarAsOf(symbol,m_market_data.TrendTimeframe(),evaluation_time,closed_bar))
-         return(false);
-
-      const int bar_shift=iBarShift(symbol,m_market_data.TrendTimeframe(),closed_bar.time,true);
-      if(bar_shift<0 || BarsCalculated(m_adx_handle)<=bar_shift)
+      // Wilder ADX needs period observations to seed smoothed TR/+DM/-DM and
+      // another period of DX observations to seed ADX. 2*period+1 bars gives
+      // that seed plus one endpoint update, all ending at evaluation_time.
+      result.adx_required_bars=m_adx_period*2+1;
+      MqlRates bars[];
+      if(!m_market_data.GetClosedBarsAsOf(symbol,m_market_data.TrendTimeframe(),evaluation_time,result.adx_required_bars,bars))
         {
-         ReportDebug("ADX data is not ready for the requested closed H4 bar.");
+         result.readiness_reason="Insufficient closed H4 history for Wilder ADX (requires "+IntegerToString(result.adx_required_bars)+" bars).";
          return(false);
         }
 
-      double values[];
-      ResetLastError();
-      const int copied=CopyBuffer(m_adx_handle,0,bar_shift,1,values);
-      if(copied!=1)
+      if(ArraySize(bars)!=result.adx_required_bars)
         {
-         ReportDebug("Unable to read closed ADX data (copied "+IntegerToString(copied)+", error "+IntegerToString(GetLastError())+").");
+         result.readiness_reason="Closed H4 history for Wilder ADX is incomplete.";
          return(false);
         }
-      adx_value=values[0];
+
+      double smoothed_tr=0.0;
+      double smoothed_plus_dm=0.0;
+      double smoothed_minus_dm=0.0;
+      double adx_sum=0.0;
+      double adx=0.0;
+      int dx_count=0;
+      for(int index=1;index<ArraySize(bars);index++)
+        {
+         const MqlRates current=bars[index];
+         const MqlRates previous=bars[index-1];
+         if(!MathIsValidNumber(current.high) || !MathIsValidNumber(current.low) || !MathIsValidNumber(current.close) || !MathIsValidNumber(previous.high) || !MathIsValidNumber(previous.low) || !MathIsValidNumber(previous.close) || current.high<current.low)
+           {
+            result.readiness_reason="Closed H4 OHLC contains an invalid value for Wilder ADX.";
+            return(false);
+           }
+
+         const double upward_move=current.high-previous.high;
+         const double downward_move=previous.low-current.low;
+         const double plus_dm=(upward_move>downward_move && upward_move>0.0 ? upward_move : 0.0);
+         const double minus_dm=(downward_move>upward_move && downward_move>0.0 ? downward_move : 0.0);
+         const double true_range=MathMax(current.high-current.low,MathMax(MathAbs(current.high-previous.close),MathAbs(current.low-previous.close)));
+         if(!MathIsValidNumber(true_range) || true_range<0.0)
+           {
+            result.readiness_reason="True Range calculation failed for closed H4 data.";
+            return(false);
+           }
+
+         if(index<=m_adx_period)
+           {
+            smoothed_tr+=true_range;
+            smoothed_plus_dm+=plus_dm;
+            smoothed_minus_dm+=minus_dm;
+           }
+         else
+           {
+            smoothed_tr=smoothed_tr-(smoothed_tr/m_adx_period)+true_range;
+            smoothed_plus_dm=smoothed_plus_dm-(smoothed_plus_dm/m_adx_period)+plus_dm;
+            smoothed_minus_dm=smoothed_minus_dm-(smoothed_minus_dm/m_adx_period)+minus_dm;
+           }
+
+         if(index<m_adx_period)
+            continue;
+
+         const double plus_di=(smoothed_tr>0.0 ? 100.0*smoothed_plus_dm/smoothed_tr : 0.0);
+         const double minus_di=(smoothed_tr>0.0 ? 100.0*smoothed_minus_dm/smoothed_tr : 0.0);
+         const double di_sum=plus_di+minus_di;
+         const double dx=(di_sum>0.0 ? 100.0*MathAbs(plus_di-minus_di)/di_sum : 0.0);
+         if(!MathIsValidNumber(dx))
+           {
+            result.readiness_reason="DX calculation produced an invalid value.";
+            return(false);
+           }
+
+         dx_count++;
+         if(dx_count<=m_adx_period)
+           {
+            adx_sum+=dx;
+            if(dx_count==m_adx_period)
+               adx=adx_sum/m_adx_period;
+           }
+         else
+            adx=((adx*(m_adx_period-1))+dx)/m_adx_period;
+        }
+
+      if(dx_count<m_adx_period || !MathIsValidNumber(adx))
+        {
+         result.readiness_reason="Wilder ADX seed is incomplete.";
+         return(false);
+        }
+
+      result.adx_value=adx;
       return(true);
      }
 
 public:
-                     E2TrendAnalyzer(void) : m_market_data(NULL),m_logger(NULL),m_sensitivity(0),m_lookback_bars(0),m_adx_enabled(false),m_adx_period(0),m_adx_minimum_threshold(0.0),m_adx_handle(INVALID_HANDLE),m_adx_symbol("") {}
+                     E2TrendAnalyzer(void) : m_market_data(NULL),m_logger(NULL),m_sensitivity(0),m_lookback_bars(0),m_adx_enabled(false),m_adx_period(0),m_adx_minimum_threshold(0.0) {}
 
    void              Initialize(const E2Config &configuration,E2MarketData &market_data,E2Logger &logger)
      {
@@ -274,7 +315,6 @@ public:
 
    void              Deinitialize(void)
      {
-      ReleaseAdxHandle();
      }
 
    bool              Evaluate(const string symbol,const datetime evaluation_time,E2TrendResult &result)
@@ -282,38 +322,45 @@ public:
       ResetResult(result);
       if(m_market_data==NULL)
         {
-         ReportDebug("Trend evaluation requested before market-data initialization.");
+         result.readiness_reason="Market-data module is not initialized.";
          return(false);
         }
 
+      result.h4_available_bars=Bars(symbol,m_market_data.TrendTimeframe());
       MqlRates bars[];
       if(!m_market_data.GetClosedBarsAsOf(symbol,m_market_data.TrendTimeframe(),evaluation_time,m_lookback_bars,bars))
+        {
+         result.readiness_reason="H4 market history is not ready or has fewer than "+IntegerToString(m_lookback_bars)+" requested bars.";
          return(false);
+        }
+
+      if(ArraySize(bars)!=m_lookback_bars)
+        {
+         result.readiness_reason="H4 structure history returned an incomplete bar range.";
+         return(false);
+        }
+
+      result.closed_bar_time=bars[ArraySize(bars)-1].time;
 
       E2Pivot pivots[];
       DetectConfirmedPivots(bars,pivots);
       const E2TrendState structural_state=ClassifyStructure(pivots,result);
-      if(structural_state==E2_TREND_RANGE)
-        {
-         result.state=E2_TREND_RANGE;
-         return(true);
-        }
 
       if(!m_adx_enabled)
         {
          result.adx_passed=true;
          result.state=structural_state;
+         result.readiness_reason="READY (ADX disabled).";
          return(true);
         }
 
-      double adx_value=0.0;
-      if(!ReadClosedAdx(symbol,evaluation_time,adx_value))
+      if(!ReadInternalAdx(symbol,evaluation_time,result))
          return(false);
 
       result.adx_available=true;
-      result.adx_value=adx_value;
-      result.adx_passed=(adx_value>=m_adx_minimum_threshold);
-      result.state=result.adx_passed ? structural_state : E2_TREND_RANGE;
+      result.adx_passed=(result.adx_value>=m_adx_minimum_threshold);
+      result.state=(structural_state==E2_TREND_RANGE || !result.adx_passed) ? E2_TREND_RANGE : structural_state;
+      result.readiness_reason="READY";
       return(true);
      }
   };

@@ -31,6 +31,8 @@ E2PositionManager g_position_manager;
 E2ExecutionSafety g_execution_safety;
 ulong g_diagnostic_tick_count=0;
 bool g_execution_test_attempted=false;
+bool g_trend_diagnostic_completed=false;
+datetime g_last_trend_readiness_diagnostic_bar=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -75,16 +77,25 @@ void E2RunMarketDataStartupDiagnostic(void)
    E2LogClosedBarDiagnostic("Confirmation",g_market_data.ConfirmationTimeframe(),evaluation_time);
   }
 
-void E2RunTrendStartupDiagnostic(void)
+void E2RunTrendDiagnostic(void)
   {
-   if(g_environment.IsOptimization())
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || g_trend_diagnostic_completed)
       return;
 
+   const datetime throttle_bar=iTime(_Symbol,PERIOD_H1,0);
+   if(throttle_bar<=0 || throttle_bar==g_last_trend_readiness_diagnostic_bar)
+      return;
+   g_last_trend_readiness_diagnostic_bar=throttle_bar;
+
+   const datetime evaluation_time=TimeCurrent();
    E2TrendResult result;
-   if(g_trend_analyzer.Evaluate(_Symbol,TimeCurrent(),result))
+   if(g_trend_analyzer.Evaluate(_Symbol,evaluation_time,result))
      {
-      g_logger.Debug("Trend: "+E2TrendStateName(result.state)+", ADX: "+(result.adx_available ? DoubleToString(result.adx_value,2) : "unavailable")+", ADX pass: "+E2YesNo(result.adx_passed)+", structure: high="+E2StructureLabelName(result.latest_high_label)+", low="+E2StructureLabelName(result.latest_low_label)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
+      g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES)+", trend="+E2TrendStateName(result.state)+", ADX="+(result.adx_available ? DoubleToString(result.adx_value,2) : "disabled")+", threshold="+DoubleToString(g_configuration.adx_minimum_threshold,2)+", pass="+E2YesNo(result.adx_passed)+", high="+E2StructureLabelName(result.latest_high_label)+", low="+E2StructureLabelName(result.latest_low_label)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
+      g_trend_diagnostic_completed=true;
      }
+   else
+      g_logger.Debug("Not ready: "+result.readiness_reason+" Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+(result.closed_bar_time>0 ? TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", H4bars="+IntegerToString(result.h4_available_bars)+", ADXrequiredBars="+IntegerToString(result.adx_required_bars)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -187,6 +198,8 @@ int OnInit()
    g_environment.Initialize();
    g_diagnostic_tick_count=0;
    g_execution_test_attempted=false;
+   g_trend_diagnostic_completed=false;
+   g_last_trend_readiness_diagnostic_bar=0;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -213,7 +226,6 @@ int OnInit()
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
-   E2RunTrendStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
    E2RunTradePlanningStartupDiagnostic();
 
@@ -264,6 +276,7 @@ void OnTick()
   {
    g_diagnostic_tick_count++;
    g_position_manager.Refresh();
+   E2RunTrendDiagnostic();
    E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+
