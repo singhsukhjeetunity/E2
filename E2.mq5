@@ -25,6 +25,7 @@ E2TrendAnalyzer g_trend_analyzer;
 E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
+E2SetupTracker g_setup_tracker;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
@@ -150,6 +151,14 @@ void E2RunStrategySignalDiagnostic(void)
    if(!g_market_data.GetClosedBarAsOf(_Symbol,g_configuration.confirmation_timeframe,evaluation_time,closed)) return;
    if(closed.time==g_last_strategy_evaluated_candle) return;
    g_last_strategy_evaluated_candle=closed.time;
+   E2Zone zones[]; int candidates=0;
+   if(g_zone_analyzer.Evaluate(_Symbol,evaluation_time,zones,candidates))
+     {
+      E2SetupTransition transitions[];
+      g_setup_tracker.Update(_Symbol,closed,zones,transitions);
+      for(int i=0;i<ArraySize(transitions);i++)
+         g_logger.Debug("zoneId="+IntegerToString(transitions[i].zone_id)+", role="+E2ZoneTypeName(transitions[i].role)+", event="+E2SetupEventName(transitions[i].event)+", candle="+TimeToString(transitions[i].candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(transitions[i].visit)+".","Setup");
+     }
    E2StrategyResult result;
    if(!g_strategy_analyzer.Evaluate(_Symbol,evaluation_time,result))
      {
@@ -157,8 +166,12 @@ void E2RunStrategySignalDiagnostic(void)
       return;
      }
    if(result.signal==E2_SIGNAL_NONE) return;
+   E2SetupTransition consumed;
+   if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
+      return;
    E2SymbolSpecification spec=g_symbol_info.Specification();
    g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", trend="+E2TrendStateName(result.trend_state)+", ADX="+DoubleToString(result.adx_value,2)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", zoneState="+E2ZoneStateName(result.selected_zone_state)+", zone=["+DoubleToString(result.selected_zone_lower,spec.digits)+","+DoubleToString(result.selected_zone_upper,spec.digits)+"], confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+", confirmation="+E2ConfirmationDirectionName(result.confirmation_direction)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", reason="+E2StrategyReasonName(result.reason)+".","Strategy");
+   g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -266,6 +279,7 @@ int OnInit()
    g_last_zone_diagnostic_day=0;
    g_last_confirmation_diagnostic_candle=0;
    g_last_strategy_evaluated_candle=0;
+   g_setup_tracker.Reset();
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
