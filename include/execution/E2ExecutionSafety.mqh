@@ -124,8 +124,12 @@ public:
       if(spec.pip_size<=0.0)
          return(Reject(result,E2_SAFETY_NO_VALID_QUOTE,"symbol pip metadata is unavailable"));
       result.spread_pips=(result.tick.ask-result.tick.bid)/spec.pip_size;
-      if(m_max_spread_pips>0.0 && result.spread_pips>m_max_spread_pips)
-         return(Reject(result,E2_SAFETY_SPREAD_TOO_HIGH,"spread "+DoubleToString(result.spread_pips,1)+" pips > max "+DoubleToString(m_max_spread_pips,1)));
+      // Admit only representational noise: one-millionth of a price tick in
+      // pip units, with a tiny absolute floor. A real extra executable tick
+      // remains well beyond this tolerance and still rejects.
+      const double spread_tolerance_pips=MathMax(1e-9,(spec.tick_size/spec.pip_size)*1e-6);
+      if(m_max_spread_pips>0.0 && result.spread_pips>m_max_spread_pips+spread_tolerance_pips)
+         return(Reject(result,E2_SAFETY_SPREAD_TOO_HIGH,"spread="+DoubleToString(result.spread_pips,4)+" pips, max="+DoubleToString(m_max_spread_pips,4)+" pips"));
       if(m_minimum_seconds_between_executions>0 && m_last_execution_time>0 && TimeCurrent()-m_last_execution_time<m_minimum_seconds_between_executions)
          return(Reject(result,E2_SAFETY_EXECUTION_COOLDOWN,"execution cooldown is active"));
       return(true);

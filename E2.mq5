@@ -213,6 +213,14 @@ void E2RunStrategySignalDiagnostic(void)
       E2LogNewsDiagnostic(news,result.signal);
       return;
      }
+   // PositionManager is refreshed each tick from MT5-owned position state.
+   // Avoid planning/executor log churn for a candidate that cannot open while
+   // an E2 position for this symbol is already open. The setup remains armed.
+   if(g_position_manager.HasPosition(_Symbol))
+     {
+      g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", reason=POSITION_ALREADY_OPEN.","Execution");
+      return;
+     }
    E2SymbolSpecification spec=g_symbol_info.Specification();
    g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+".","StrategyCandidate");
    E2StrategyPlanRequest plan_request;
