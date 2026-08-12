@@ -39,6 +39,10 @@ input bool InpEnableEngulfingConfirmation           = true; // Enable future eng
 input bool InpEnablePinBarConfirmation              = true; // Enable future pin-bar confirmation.
 input bool InpEnableMomentumCandleConfirmation      = true; // Enable future momentum-candle confirmation.
 input bool InpEnableBreakPreviousCandleConfirmation = true; // Enable future previous-candle-break confirmation.
+input double InpPinBarMinimumWickToBodyRatio = 2.0; // Provisional minimum dominant-wick/body ratio.
+input double InpPinBarMaximumOppositeWickToBodyRatio = 1.0; // Provisional maximum opposite-wick/body ratio.
+input int InpMomentumBodyLookback = 20; // Prior closed M15 bodies used as momentum context.
+input double InpMomentumBodyMultiplier = 1.5; // Provisional body-size multiple of prior average.
 
 input group "RISK"
 input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
@@ -92,6 +96,10 @@ struct E2Config
    bool            enable_pin_bar_confirmation;
    bool            enable_momentum_candle_confirmation;
    bool            enable_break_previous_candle_confirmation;
+   double          pin_bar_minimum_wick_to_body_ratio;
+   double          pin_bar_maximum_opposite_wick_to_body_ratio;
+   int             momentum_body_lookback;
+   double          momentum_body_multiplier;
 
    double          risk_percent;
    double          reward_risk_target;
@@ -137,6 +145,10 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.enable_pin_bar_confirmation            = InpEnablePinBarConfirmation;
    configuration.enable_momentum_candle_confirmation    = InpEnableMomentumCandleConfirmation;
    configuration.enable_break_previous_candle_confirmation = InpEnableBreakPreviousCandleConfirmation;
+   configuration.pin_bar_minimum_wick_to_body_ratio = InpPinBarMinimumWickToBodyRatio;
+   configuration.pin_bar_maximum_opposite_wick_to_body_ratio = InpPinBarMaximumOppositeWickToBodyRatio;
+   configuration.momentum_body_lookback = InpMomentumBodyLookback;
+   configuration.momentum_body_multiplier = InpMomentumBodyMultiplier;
    configuration.risk_percent                           = InpRiskPercent;
    configuration.reward_risk_target                     = InpRewardRiskTarget;
    configuration.risk_base                              = InpRiskBase;
@@ -208,6 +220,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.zone_tolerance_pips < 0.0 || configuration.zone_merge_tolerance_pips < 0.0 || configuration.stop_loss_zone_buffer_pips < 0.0)
      {
       reason = "Zone tolerances and stop-loss zone buffer cannot be negative.";
+     return(false);
+     }
+   if(configuration.pin_bar_minimum_wick_to_body_ratio < 0.0 || configuration.pin_bar_maximum_opposite_wick_to_body_ratio < 0.0 || configuration.momentum_body_lookback < 1 || configuration.momentum_body_multiplier <= 0.0)
+     {
+      reason = "Confirmation thresholds are invalid.";
       return(false);
      }
    if(configuration.high_impact_buffer_before_minutes < 0 || configuration.high_impact_buffer_after_minutes < 0)
