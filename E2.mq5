@@ -28,6 +28,7 @@ E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
 E2SetupTracker g_setup_tracker;
 E2SessionFilter g_session_filter;
+E2NewsFilter g_news_filter;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
@@ -59,6 +60,18 @@ string E2YesNo(const bool value)
 void E2LogSessionDiagnostic(const E2SessionResult &result,const E2StrategySignal signal)
   {
    g_logger.Debug("Evaluation="+TimeToString(result.source_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.utc_time>0 ? TimeToString(result.utc_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", londonLocal="+(result.london_local_time>0 ? TimeToString(result.london_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", newYorkLocal="+(result.new_york_local_time>0 ? TimeToString(result.new_york_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", london="+E2YesNo(result.in_london)+", newYork="+E2YesNo(result.in_new_york)+", reason="+E2SessionStatusName(result.status)+".","Session");
+  }
+
+void E2LogNewsDiagnostic(const E2NewsResult &result,const E2StrategySignal signal)
+  {
+   g_logger.Debug("Evaluation="+TimeToString(result.evaluation_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.evaluation_utc>0 ? TimeToString(result.evaluation_utc,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", base="+result.base_currency+", quote="+result.quote_currency+", currency="+result.event_currency+", impact="+E2NewsImpactName(result.event_impact)+", event="+result.event_name+", eventUtc="+(result.event_time_utc>0 ? TimeToString(result.event_time_utc,TIME_DATE|TIME_MINUTES) : "n/a")+", blackout=["+(result.blackout_start_utc>0 ? TimeToString(result.blackout_start_utc,TIME_DATE|TIME_MINUTES) : "n/a")+","+(result.blackout_end_utc>0 ? TimeToString(result.blackout_end_utc,TIME_DATE|TIME_MINUTES) : "n/a")+"], reason="+E2NewsReasonName(result.reason)+".","News");
+  }
+
+void E2RunNewsStartupDiagnostics(void)
+  {
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_configuration.news_diagnostics_enabled)
+      return;
+   g_logger.Debug("enabled="+E2YesNo(g_configuration.news_filter_enabled)+", file="+g_configuration.news_data_file+", events="+IntegerToString(g_news_filter.EventCount())+", coverage=["+(g_news_filter.CoverageStartUtc()>0 ? TimeToString(g_news_filter.CoverageStartUtc(),TIME_DATE|TIME_MINUTES) : "unresolved")+","+(g_news_filter.CoverageEndUtc()>0 ? TimeToString(g_news_filter.CoverageEndUtc(),TIME_DATE|TIME_MINUTES) : "unresolved")+"], loadReason="+E2NewsReasonName(g_news_filter.LoadReason())+".","News");
   }
 
 void E2RunSessionStartupDiagnostics(void)
@@ -192,6 +205,13 @@ void E2RunStrategySignalDiagnostic(void)
    E2LogSessionDiagnostic(session,result.signal);
    if(!session.eligible)
       return;
+   E2NewsResult news;
+   g_news_filter.Evaluate(_Symbol,evaluation_time,news);
+   if(!news.eligible)
+     {
+      E2LogNewsDiagnostic(news,result.signal);
+      return;
+     }
    E2SetupTransition consumed;
    if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
       return;
@@ -334,11 +354,13 @@ int OnInit()
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
    g_session_filter.Initialize(g_configuration);
+   g_news_filter.Initialize(g_configuration);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
    E2RunTradePlanningStartupDiagnostic();
    E2RunSessionStartupDiagnostics();
+   E2RunNewsStartupDiagnostics();
 
    if(g_configuration.csv_export_enabled)
      {

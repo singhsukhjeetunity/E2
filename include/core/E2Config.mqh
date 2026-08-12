@@ -67,9 +67,12 @@ input int  InpNewYorkSessionEndHour   = 17; // New York local session end, exclu
 input bool InpSessionDiagnosticsEnabled = false; // Emit concise deterministic session/DST examples when debug logging is enabled.
 
 input group "NEWS"
-input bool InpNewsFilterEnabled          = true; // Enable future high-impact-news entry exclusion.
-input int  InpHighImpactBufferBeforeMins = 60;   // Minutes to exclude before high-impact news.
-input int  InpHighImpactBufferAfterMins  = 60;   // Minutes to exclude after high-impact news.
+input bool InpNewsFilterEnabled          = true; // Enable deterministic historical-news entry exclusion.
+input int  InpHighImpactBufferBeforeMins = 30;   // Minutes to exclude before a scheduled event, inclusive.
+input int  InpHighImpactBufferAfterMins  = 30;   // Minutes to exclude after a scheduled event, inclusive.
+input bool InpNewsHighImpactOnly          = true; // When false, all recognized event impacts are blocking.
+input string InpNewsDataFile              = "E2_news_events.csv"; // FILE_COMMON CSV; schema is documented in E2NewsFilter.mqh.
+input bool InpNewsDiagnosticsEnabled      = false; // Emit concise data-load diagnostics when debug logging is enabled.
 
 input group "REPORTING"
 input bool InpLoggingEnabled   = true;  // Enable future strategy-independent logging.
@@ -127,6 +130,9 @@ struct E2Config
    bool            news_filter_enabled;
    int             high_impact_buffer_before_minutes;
    int             high_impact_buffer_after_minutes;
+   bool            news_high_impact_only;
+   string          news_data_file;
+   bool            news_diagnostics_enabled;
 
    bool            logging_enabled;
    bool            csv_export_enabled;
@@ -179,6 +185,9 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
    configuration.high_impact_buffer_before_minutes      = InpHighImpactBufferBeforeMins;
    configuration.high_impact_buffer_after_minutes       = InpHighImpactBufferAfterMins;
+   configuration.news_high_impact_only                  = InpNewsHighImpactOnly;
+   configuration.news_data_file                         = InpNewsDataFile;
+   configuration.news_diagnostics_enabled               = InpNewsDiagnosticsEnabled;
    configuration.logging_enabled                        = InpLoggingEnabled;
    configuration.csv_export_enabled                     = InpCsvExportEnabled;
   }
