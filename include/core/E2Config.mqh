@@ -29,6 +29,7 @@ input double InpAdxMinimumThreshold = 20.0; // Provisional ADX trend-strength th
 
 input group "SUPPORT / RESISTANCE"
 input int    InpMinimumZoneTouches     = 2;   // Minimum H1 reactions required to form a zone.
+input int    InpZoneLookbackBars        = 240; // Closed H1 bars used for deterministic zone analysis.
 input double InpZoneTolerancePips       = 5.0; // Price-reaction tolerance, expressed in pips.
 input double InpZoneMergeTolerancePips  = 5.0; // Nearby-zone merge tolerance, expressed in pips.
 input double InpStopLossZoneBufferPips  = 2.0; // Future stop buffer beyond a zone, expressed in pips.
@@ -82,6 +83,7 @@ struct E2Config
    double          adx_minimum_threshold;
 
    int             minimum_zone_touches;
+   int             zone_lookback_bars;
    double          zone_tolerance_pips;
    double          zone_merge_tolerance_pips;
    double          stop_loss_zone_buffer_pips;
@@ -127,6 +129,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.adx_period                             = InpAdxPeriod;
    configuration.adx_minimum_threshold                  = InpAdxMinimumThreshold;
    configuration.minimum_zone_touches                   = InpMinimumZoneTouches;
+   configuration.zone_lookback_bars                     = InpZoneLookbackBars;
    configuration.zone_tolerance_pips                    = InpZoneTolerancePips;
    configuration.zone_merge_tolerance_pips              = InpZoneMergeTolerancePips;
    configuration.stop_loss_zone_buffer_pips             = InpStopLossZoneBufferPips;
@@ -195,6 +198,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.minimum_zone_touches < 1)
      {
       reason = "Minimum zone touches must be at least one.";
+     return(false);
+     }
+   if(configuration.zone_lookback_bars < (configuration.swing_sensitivity*2+1))
+     {
+      reason = "Zone lookback must contain a complete pivot window.";
       return(false);
      }
    if(configuration.zone_tolerance_pips < 0.0 || configuration.zone_merge_tolerance_pips < 0.0 || configuration.stop_loss_zone_buffer_pips < 0.0)

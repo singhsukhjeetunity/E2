@@ -21,6 +21,7 @@ E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
 E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
+E2ZoneAnalyzer g_zone_analyzer;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
@@ -33,6 +34,7 @@ ulong g_diagnostic_tick_count=0;
 bool g_execution_test_attempted=false;
 bool g_trend_diagnostic_completed=false;
 datetime g_last_trend_readiness_diagnostic_bar=0;
+datetime g_last_zone_diagnostic_day=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -96,6 +98,23 @@ void E2RunTrendDiagnostic(void)
      }
    else
       g_logger.Debug("Not ready: "+result.readiness_reason+" Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+(result.closed_bar_time>0 ? TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", H4bars="+IntegerToString(result.h4_available_bars)+", ADXrequiredBars="+IntegerToString(result.adx_required_bars)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
+  }
+
+void E2RunZoneDiagnostic(void)
+  {
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled()) return;
+   datetime bar=iTime(_Symbol,g_configuration.zone_timeframe,0);
+   MqlDateTime parts; TimeToStruct(bar,parts); parts.hour=0; parts.min=0; parts.sec=0;
+   const datetime day=StructToTime(parts);
+   if(bar<=0 || day==g_last_zone_diagnostic_day) return;
+   g_last_zone_diagnostic_day=day;
+   E2Zone zones[]; int candidates=0;
+   if(!g_zone_analyzer.Evaluate(_Symbol,TimeCurrent(),zones,candidates)){g_logger.Debug("Evaluation unavailable.","Zones");return;}
+   int raw_active=0,awaiting=0,reversed=0,invalid=0,actionable=0;
+   for(int i=0;i<ArraySize(zones);i++){if(zones[i].state==E2_ZONE_ACTIVE)raw_active++;else if(zones[i].state==E2_ZONE_BROKEN_AWAITING_RETEST)awaiting++;else if(zones[i].state==E2_ZONE_ROLE_REVERSED_ACTIVE)reversed++;else if(zones[i].state==E2_ZONE_INVALIDATED)invalid++;if(zones[i].actionable)actionable++;}
+   g_logger.Debug("Evaluation="+TimeToString(TimeCurrent(),TIME_DATE|TIME_MINUTES)+", candidates="+IntegerToString(candidates)+", rawActive="+IntegerToString(raw_active)+", awaitingRetest="+IntegerToString(awaiting)+", reversed="+IntegerToString(reversed)+", invalidated="+IntegerToString(invalid)+", actionable="+IntegerToString(actionable)+", duplicatesSuppressed="+IntegerToString(raw_active+reversed-actionable)+".","ZonesSnapshot");
+   E2SymbolSpecification spec=g_symbol_info.Specification();
+   for(int i=0;i<ArraySize(zones);i++) if(zones[i].actionable) g_logger.Debug("id="+IntegerToString(zones[i].id)+", role="+E2ZoneTypeName(zones[i].type)+", originRole="+E2ZoneTypeName(zones[i].origin_type)+", lower="+DoubleToString(zones[i].lower,spec.digits)+", upper="+DoubleToString(zones[i].upper,spec.digits)+", center="+DoubleToString(zones[i].center,spec.digits)+", touches="+IntegerToString(zones[i].touches)+", origin="+TimeToString(zones[i].origin_time,TIME_DATE|TIME_MINUTES)+", knownFrom="+TimeToString(zones[i].known_from_time,TIME_DATE|TIME_MINUTES)+", lastTouch="+TimeToString(zones[i].last_touch_time,TIME_DATE|TIME_MINUTES)+", state="+E2ZoneStateName(zones[i].state)+".","ZonesSnapshot");
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -200,6 +219,7 @@ int OnInit()
    g_execution_test_attempted=false;
    g_trend_diagnostic_completed=false;
    g_last_trend_readiness_diagnostic_bar=0;
+   g_last_zone_diagnostic_day=0;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -224,6 +244,7 @@ int OnInit()
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_position_manager,g_execution_safety,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
+   g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
@@ -277,6 +298,7 @@ void OnTick()
    g_diagnostic_tick_count++;
    g_position_manager.Refresh();
    E2RunTrendDiagnostic();
+   E2RunZoneDiagnostic();
    E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+

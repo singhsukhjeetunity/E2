@@ -3,5 +3,6 @@
 
 #include "E2MarketData.mqh"
 #include "E2TrendAnalyzer.mqh"
+#include "E2ZoneAnalyzer.mqh"
 
 #endif // E2_ANALYSIS_ANALYSIS_MQH
