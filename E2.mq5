@@ -13,6 +13,7 @@
 #include "include\\reporting\\Reporting.mqh"
 #include "include\\analysis\\Analysis.mqh"
 #include "include\\strategy\\Strategy.mqh"
+#include "include\\filters\\Filters.mqh"
 #include "include\\risk\\Risk.mqh"
 #include "include\\execution\\Execution.mqh"
 
@@ -26,6 +27,7 @@ E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
 E2SetupTracker g_setup_tracker;
+E2SessionFilter g_session_filter;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
@@ -52,6 +54,25 @@ string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
 string E2YesNo(const bool value)
   {
    return(value ? "yes" : "no");
+  }
+
+void E2LogSessionDiagnostic(const E2SessionResult &result,const E2StrategySignal signal)
+  {
+   g_logger.Debug("Evaluation="+TimeToString(result.source_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.utc_time>0 ? TimeToString(result.utc_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", londonLocal="+(result.london_local_time>0 ? TimeToString(result.london_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", newYorkLocal="+(result.new_york_local_time>0 ? TimeToString(result.new_york_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", london="+E2YesNo(result.in_london)+", newYork="+E2YesNo(result.in_new_york)+", reason="+E2SessionStatusName(result.status)+".","Session");
+  }
+
+void E2RunSessionStartupDiagnostics(void)
+  {
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_configuration.session_diagnostics_enabled)
+      return;
+   const datetime utc_examples[]={D'2026.01.15 09:00',D'2026.07.15 08:00',D'2026.01.15 14:00',D'2026.07.15 13:00',D'2026.07.15 15:00'};
+   for(int i=0;i<ArraySize(utc_examples);i++)
+     {
+      const datetime source=utc_examples[i]+(datetime)(g_configuration.broker_utc_offset_hours*3600);
+      E2SessionResult result;
+      g_session_filter.Evaluate(source,result);
+      E2LogSessionDiagnostic(result,E2_SIGNAL_NONE);
+     }
   }
 
 void E2LogStartupDiagnostics(void)
@@ -166,6 +187,11 @@ void E2RunStrategySignalDiagnostic(void)
       return;
      }
    if(result.signal==E2_SIGNAL_NONE) return;
+   E2SessionResult session;
+   g_session_filter.Evaluate(evaluation_time,session);
+   E2LogSessionDiagnostic(session,result.signal);
+   if(!session.eligible)
+      return;
    E2SetupTransition consumed;
    if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
       return;
@@ -307,10 +333,12 @@ int OnInit()
    g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
+   g_session_filter.Initialize(g_configuration);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
    E2RunTradePlanningStartupDiagnostic();
+   E2RunSessionStartupDiagnostics();
 
    if(g_configuration.csv_export_enabled)
      {

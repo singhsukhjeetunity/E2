@@ -59,7 +59,12 @@ input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldo
 input group "SESSIONS"
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
 input bool InpEnableNewYorkSession  = true; // Allow future entries during the New York session.
-// Session times and broker/server-time conversion are intentionally deferred to Sprint 1.5.
+input int  InpBrokerUtcOffsetHours  = 999;  // Required server/source UTC offset (-14..14); 999 disables session eligibility until configured.
+input int  InpLondonSessionStartHour = 8;   // London local session start, inclusive.
+input int  InpLondonSessionEndHour   = 17;  // London local session end, exclusive.
+input int  InpNewYorkSessionStartHour = 8;  // New York local session start, inclusive.
+input int  InpNewYorkSessionEndHour   = 17; // New York local session end, exclusive.
+input bool InpSessionDiagnosticsEnabled = false; // Emit concise deterministic session/DST examples when debug logging is enabled.
 
 input group "NEWS"
 input bool InpNewsFilterEnabled          = true; // Enable future high-impact-news entry exclusion.
@@ -112,6 +117,12 @@ struct E2Config
 
    bool            enable_london_session;
    bool            enable_new_york_session;
+   int             broker_utc_offset_hours;
+   int             london_session_start_hour;
+   int             london_session_end_hour;
+   int             new_york_session_start_hour;
+   int             new_york_session_end_hour;
+   bool            session_diagnostics_enabled;
 
    bool            news_filter_enabled;
    int             high_impact_buffer_before_minutes;
@@ -159,6 +170,12 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.minimum_seconds_between_executions     = InpMinimumSecondsBetweenExecutions;
    configuration.enable_london_session                  = InpEnableLondonSession;
    configuration.enable_new_york_session                = InpEnableNewYorkSession;
+   configuration.broker_utc_offset_hours                = InpBrokerUtcOffsetHours;
+   configuration.london_session_start_hour              = InpLondonSessionStartHour;
+   configuration.london_session_end_hour                = InpLondonSessionEndHour;
+   configuration.new_york_session_start_hour            = InpNewYorkSessionStartHour;
+   configuration.new_york_session_end_hour              = InpNewYorkSessionEndHour;
+   configuration.session_diagnostics_enabled            = InpSessionDiagnosticsEnabled;
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
    configuration.high_impact_buffer_before_minutes      = InpHighImpactBufferBeforeMins;
    configuration.high_impact_buffer_after_minutes       = InpHighImpactBufferAfterMins;
