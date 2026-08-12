@@ -12,6 +12,7 @@
 #include "include\\core\\E2Environment.mqh"
 #include "include\\reporting\\Reporting.mqh"
 #include "include\\analysis\\Analysis.mqh"
+#include "include\\strategy\\Strategy.mqh"
 #include "include\\risk\\Risk.mqh"
 #include "include\\execution\\Execution.mqh"
 
@@ -23,6 +24,7 @@ E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
 E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
+E2StrategyAnalyzer g_strategy_analyzer;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
@@ -37,6 +39,7 @@ bool g_trend_diagnostic_completed=false;
 datetime g_last_trend_readiness_diagnostic_bar=0;
 datetime g_last_zone_diagnostic_day=0;
 datetime g_last_confirmation_diagnostic_candle=0;
+datetime g_last_strategy_evaluated_candle=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -137,6 +140,25 @@ void E2RunConfirmationDiagnostic(void)
       return;
    if(result.readiness!=E2_CONFIRMATION_VALID || result.direction!=E2_CONFIRMATION_NONE || result.directional_conflict)
       g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", candle="+(result.candle_time>0 ? TimeToString(result.candle_time,TIME_DATE|TIME_MINUTES) : "n/a")+", direction="+E2ConfirmationDirectionName(result.direction)+", bullishPassed="+IntegerToString(result.bullish_passed)+", bearishPassed="+IntegerToString(result.bearish_passed)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", readiness="+E2ConfirmationReadinessName(result.readiness)+", conflict="+E2YesNo(result.directional_conflict)+".","Confirmation");
+  }
+
+void E2RunStrategySignalDiagnostic(void)
+  {
+   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled()) return;
+   const datetime evaluation_time=TimeCurrent();
+   MqlRates closed;
+   if(!g_market_data.GetClosedBarAsOf(_Symbol,g_configuration.confirmation_timeframe,evaluation_time,closed)) return;
+   if(closed.time==g_last_strategy_evaluated_candle) return;
+   g_last_strategy_evaluated_candle=closed.time;
+   E2StrategyResult result;
+   if(!g_strategy_analyzer.Evaluate(_Symbol,evaluation_time,result))
+     {
+      g_logger.Debug("Not ready: reason="+E2StrategyReasonName(result.reason)+", Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+".","Strategy");
+      return;
+     }
+   if(result.signal==E2_SIGNAL_NONE) return;
+   E2SymbolSpecification spec=g_symbol_info.Specification();
+   g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", trend="+E2TrendStateName(result.trend_state)+", ADX="+DoubleToString(result.adx_value,2)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", zoneState="+E2ZoneStateName(result.selected_zone_state)+", zone=["+DoubleToString(result.selected_zone_lower,spec.digits)+","+DoubleToString(result.selected_zone_upper,spec.digits)+"], confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+", confirmation="+E2ConfirmationDirectionName(result.confirmation_direction)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", reason="+E2StrategyReasonName(result.reason)+".","Strategy");
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -243,6 +265,7 @@ int OnInit()
    g_last_trend_readiness_diagnostic_bar=0;
    g_last_zone_diagnostic_day=0;
    g_last_confirmation_diagnostic_candle=0;
+   g_last_strategy_evaluated_candle=0;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -269,6 +292,7 @@ int OnInit()
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
+   g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
@@ -324,6 +348,7 @@ void OnTick()
    E2RunTrendDiagnostic();
    E2RunZoneDiagnostic();
    E2RunConfirmationDiagnostic();
+   E2RunStrategySignalDiagnostic();
    E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+
