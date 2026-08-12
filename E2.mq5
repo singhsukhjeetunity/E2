@@ -467,6 +467,7 @@ void OnDeinit(const int reason)
   {
    g_trend_analyzer.Deinitialize();
    g_trade_reporter.Reconcile();
+   g_trade_reporter.ReportUnresolved();
    g_trade_reporter.Summary(g_environment.IsTester());
    g_trade_reporter.Close();
    g_csv_exporter.Close();

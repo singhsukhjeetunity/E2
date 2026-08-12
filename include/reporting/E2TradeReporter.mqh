@@ -14,7 +14,7 @@ struct E2ReportEntryData
 
 struct E2ReportedTrade
   {
-   bool finalized;
+   bool finalized,unresolved_reported;
    ulong position_id,entry_deal;
    E2ReportEntryData entry;
    datetime exit_time;
@@ -59,6 +59,10 @@ private:
    void FinalizeIfClosed(const int index)
      {
       if(index<0 || index>=ArraySize(m_open) || m_open[index].finalized || PositionOpen(m_open[index].position_id)) return;
+      // A disappeared position alone is not an authoritative financial result.
+      // The exit deal aggregation must supply the timestamp, volume, price and
+      // realized monetary components before a finalized row can be written.
+      if(m_open[index].exit_time<=0 || m_open[index].exit_volume<=0.0 || m_open[index].exit_value<=0.0 || m_open[index].exit_reason=="") return;
       m_open[index].finalized=true; WriteFinal(m_open[index]);
      }
 public:
@@ -96,11 +100,26 @@ public:
       for(int i=0;i<HistoryDealsTotal();i++) OnDeal(HistoryDealGetTicket(i));
       for(int i=0;i<ArraySize(m_open);i++) FinalizeIfClosed(i);
      }
+   int ReportUnresolved(void)
+     {
+      int count=0;
+      for(int i=0;i<ArraySize(m_open);i++)
+        {
+         if(m_open[i].finalized) continue;
+         count++;
+         if(!m_open[i].unresolved_reported && m_logger!=NULL)
+           {
+            m_logger.Warning("Trade E2-"+StringFormat("%I64u",m_open[i].position_id)+" remains OPEN_AT_TEST_END or unresolved at shutdown; excluded from finalized CSV/statistics.","TradeReporter");
+            m_open[i].unresolved_reported=true;
+           }
+        }
+      return(count);
+     }
    void Summary(const bool tester)
      {
       if(!tester || m_logger==NULL)return;
       const double rate=(m_completed>0 ? (double)m_wins*100.0/m_completed : 0.0);const double average=(m_completed>0 ? m_net_r/m_completed : 0.0);
-      m_logger.Info("Trades="+IntegerToString(m_completed)+", Wins="+IntegerToString(m_wins)+", Losses="+IntegerToString(m_losses)+", Breakeven="+IntegerToString(m_breakeven)+", NetProfit="+Number(m_net_profit,2)+", NetR="+Number(m_net_r,2)+", WinRate="+Number(rate,2)+"%, AvgR="+Number(average,2)+".","RESULT");
+      m_logger.Info("Trades="+IntegerToString(m_completed)+", Wins="+IntegerToString(m_wins)+", Losses="+IntegerToString(m_losses)+", Breakeven="+IntegerToString(m_breakeven)+", OpenOrUnresolved="+IntegerToString(ReportUnresolved())+", NetProfit="+Number(m_net_profit,2)+", NetR="+Number(m_net_r,2)+", WinRate="+Number(rate,2)+"%, AvgR="+Number(average,2)+".","RESULT");
      }
    void Close(void){m_csv.Close();}
   };
