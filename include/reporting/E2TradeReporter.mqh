@@ -32,6 +32,7 @@ private:
    ulong m_processed_exit_deals[];
    int m_completed,m_wins,m_losses,m_breakeven;
    double m_net_profit,m_net_r;
+   string m_run_id;
 
    int Find(const ulong position_id) const { for(int i=0;i<ArraySize(m_open);i++) if(m_open[i].position_id==position_id) return(i); return(-1); }
    bool ExitDealProcessed(const ulong deal) const { for(int i=0;i<ArraySize(m_processed_exit_deals);i++) if(m_processed_exit_deals[i]==deal) return(true); return(false); }
@@ -66,13 +67,13 @@ private:
       m_open[index].finalized=true; WriteFinal(m_open[index]);
      }
 public:
-   E2TradeReporter(void):m_magic(0),m_logger(NULL),m_completed(0),m_wins(0),m_losses(0),m_breakeven(0),m_net_profit(0.0),m_net_r(0.0) {}
+   E2TradeReporter(void):m_magic(0),m_logger(NULL),m_completed(0),m_wins(0),m_losses(0),m_breakeven(0),m_net_profit(0.0),m_net_r(0.0),m_run_id("") {}
    bool Initialize(const bool csv_enabled,const ulong magic,const string symbol,E2Logger &logger)
      {
       m_magic=magic;m_logger=&logger;ArrayResize(m_open,0);ArrayResize(m_processed_exit_deals,0);m_completed=0;m_wins=0;m_losses=0;m_breakeven=0;m_net_profit=0.0;m_net_r=0.0;
+      m_run_id=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);StringReplace(m_run_id,".","");StringReplace(m_run_id,":","");StringReplace(m_run_id," ","_");
       if(!csv_enabled)return(true);
-      string run=TimeToString(TimeCurrent(),TIME_DATE|TIME_MINUTES);StringReplace(run,".","");StringReplace(run,":","");StringReplace(run," ","_");
-      if(!m_csv.Initialize("E2_trades_"+symbol+"_"+run+".csv",logger)) return(false);
+      if(!m_csv.Initialize("E2_trades_"+symbol+"_"+m_run_id+".csv",logger)) return(false);
       string header[]={"trade_id","symbol","direction","zone_id","zone_role","zone_visit","signal_time","confirmation_time","entry_time","exit_time","session","trend","adx","confirmation_engulfing","confirmation_pin","confirmation_momentum","confirmation_previous_break","planned_entry","fill_price","stop_loss","take_profit","stop_pips","planned_rr","volume","equity_at_entry","target_risk","planned_actual_risk","planned_risk_pct","exit_price","exit_reason","gross_profit","commission","swap","fees","net_profit","realized_r","holding_minutes"};
       return(m_csv.WriteHeader(header));
      }
@@ -114,6 +115,18 @@ public:
            }
         }
       return(count);
+     }
+   string RunId(void) const { return(m_run_id); }
+   void FinalizedTrades(E2ReportedTrade &trades[]) const
+     {
+      ArrayResize(trades,0);
+      for(int i=0;i<ArraySize(m_open);i++)
+        {
+         if(!m_open[i].finalized) continue;
+         const int count=ArraySize(trades);
+         ArrayResize(trades,count+1);
+         trades[count]=m_open[i];
+        }
      }
    void Summary(const bool tester)
      {

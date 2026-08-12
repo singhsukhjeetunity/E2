@@ -22,6 +22,7 @@ E2Environment g_environment;
 E2Logger g_logger;
 E2CsvExporter g_csv_exporter;
 E2TradeReporter g_trade_reporter;
+E2BacktestSummary g_backtest_summary;
 E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
 E2ZoneAnalyzer g_zone_analyzer;
@@ -424,6 +425,8 @@ int OnInit()
    g_news_filter.Initialize(g_configuration);
    if(!g_trade_reporter.Initialize(g_configuration.csv_export_enabled,g_configuration.expert_magic_number,_Symbol,g_logger))
       g_logger.Warning("Trade CSV reporting disabled for this run because initialization failed.","Reporting");
+   if(g_environment.IsTester() && !g_backtest_summary.Initialize(g_configuration.csv_export_enabled,g_configuration,_Symbol,g_trade_reporter.RunId(),g_logger))
+      g_logger.Warning("Backtest summary CSV reporting disabled for this run because initialization failed.","Reporting");
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
    E2RunSpecificationStartupDiagnostic();
@@ -467,8 +470,11 @@ void OnDeinit(const int reason)
   {
    g_trend_analyzer.Deinitialize();
    g_trade_reporter.Reconcile();
-   g_trade_reporter.ReportUnresolved();
-   g_trade_reporter.Summary(g_environment.IsTester());
+   const int unresolved=g_trade_reporter.ReportUnresolved();
+   E2ReportedTrade finalized_trades[];
+   g_trade_reporter.FinalizedTrades(finalized_trades);
+   g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved);
+   g_backtest_summary.Close();
    g_trade_reporter.Close();
    g_csv_exporter.Close();
    g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
