@@ -179,7 +179,7 @@ void E2RunConfirmationDiagnostic(void)
 
 void E2RunStrategySignalDiagnostic(void)
   {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled()) return;
+   if(g_environment.IsOptimization()) return;
    const datetime evaluation_time=TimeCurrent();
    MqlRates closed;
    if(!g_market_data.GetClosedBarAsOf(_Symbol,g_configuration.confirmation_timeframe,evaluation_time,closed)) return;
@@ -190,8 +190,6 @@ void E2RunStrategySignalDiagnostic(void)
      {
       E2SetupTransition transitions[];
       g_setup_tracker.Update(_Symbol,closed,zones,transitions);
-      for(int i=0;i<ArraySize(transitions);i++)
-         g_logger.Debug("zoneId="+IntegerToString(transitions[i].zone_id)+", role="+E2ZoneTypeName(transitions[i].role)+", event="+E2SetupEventName(transitions[i].event)+", candle="+TimeToString(transitions[i].candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(transitions[i].visit)+".","Setup");
      }
    E2StrategyResult result;
    if(!g_strategy_analyzer.Evaluate(_Symbol,evaluation_time,result))
@@ -200,11 +198,14 @@ void E2RunStrategySignalDiagnostic(void)
       return;
      }
    if(result.signal==E2_SIGNAL_NONE) return;
+   if(!g_setup_tracker.IsEligible(_Symbol,result.selected_zone_id,result.selected_zone_role)) return;
    E2SessionResult session;
    g_session_filter.Evaluate(evaluation_time,session);
-   E2LogSessionDiagnostic(session,result.signal);
    if(!session.eligible)
+     {
+      E2LogSessionDiagnostic(session,result.signal);
       return;
+     }
    E2NewsResult news;
    g_news_filter.Evaluate(_Symbol,evaluation_time,news);
    if(!news.eligible)
@@ -212,12 +213,8 @@ void E2RunStrategySignalDiagnostic(void)
       E2LogNewsDiagnostic(news,result.signal);
       return;
      }
-   E2SetupTransition consumed;
-   if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
-      return;
    E2SymbolSpecification spec=g_symbol_info.Specification();
-   g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", trend="+E2TrendStateName(result.trend_state)+", ADX="+DoubleToString(result.adx_value,2)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", zoneState="+E2ZoneStateName(result.selected_zone_state)+", zone=["+DoubleToString(result.selected_zone_lower,spec.digits)+","+DoubleToString(result.selected_zone_upper,spec.digits)+"], confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+", confirmation="+E2ConfirmationDirectionName(result.confirmation_direction)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", reason="+E2StrategyReasonName(result.reason)+".","Strategy");
-   g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
+   g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+".","StrategyCandidate");
    E2StrategyPlanRequest plan_request;
    plan_request.symbol=_Symbol;
    plan_request.evaluation_time=evaluation_time;
@@ -228,8 +225,27 @@ void E2RunStrategySignalDiagnostic(void)
    plan_request.zone_lower=result.selected_zone_lower;
    plan_request.zone_upper=result.selected_zone_upper;
    E2TradePlan trade_plan;
-   g_trade_planner.CreateStrategyPlan(plan_request,trade_plan);
+   if(!g_trade_planner.CreateStrategyPlan(plan_request,trade_plan))
+     {
+      g_trade_planner.LogDiagnostic(trade_plan);
+      return;
+     }
    g_trade_planner.LogDiagnostic(trade_plan);
+   if(!g_configuration.trading_enabled)
+      return;
+   const string comment="E2|Z"+IntegerToString(result.selected_zone_id)+"|"+E2StrategySignalName(result.signal);
+   E2ExecutionResult execution;
+   if(!g_order_executor.Execute(trade_plan,comment,execution))
+      return;
+   g_position_manager.Refresh();
+   E2SetupTransition consumed;
+   if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
+     {
+      g_logger.Error("Execution succeeded but the selected setup could not be consumed.","Setup");
+      return;
+     }
+   g_logger.Info("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", direction="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", entryPlan="+DoubleToString(trade_plan.entry_price,spec.digits)+", fill="+DoubleToString(execution.actual_execution_price,spec.digits)+", SL="+DoubleToString(trade_plan.stop_loss_price,spec.digits)+", TP="+DoubleToString(trade_plan.take_profit_price,spec.digits)+", volume="+DoubleToString(trade_plan.volume,4)+", riskTarget="+DoubleToString(trade_plan.target_risk_money,2)+", actualPlannedRisk="+DoubleToString(trade_plan.actual_risk_money,2)+", deal="+StringFormat("%I64u",execution.deal_ticket)+", order="+StringFormat("%I64u",execution.order_ticket)+", reason=EXECUTED.","Trade");
+   g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
   }
 
 void E2RunSpecificationStartupDiagnostic(void)
@@ -420,9 +436,6 @@ void OnTick()
   {
    g_diagnostic_tick_count++;
    g_position_manager.Refresh();
-   E2RunTrendDiagnostic();
-   E2RunZoneDiagnostic();
-   E2RunConfirmationDiagnostic();
    E2RunStrategySignalDiagnostic();
    E2RunExecutionTestHarness();
   }

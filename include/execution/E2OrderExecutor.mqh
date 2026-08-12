@@ -44,7 +44,11 @@ private:
    void Fail(E2ExecutionResult &result,const E2ExecutionStatus status,const string description="") const
      {
       result.status=status; if(description!="") result.retcode_description=description;
-      if(m_logger!=NULL) m_logger.Error("Execution failed: status="+E2ExecutionStatusName(status)+", retcode="+IntegerToString((int)result.retcode)+", description="+result.retcode_description+".","Execution");
+      if(m_logger!=NULL)
+        {
+         const string message="Execution rejected: status="+E2ExecutionStatusName(status)+", retcode="+IntegerToString((int)result.retcode)+", description="+result.retcode_description+".";
+         if(status==E2_EXECUTION_FAILED) m_logger.Error(message,"Execution"); else m_logger.Warning(message,"Execution");
+        }
      }
    bool SuccessfulRetcode(const uint code) const { return(code==TRADE_RETCODE_DONE || code==TRADE_RETCODE_DONE_PARTIAL); }
    bool TemporaryExecutionRetcode(const uint code) const { return(code==TRADE_RETCODE_LOCKED || code==TRADE_RETCODE_TOO_MANY_REQUESTS); }
@@ -109,14 +113,13 @@ public:
       if(margin>m_account_info.FreeMargin()) { Fail(result,E2_EXECUTION_MARGIN_INSUFFICIENT); return(false); }
       if(!m_trade.SetTypeFillingBySymbol(plan.symbol)) { Fail(result,E2_EXECUTION_FAILED,"Unable to set symbol filling mode."); return(false); }
       m_trade.SetExpertMagicNumber(m_magic_number);
-      if(m_logger!=NULL) m_logger.Info((plan.direction==E2_DIRECTION_BUY ? "BUY " : "SELL ")+plan.symbol+" volume="+DoubleToString(plan.volume,4)+", planned_entry="+DoubleToString(plan.entry_price,spec.digits)+", market_price="+DoubleToString(result.requested_market_price,spec.digits)+", SL="+DoubleToString(plan.stop_loss_price,spec.digits)+", TP="+DoubleToString(plan.take_profit_price,spec.digits)+".","Execution");
+      if(m_logger!=NULL) m_logger.Debug("Attempt direction="+(plan.direction==E2_DIRECTION_BUY ? "BUY" : "SELL")+", symbol="+plan.symbol+", volume="+DoubleToString(plan.volume,4)+", plannedEntry="+DoubleToString(plan.entry_price,spec.digits)+", marketPrice="+DoubleToString(result.requested_market_price,spec.digits)+".","Execution");
       const bool sent=(plan.direction==E2_DIRECTION_BUY ? m_trade.Buy(plan.volume,plan.symbol,result.requested_market_price,plan.stop_loss_price,plan.take_profit_price,comment) : m_trade.Sell(plan.volume,plan.symbol,result.requested_market_price,plan.stop_loss_price,plan.take_profit_price,comment));
       result.retcode=m_trade.ResultRetcode(); result.retcode_description=m_trade.ResultRetcodeDescription(); result.order_ticket=m_trade.ResultOrder(); result.deal_ticket=m_trade.ResultDeal(); result.executed_volume=m_trade.ResultVolume(); result.actual_execution_price=m_trade.ResultPrice();
       if(!sent || !SuccessfulRetcode(result.retcode)) { Fail(result,TemporaryExecutionRetcode(result.retcode) ? E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE : E2_EXECUTION_ORDER_REJECTED); return(false); }
       result.status=E2_EXECUTION_EXECUTED;
       if(m_safety!=NULL) m_safety.RecordSuccessfulExecution();
       if(m_position_manager!=NULL) m_position_manager.Refresh();
-      if(m_logger!=NULL) m_logger.Info("Execution succeeded: deal="+StringFormat("%I64u",result.deal_ticket)+", order="+StringFormat("%I64u",result.order_ticket)+", price="+DoubleToString(result.actual_execution_price,spec.digits)+", retcode="+IntegerToString((int)result.retcode)+".","Execution");
       return(true);
      }
   };
