@@ -15,6 +15,10 @@ Sprint 4.6 historical news filtering is implemented and compiles cleanly, but re
 
 The audit-only native chart-object layer is implemented. Sprint 6.2.1 uses native timeframe visibility for clean H4 context, H1 zone/setup, and M15 confirmation/execution views on the Tester chart. Sprint 6.2.2 adds Strategy Audit, All Trades, and Single Trade modes with a compact trade audit panel and execution-only context in practical review modes. Sprint 6.2.3 identifies the single E2-attached audit chart and its H4/H1/M15 layers with a non-interactive instruction label; safe switching uses MT5's native chart timeframe selector after pausing/completing the test because runtime chart-period changes reinitialize the EA. Separate Tester chart tabs are not synchronized E2 audit charts. It must consume existing E2 state and never affect decisions. Manual visual and enabled-vs-disabled regression verification remains required.
 
+## Sprint 6.3 — Visual + Mechanical Integrity Audit: audit complete, manual verification pending
+
+The source-level integrity audit is recorded in [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md). It found no established source-level mechanical defect and confirms closed-bar access, native execution/reporting, and visualization isolation by inspection. Visual/headless parity, repeat-run determinism, deal-history reconciliation, and fixture boundary checks remain manual MT5 evidence requirements; Sprint 6.3 is not yet verified.
+
 ## Then
 
 1. Sprint 6.3 — Visual + Mechanical Integrity Audit
