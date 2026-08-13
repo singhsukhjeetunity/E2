@@ -2,6 +2,7 @@
 #define E2_FILTERS_E2NEWSFILTER_MQH
 
 #include "..\\core\\E2Config.mqh"
+#include "..\\reporting\\E2Logger.mqh"
 
 // FILE_COMMON dataset schema (comma-delimited, UTF-8/ANSI text):
 // record_type,event_time_utc,currency,impact,event_name,coverage_start_utc,coverage_end_utc
@@ -36,9 +37,22 @@ private:
    E2NewsReason m_load_reason;
    datetime m_coverage_start_utc,m_coverage_end_utc;
    E2NewsEvent m_events[];
+   E2Logger *m_logger;
 
    string Trim(const string value) const { string result=value; StringTrimLeft(result); StringTrimRight(result); return(result); }
    string Upper(const string value) const { string result=value; StringToUpper(result); return(result); }
+   string ExpectedCommonPath(void) const
+     {
+      string path=TerminalInfoString(TERMINAL_COMMONDATA_PATH);
+      return(path+"\\Files\\"+m_configuration.news_data_file);
+     }
+   string FileOpenErrorDescription(const int error_code) const
+     {
+      if(error_code==5004) return("cannot open file");
+      if(error_code==5002) return("file does not exist or cannot be opened");
+      if(error_code==5011) return("file is incompatible with the requested flags");
+      return("MT5 file API error");
+     }
    bool IsKnownCurrency(const string currency) const
      {
       const string known=",USD,EUR,GBP,JPY,CHF,AUD,NZD,CAD,SEK,NOK,DKK,PLN,CZK,HUF,TRY,ZAR,MXN,BRL,HKD,SGD,CNH,CNY,INR,KRW,THB,ILS,RUB,";
@@ -83,9 +97,15 @@ private:
      {
       ArrayResize(m_events,0);m_dataset_valid=false;m_load_reason=E2_NEWS_DATA_UNAVAILABLE;m_coverage_start_utc=0;m_coverage_end_utc=0;
       if(StringLen(Trim(m_configuration.news_data_file))==0){m_load_reason=E2_NEWS_DATA_INVALID;return(false);}
+      if(m_logger!=NULL) m_logger.Info("Loading FILE_COMMON news CSV: filename='"+m_configuration.news_data_file+"', expectedPath='"+ExpectedCommonPath()+"'.","News");
       ResetLastError();
       const int handle=FileOpen(m_configuration.news_data_file,FILE_READ|FILE_CSV|FILE_ANSI|FILE_COMMON|FILE_SHARE_READ,',');
-      if(handle==INVALID_HANDLE) return(false);
+      if(handle==INVALID_HANDLE)
+        {
+         const int error_code=GetLastError();
+         if(m_logger!=NULL) m_logger.Error("News CSV open failed: filename='"+m_configuration.news_data_file+"', expectedPath='"+ExpectedCommonPath()+"', error="+IntegerToString(error_code)+" ("+FileOpenErrorDescription(error_code)+").","News");
+         return(false);
+        }
       string header[7];for(int i=0;i<7;i++)header[i]=FileReadString(handle);
       if(header[0]!="record_type" || header[1]!="event_time_utc" || header[2]!="currency" || header[3]!="impact" || header[4]!="event_name" || header[5]!="coverage_start_utc" || header[6]!="coverage_end_utc" || (!FileIsLineEnding(handle) && !FileIsEnding(handle))){FileClose(handle);m_load_reason=E2_NEWS_DATA_INVALID;return(false);}
       bool meta_found=false;
@@ -109,15 +129,17 @@ private:
       FileClose(handle);
       if(!meta_found){m_load_reason=E2_NEWS_DATA_INVALID;return(false);}
       for(int i=0;i<ArraySize(m_events);i++)if(m_events[i].time_utc<m_coverage_start_utc || m_events[i].time_utc>m_coverage_end_utc){m_load_reason=E2_NEWS_DATA_INVALID;return(false);}
-      SortEvents();m_dataset_valid=true;return(true);
+      SortEvents();m_dataset_valid=true;
+      if(m_logger!=NULL) m_logger.Info("News CSV loaded: filename='"+m_configuration.news_data_file+"', validEvents="+IntegerToString(ArraySize(m_events))+", coverageStart="+TimeToString(m_coverage_start_utc,TIME_DATE|TIME_MINUTES)+", coverageEnd="+TimeToString(m_coverage_end_utc,TIME_DATE|TIME_MINUTES)+".","News");
+      return(true);
      }
    void Reset(E2NewsResult &result,const datetime source_time) const
      {
       ZeroMemory(result);result.evaluation_time=source_time;result.enabled=m_configuration.news_filter_enabled;result.minutes_before=m_configuration.high_impact_buffer_before_minutes;result.minutes_after=m_configuration.high_impact_buffer_after_minutes;result.reason=E2_NEWS_DATA_UNAVAILABLE;
      }
 public:
-   E2NewsFilter(void):m_initialized(false),m_dataset_valid(false),m_load_reason(E2_NEWS_DATA_UNAVAILABLE),m_coverage_start_utc(0),m_coverage_end_utc(0){}
-   void Initialize(const E2Config &configuration){m_configuration=configuration;m_initialized=true;if(!m_configuration.news_filter_enabled){m_dataset_valid=false;m_load_reason=E2_NEWS_FILTER_DISABLED;return;}LoadDataset();}
+   E2NewsFilter(void):m_initialized(false),m_dataset_valid(false),m_load_reason(E2_NEWS_DATA_UNAVAILABLE),m_coverage_start_utc(0),m_coverage_end_utc(0),m_logger(NULL){}
+   void Initialize(const E2Config &configuration,E2Logger &logger){m_configuration=configuration;m_logger=&logger;m_initialized=true;if(!m_configuration.news_filter_enabled){m_dataset_valid=false;m_load_reason=E2_NEWS_FILTER_DISABLED;return;}LoadDataset();}
    bool IsDatasetValid(void) const{return(m_dataset_valid);}
    E2NewsReason LoadReason(void) const{return(m_load_reason);}
    datetime CoverageStartUtc(void) const{return(m_coverage_start_utc);}

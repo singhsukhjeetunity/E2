@@ -16,6 +16,7 @@
 #include "include\\filters\\Filters.mqh"
 #include "include\\risk\\Risk.mqh"
 #include "include\\execution\\Execution.mqh"
+#include "include\\visualization\\Visualization.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
@@ -39,6 +40,7 @@ E2OrderExecutor g_order_executor;
 E2PositionGuard g_position_guard;
 E2PositionManager g_position_manager;
 E2ExecutionSafety g_execution_safety;
+E2Visualizer g_visualizer;
 ulong g_diagnostic_tick_count=0;
 bool g_execution_test_attempted=false;
 bool g_trend_diagnostic_completed=false;
@@ -192,6 +194,7 @@ void E2RunStrategySignalDiagnostic(void)
      {
       E2SetupTransition transitions[];
       g_setup_tracker.Update(_Symbol,closed,zones,transitions);
+      g_visualizer.UpdateZones(zones,evaluation_time);
      }
    E2StrategyResult result;
    if(!g_strategy_analyzer.Evaluate(_Symbol,evaluation_time,result))
@@ -199,12 +202,15 @@ void E2RunStrategySignalDiagnostic(void)
       g_logger.Debug("Not ready: reason="+E2StrategyReasonName(result.reason)+", Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+".","Strategy");
       return;
      }
+   g_visualizer.UpdateTrend(result,g_configuration.adx_minimum_threshold);
    if(result.signal==E2_SIGNAL_NONE) return;
    if(!g_setup_tracker.IsEligible(_Symbol,result.selected_zone_id,result.selected_zone_role)) return;
+   g_visualizer.MarkCandidate(result,closed);
    E2SessionResult session;
    g_session_filter.Evaluate(evaluation_time,session);
    if(!session.eligible)
      {
+      g_visualizer.MarkCandidate(result,closed,"SESSION");
       E2LogSessionDiagnostic(session,result.signal);
       return;
      }
@@ -212,6 +218,7 @@ void E2RunStrategySignalDiagnostic(void)
    g_news_filter.Evaluate(_Symbol,evaluation_time,news);
    if(!news.eligible)
      {
+      g_visualizer.MarkCandidate(result,closed,"NEWS");
       E2LogNewsDiagnostic(news,result.signal);
       return;
      }
@@ -220,6 +227,7 @@ void E2RunStrategySignalDiagnostic(void)
    // an E2 position for this symbol is already open. The setup remains armed.
    if(g_position_manager.HasPosition(_Symbol))
      {
+      g_visualizer.MarkCandidate(result,closed,"POSITION_ALREADY_OPEN");
       g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", reason=POSITION_ALREADY_OPEN.","Execution");
       return;
      }
@@ -237,6 +245,7 @@ void E2RunStrategySignalDiagnostic(void)
    E2TradePlan trade_plan;
    if(!g_trade_planner.CreateStrategyPlan(plan_request,trade_plan))
      {
+      g_visualizer.MarkCandidate(result,closed,"INVALID_PLAN");
       g_trade_planner.LogDiagnostic(trade_plan);
       return;
      }
@@ -246,7 +255,10 @@ void E2RunStrategySignalDiagnostic(void)
    const string comment="E2|Z"+IntegerToString(result.selected_zone_id)+"|"+E2StrategySignalName(result.signal);
    E2ExecutionResult execution;
    if(!g_order_executor.Execute(trade_plan,comment,execution))
+     {
+      g_visualizer.MarkCandidate(result,closed,E2ExecutionStatusName(execution.status));
       return;
+     }
    g_position_manager.Refresh();
    E2SetupTransition consumed;
    if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
@@ -285,6 +297,7 @@ void E2RunStrategySignalDiagnostic(void)
    report_entry.order_ticket=execution.order_ticket;
    report_entry.entry_deal=execution.deal_ticket;
    g_trade_reporter.CaptureEntry(report_entry);
+   g_visualizer.DrawEntry(report_entry);
    g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
   }
 
@@ -422,7 +435,8 @@ int OnInit()
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
    g_session_filter.Initialize(g_configuration);
-   g_news_filter.Initialize(g_configuration);
+   g_news_filter.Initialize(g_configuration,g_logger);
+   g_visualizer.Initialize(g_configuration,g_logger);
    if(!g_trade_reporter.Initialize(g_configuration.csv_export_enabled,g_configuration.expert_magic_number,_Symbol,g_logger))
       g_logger.Warning("Trade CSV reporting disabled for this run because initialization failed.","Reporting");
    if(g_environment.IsTester() && !g_backtest_summary.Initialize(g_configuration.csv_export_enabled,g_configuration,_Symbol,g_trade_reporter.RunId(),g_logger))
@@ -473,10 +487,12 @@ void OnDeinit(const int reason)
    const int unresolved=g_trade_reporter.ReportUnresolved();
    E2ReportedTrade finalized_trades[];
    g_trade_reporter.FinalizedTrades(finalized_trades);
+   for(int visual_trade=0;visual_trade<ArraySize(finalized_trades);visual_trade++) g_visualizer.DrawFinal(finalized_trades[visual_trade]);
    g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved);
    g_backtest_summary.Close();
    g_trade_reporter.Close();
    g_csv_exporter.Close();
+   g_visualizer.Cleanup();
    g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
    g_logger.Info("E2 deinitialized.","Lifecycle");
   }
@@ -486,7 +502,12 @@ void OnDeinit(const int reason)
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result)
   {
    if(trans.type==TRADE_TRANSACTION_DEAL_ADD)
+     {
       g_trade_reporter.OnDeal(trans.deal);
+      E2ReportedTrade finalized[];
+      g_trade_reporter.FinalizedTrades(finalized);
+      for(int visual_trade=0;visual_trade<ArraySize(finalized);visual_trade++) g_visualizer.DrawFinal(finalized[visual_trade]);
+     }
   }
 //+------------------------------------------------------------------+
 //| Expert tick function                                             |

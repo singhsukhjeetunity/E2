@@ -1,113 +1,34 @@
-# Trend Pullback Strategy v1
+# E2 Trend Pullback Strategy
 
-The Trend Pullback strategy is the Version 1 E2 strategy. It uses closed-candle, multi-timeframe analysis to seek pullbacks into H1 support/resistance zones in the established H4 direction, with M15 confirmation.
+E2’s current strategy seeks M15-confirmed pullbacks into H1 support/resistance in the H4 directional context. It is an implemented research strategy, not evidence of an edge or a production-readiness claim.
 
-# Trend / Range Filter
+## Strategy rules
 
-Timeframe: H4
+- **H4 context:** `E2TrendAnalyzer` classifies confirmed structure as bullish, bearish, or range, with optional ADX strength filtering. Range and unknown context produce no signal.
+- **H1 zones:** `E2ZoneAnalyzer` forms configurable multi-touch support/resistance zones, merges nearby reactions, and represents role reversal. `E2SetupTracker` records zone visits and arms eligible setups.
+- **M15 confirmation:** a closed candle may qualify through any enabled engulfing, pin-bar, momentum, or previous-candle-break detector. A directional conflict rejects the candidate.
+- **Direction:** bullish H4 context plus actionable support interaction and bullish confirmation produces LONG; bearish context plus resistance interaction and bearish confirmation produces SHORT.
+- **Sessions:** only configured London and/or New York windows permit new entries. Overlap remains a distinct metadata classification.
+- **News:** enabled historical-news filtering blocks relevant configured-impact events during inclusive configured before/after blackout windows.
 
-Bullish:
+## Trade construction
 
-- Higher Highs + Higher Lows
+- LONG stop loss is below the selected support zone; SHORT stop loss is above resistance. `InpStopLossZoneBufferPips` supplies the configurable zone buffer.
+- The target is the configured fixed reward-to-risk target (`InpRewardRiskTarget`; default 2.0).
+- `E2PositionSizer` uses native symbol trade-calculation facilities and the configured percentage risk base (default equity) to normalize volume.
 
-Bearish:
+## Implementation and safety rules
 
-- Lower Highs + Lower Lows
+These are safeguards, not a claim about market edge:
 
-Range:
+- Evaluation uses confirmed/closed bars only.
+- `E2PositionManager` short-circuits candidates while an E2 position is open for the symbol.
+- `E2PositionGuard` rejects duplicate/conflicting positions; `E2ExecutionSafety` enforces quote age, spread, deviation, and execution cooldown controls.
+- `E2OrderExecutor` sends native MT5 orders with native SL/TP.
+- A setup is consumed only after execution confirms success. A session/news/safety rejection occurs before `Consume()`, so an armed visit can remain available where its lifecycle permits.
 
-- No valid directional HH/HL or LH/LL structure
-- ADX is used as an additional objective trend-strength/range filter
+## Research parameters
 
-Only trade in the direction of the H4 trend.
+All active inputs are centralized in `include/core/E2Config.mqh`, including timeframes, swing/lookback/tolerance values, ADX settings, confirmation enablement, risk percentage, target R:R, session hours/UTC offset, news buffers, and spread/execution limits. These are research controls, not fitted claims.
 
-No trades when the H4 market is classified as ranging.
-
-# Support / Resistance
-
-Timeframe: H1
-
-Significant zones are based on:
-
-- Multiple price reactions/touches
-- Minimum touches must be configurable
-- Nearby reactions should be merged into a zone using configurable tolerance
-- Broken support can become resistance
-- Broken resistance can become support
-- Zone width/tolerance must be configurable
-
-# Entry Confirmation
-
-Timeframe: M15
-
-A valid trade requires price to pull back into an appropriate H1 zone.
-
-Entry can be confirmed by any enabled confirmation:
-
-- Bullish/Bearish Engulfing
-- Pin Bar
-- Momentum Candle
-- Break of Previous Candle
-
-Confirmation types must be independently configurable so their performance can later be tested separately.
-
-# Entry
-
-Enter after the valid M15 confirmation candle has closed.
-
-# Stop Loss
-
-For long trades:
-
-- Below the relevant support zone
-
-For short trades:
-
-- Above the relevant resistance zone
-
-Use a configurable buffer beyond the zone.
-
-# Take Profit
-
-Fixed target: 2R
-
-Must be configurable for research.
-
-# Risk
-
-Risk per trade: 1% of account equity/balance according to the final risk specification.
-
-Risk percentage must be configurable.
-
-# Sessions
-
-Only allow new trades during:
-
-- London session
-- New York session
-
-Session times must be configurable and handled consistently with broker/server time.
-
-# News
-
-No new trades:
-
-- 60 minutes before high-impact news
-- 60 minutes after high-impact news
-
-News buffer must be configurable.
-
-The news system must be replaceable/pluggable because historical and live economic-calendar sources may differ.
-
-# Important Strategy Design Rule
-
-The Trend Pullback strategy is only the first E2 strategy.
-
-E2 must allow this strategy to be replaced later without rebuilding:
-
-- MT5 integration
-- Trade execution
-- Risk management
-- Logging
-- Reporting
-- Backtesting compatibility
+Historical news uses a FILE_COMMON CSV with UTC timestamps and a per-run broker UTC offset. Its runtime verification remains outstanding; see [STATUS.md](STATUS.md).

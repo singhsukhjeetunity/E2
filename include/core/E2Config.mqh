@@ -78,6 +78,15 @@ input group "REPORTING"
 input bool InpLoggingEnabled   = true;  // Enable future strategy-independent logging.
 input bool InpCsvExportEnabled = false; // Enable future CSV export.
 
+input group "VISUALIZATION"
+input bool InpVisualModeEnabled = true; // Audit-only MT5 Strategy Tester Visual Mode overlay.
+input bool InpVisualShowZones = true;
+input bool InpVisualShowTrendPanel = true;
+input bool InpVisualShowConfirmations = true;
+input bool InpVisualShowTrades = true;
+input bool InpVisualShowRejectedCandidates = false;
+input bool InpVisualCleanupOnDeinit = true;
+
 struct E2Config
   {
    ulong           expert_magic_number;
@@ -136,6 +145,13 @@ struct E2Config
 
    bool            logging_enabled;
    bool            csv_export_enabled;
+   bool            visual_mode_enabled;
+   bool            visual_show_zones;
+   bool            visual_show_trend_panel;
+   bool            visual_show_confirmations;
+   bool            visual_show_trades;
+   bool            visual_show_rejected_candidates;
+   bool            visual_cleanup_on_deinit;
   };
 
 // Copies the EA inputs once during initialization. Pip values remain in pip
@@ -190,6 +206,13 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.news_diagnostics_enabled               = InpNewsDiagnosticsEnabled;
    configuration.logging_enabled                        = InpLoggingEnabled;
    configuration.csv_export_enabled                     = InpCsvExportEnabled;
+   configuration.visual_mode_enabled                    = InpVisualModeEnabled;
+   configuration.visual_show_zones                      = InpVisualShowZones;
+   configuration.visual_show_trend_panel                = InpVisualShowTrendPanel;
+   configuration.visual_show_confirmations              = InpVisualShowConfirmations;
+   configuration.visual_show_trades                     = InpVisualShowTrades;
+   configuration.visual_show_rejected_candidates        = InpVisualShowRejectedCandidates;
+   configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;
   }
 
 // Validates only universally invalid values; strategy-specific constraints are
