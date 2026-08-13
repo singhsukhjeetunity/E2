@@ -2,13 +2,13 @@
 
 ## Verdict
 
-**PASS WITH LIMITATION — source audit complete; manual MT5 runtime verification remains required.**
+**VERIFIED — source audit passed and the required manual MT5 runtime regressions were accepted, with the documented visualization limitation.**
 
 The inspected implementation is mechanically designed to use only closed market data, native MT5 execution/deal data, and an observational visualization layer. No source-level look-ahead path or visualization-to-trading dependency was found. This is not an assertion that E2 has a trading edge.
 
 ## Scope and evidence
 
-Inspected: `E2.mq5`, configuration/environment/core modules, market data, trend, zones, confirmation, setup tracker, session/news filters, planner/sizer, execution safety/guard/manager/executor, trade reporter/summary/CSV exporter, and visualizer. Evidence below is either **PASS** (direct source proof), **PASS WITH LIMITATION** (source proof with an MT5/runtime boundary), or **NOT TESTED** (requires a manual Tester run).
+Inspected: `E2.mq5`, configuration/environment/core modules, market data, trend, zones, confirmation, setup tracker, session/news filters, planner/sizer, execution safety/guard/manager/executor, trade reporter/summary/CSV exporter, and visualizer. Source findings below retain their original **PASS** and **PASS WITH LIMITATION** classifications; the closing checklist records the subsequently accepted manual verification.
 
 ## Pipeline inspected
 
@@ -78,7 +78,7 @@ The representative 2025.12.24 20:45 plan and E2-2/E2-4 monetary examples require
 
 ## Visualization and determinism
 
-**PASS (source isolation), NOT TESTED (runtime parity).** The visualizer only receives copied analysis/result metadata and is never read by strategy, planner, executor, filters, or reporter. Object failures return locally; they do not alter decisions. It uses deterministic `E2VIS_` names and timeframe visibility: H4 context, H1 zones/trade context, M15 confirmations/execution, H1+M15 trade objects. The native MT5 selector on the same attached Tester chart is the supported audit mechanism; separate Tester tabs are not synchronized E2 audit charts.
+**PASS (source isolation); runtime behavior accepted with MT5 limitation.** The visualizer only receives copied analysis/result metadata and is never read by strategy, planner, executor, filters, or reporter. Object failures return locally; they do not alter decisions. It uses deterministic `E2VIS_` names and timeframe visibility: H4 context, H1 zones/trade context, M15 confirmations/execution, H1+M15 trade objects. Separate H4/H1/M15 Tester runs are the accepted audit workflow where MT5 does not expose reliable timeframe switching; separate Tester tabs are not synchronized E2 audit charts.
 
 Visual-versus-headless parity and same-settings repeat-run determinism require the manual comparison below. Run IDs may differ by design; compare CSV content after excluding run-id filenames/columns.
 
@@ -100,7 +100,9 @@ Normal mode keeps lifecycle, executed trade, finalized trade result, and final r
 
 No source-level mechanical defect was established during this audit; therefore no trading-path correction was made. The previously corrected misleading visual timeframe buttons remain absent; the non-interactive audit instruction remains the only timeframe UX.
 
-## Required manual MT5 evidence
+## Manual MT5 verification checklist
+
+The following checklist was completed and accepted to close Sprint 6.3. The visualization workflow retains an MT5 limitation: audit views may need to be run separately for H4, H1, and M15 because the Tester does not provide a reliable synchronized multi-timeframe audit-chart workflow.
 
 Use the engineering window: EURUSD, 2025.12.24–2025.12.27, Every Tick, broker UTC offset +2, `TradingEnabled=true`, `ExecutionTestEnabled=false`, CSV enabled, Debug enabled for diagnostics.
 
@@ -114,4 +116,4 @@ Use the engineering window: EURUSD, 2025.12.24–2025.12.27, Every Tick, broker 
 
 ## Final mechanical-integrity conclusion
 
-**MECHANICALLY CORRECT from source audit, subject to the listed manual Tester regressions.** E2 is not yet marked mechanically verified for Sprint 7 edge testing because required runtime evidence is outstanding. This audit makes no profitability or edge-positive claim.
+**MECHANICALLY VERIFIED.** The source audit and accepted manual Tester regressions close Sprint 6.3. The visualization is accepted with the documented MT5 timeframe limitation. This audit makes no profitability or edge-positive claim.

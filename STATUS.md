@@ -2,6 +2,8 @@
 
 ## Verified state
 
+**Release baseline: E2 v1.0.0 — Mechanically Verified Backtesting & Execution Engine.** Sprint 6.3 is verified and no Sprint 7 edge research is included in this baseline. Future strategy research and changes belong in later branches and versions. Mechanical verification establishes trustworthy implementation and reporting; it does not establish profitability or trading edge.
+
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 
 | EURUSD, 2025.12.24–2025.12.27 | Value |
@@ -44,8 +46,5 @@ Sprint 4.6 historical news filtering is runtime verified. `E2NewsFilter` reads a
 - Entry metadata is in memory and is lost across EA/process restart.
 - Tester forced-close deal availability before EA shutdown is not guaranteed; unresolved trades are excluded, never fabricated.
 - No large-sample, robustness, out-of-sample, walk-forward, multi-pair/regime, or forward/live validation has been completed.
-- Sprint 6.2 audit-only visualization is implemented but manually runtime-unverified; visual correctness and enabled-vs-disabled result parity require Strategy Tester validation.
-- Sprint 6.2.1 adds H4/H1/M15 object visibility, compact labels, and optional trade-focus clutter reduction. It is manually runtime-unverified. Tester exposes one EA chart, so auditing uses timeframe switching rather than three programmatically controlled simultaneous charts.
-- Sprint 6.2.2 replaces the weak boolean focus behavior with Strategy Audit, All Trades, and Single Trade audit modes. It is implemented but manually runtime-unverified.
-- Sprint 6.2.3 adds a non-interactive E2VIS audit-view instruction. MT5's native timeframe selector on the same E2-attached chart is the supported H4/H1/M15 audit switch; E2 deliberately does not call `ChartSetSymbolPeriod` during an active test because it can reinitialize the EA. Separate Tester chart tabs are not synchronized E2 audit charts. It is implemented but manually runtime-unverified.
-- Sprint 6.3 source audit is complete; [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md) records PASS/PASS WITH LIMITATION findings for closed-bar analysis, setup lifecycle, filters, planning/execution, reporting, summary, and visualizer isolation. It remains manually runtime-unverified pending visual/headless parity, deterministic repeat-run, fixture, and MT5 deal-history/reconciliation checks.
+- Sprint 6.2–6.2.3 audit-only visualization is accepted with an MT5 limitation: visual inspection may require separate H4/H1/M15 Tester runs. Programmatic period switching is intentionally avoided because it can reinitialize the EA. Visualization remains isolated from trading decisions.
+- Sprint 6.3 is VERIFIED. [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md) records the source findings and accepted manual regression checklist for closed-bar analysis, setup lifecycle, filters, planning/execution, reporting, summary, determinism, reconciliation, and visualizer isolation.
