@@ -488,6 +488,7 @@ void OnDeinit(const int reason)
    E2ReportedTrade finalized_trades[];
    g_trade_reporter.FinalizedTrades(finalized_trades);
    for(int visual_trade=0;visual_trade<ArraySize(finalized_trades);visual_trade++) g_visualizer.DrawFinal(finalized_trades[visual_trade]);
+   g_visualizer.ReportFocusNotFound();
    g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved);
    g_backtest_summary.Close();
    g_trade_reporter.Close();

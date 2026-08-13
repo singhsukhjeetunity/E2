@@ -55,7 +55,7 @@ The Journal provides lifecycle, successful trade-result, warning/error, and one 
 
 Detailed metric definitions, schemas, verification status, and limitations are in [STATUS.md](STATUS.md).
 
-`E2Visualizer` is a one-way consumer of runtime analysis, execution, and reporter outputs. It uses `E2VIS_`-prefixed native chart objects only in Strategy Tester Visual Mode; it is not read by strategy, risk, execution, or reporting code.
+`E2Visualizer` is a one-way consumer of runtime analysis, execution, and reporter outputs. It uses `E2VIS_`-prefixed native chart objects only in Strategy Tester Visual Mode; it is not read by strategy, risk, execution, or reporting code. Sprint 6.2.1 separates objects with `OBJPROP_TIMEFRAMES`: H4 trend panel/regime markers, H1 zones, M15 selected confirmations, and H1+M15 trade objects. Sprint 6.2.2 adds three read-only audit modes: Strategy Audit (broad analysis), All Trades (executed-trade context only), and Single Trade (one authoritative position identity). Sprint 6.2.3 makes that one E2-attached chart the audit surface and adds a non-interactive audit-view instruction. MT5's native timeframe selector on that chart is the supported switching mechanism: H4 answers WHY, H1 WHERE, and M15 WHEN. MT5 Tester does not provide reliably controllable simultaneous E2 chart instances; calling `ChartSetSymbolPeriod` during a run would reinitialize the attached EA and is intentionally avoided. Separate Tester chart tabs are not synchronized E2 audit charts.
 
 ## Architecture rules
 

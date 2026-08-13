@@ -11,9 +11,9 @@
 
 Sprint 4.6 historical news filtering is implemented and compiles cleanly, but remains manually runtime-unverified.
 
-## Sprint 6.2 — MT5 Visual Backtest Overlay: implemented, manual verification pending
+## Sprint 6.2 / 6.2.1 / 6.2.2 / 6.2.3 — MT5 Visual Backtest Overlay: implemented, manual verification pending
 
-The audit-only native chart-object layer is implemented. It renders runtime zones, H4 trend/ADX, selected M15 candidates, entry/SL/TP, finalized exits/R, and optional rejected-candidate annotations in Strategy Tester Visual Mode. It must consume existing E2 state and never affect decisions. Manual visual and enabled-vs-disabled regression verification remains required.
+The audit-only native chart-object layer is implemented. Sprint 6.2.1 uses native timeframe visibility for clean H4 context, H1 zone/setup, and M15 confirmation/execution views on the Tester chart. Sprint 6.2.2 adds Strategy Audit, All Trades, and Single Trade modes with a compact trade audit panel and execution-only context in practical review modes. Sprint 6.2.3 identifies the single E2-attached audit chart and its H4/H1/M15 layers with a non-interactive instruction label; safe switching uses MT5's native chart timeframe selector after pausing/completing the test because runtime chart-period changes reinitialize the EA. Separate Tester chart tabs are not synchronized E2 audit charts. It must consume existing E2 state and never affect decisions. Manual visual and enabled-vs-disabled regression verification remains required.
 
 ## Then
 

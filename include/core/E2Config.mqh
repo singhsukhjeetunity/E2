@@ -10,6 +10,13 @@ enum E2RiskBase
    E2_RISK_BASE_EQUITY
   };
 
+enum E2VisualAuditMode
+  {
+   E2_VISUAL_STRATEGY_AUDIT=0,
+   E2_VISUAL_ALL_TRADES=1,
+   E2_VISUAL_SINGLE_TRADE=2
+  };
+
 input group "GENERAL"
 input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders.
 input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
@@ -85,6 +92,8 @@ input bool InpVisualShowTrendPanel = true;
 input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
 input bool InpVisualShowRejectedCandidates = false;
+input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
+input ulong InpVisualFocusTradeId = 0; // Position identity for SINGLE_TRADE mode; 0 is invalid/no focus.
 input bool InpVisualCleanupOnDeinit = true;
 
 struct E2Config
@@ -151,6 +160,8 @@ struct E2Config
    bool            visual_show_confirmations;
    bool            visual_show_trades;
    bool            visual_show_rejected_candidates;
+   E2VisualAuditMode visual_audit_mode;
+   ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
   };
 
@@ -212,6 +223,8 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_confirmations              = InpVisualShowConfirmations;
    configuration.visual_show_trades                     = InpVisualShowTrades;
    configuration.visual_show_rejected_candidates        = InpVisualShowRejectedCandidates;
+   configuration.visual_audit_mode                      = InpVisualAuditMode;
+   configuration.visual_focus_trade_id                  = InpVisualFocusTradeId;
    configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;
   }
 

@@ -35,13 +35,16 @@ Wins/losses/breakeven use realized-R epsilon `1e-8`. Sequence metrics sort by `e
 
 ## News-filter status
 
-Sprint 4.6 is implemented but **manually runtime-unverified**. `E2NewsFilter` reads a deterministic cached FILE_COMMON CSV with UTC event times, explicit broker UTC offset, currency relevance, impact selection, inclusive blackout buffers, and fail-closed validation. It runs before setup consumption; a rejected candidate can preserve an ARMED visit. The operational CSV must be maintained in MT5 common files.
+Sprint 4.6 historical news filtering is runtime verified. `E2NewsFilter` reads a deterministic cached FILE_COMMON CSV with UTC event times, explicit broker UTC offset, currency relevance, impact selection, inclusive blackout buffers, and fail-closed validation. It runs before setup consumption; a rejected candidate can preserve an ARMED visit. The operational CSV must be maintained in MT5 common files.
 
 ## Technical debt and limitations
 
-- News-filter runtime verification remains outstanding; FILE_COMMON path/data maintenance is operationally required.
+- Historical news CSV path/data maintenance is operationally required.
 - Broker UTC offset is fixed for a run and must be configured correctly.
 - Entry metadata is in memory and is lost across EA/process restart.
 - Tester forced-close deal availability before EA shutdown is not guaranteed; unresolved trades are excluded, never fabricated.
 - No large-sample, robustness, out-of-sample, walk-forward, multi-pair/regime, or forward/live validation has been completed.
 - Sprint 6.2 audit-only visualization is implemented but manually runtime-unverified; visual correctness and enabled-vs-disabled result parity require Strategy Tester validation.
+- Sprint 6.2.1 adds H4/H1/M15 object visibility, compact labels, and optional trade-focus clutter reduction. It is manually runtime-unverified. Tester exposes one EA chart, so auditing uses timeframe switching rather than three programmatically controlled simultaneous charts.
+- Sprint 6.2.2 replaces the weak boolean focus behavior with Strategy Audit, All Trades, and Single Trade audit modes. It is implemented but manually runtime-unverified.
+- Sprint 6.2.3 adds a non-interactive E2VIS audit-view instruction. MT5's native timeframe selector on the same E2-attached chart is the supported H4/H1/M15 audit switch; E2 deliberately does not call `ChartSetSymbolPeriod` during an active test because it can reinitialize the EA. Separate Tester chart tabs are not synchronized E2 audit charts. It is implemented but manually runtime-unverified.
