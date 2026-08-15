@@ -56,6 +56,7 @@ datetime g_last_h1_zone_v2_visual_bar=0;
 datetime g_last_m15_confirmation_v2_bar=0;
 datetime g_last_h4_v2_bar=0,g_last_h1_v2_bar=0,g_last_tc_v2_bar=0;
 ulong g_v2_h4_calls=0,g_v2_h1_calls=0,g_v2_m15_calls=0,g_v2_m15_contexts=0;
+E2H1ZoneV2Record g_h1_v2_zones[];
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -179,6 +180,7 @@ void E2RunH1ZoneV2(void)
    E2H1ZoneV2Record zones[];
    if(g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))
      {
+      ArrayResize(g_h1_v2_zones,ArraySize(zones));for(int i=0;i<ArraySize(zones);i++)g_h1_v2_zones[i]=zones[i];
       const datetime closed_h1=g_h1_zone_engine.LastClosedTime();
       if(closed_h1!=g_last_h1_zone_v2_visual_bar)
         {g_last_h1_zone_v2_visual_bar=closed_h1;g_visualizer.UpdateH1ZoneV2(zones,TimeCurrent());}
@@ -193,8 +195,7 @@ void E2RunM15ConfirmationV2(void)
    MqlRates closed;
    if(!g_market_data.GetClosedBarAsOf(_Symbol,PERIOD_M15,TimeCurrent(),closed) || closed.time==g_last_m15_confirmation_v2_bar)return;
    g_last_m15_confirmation_v2_bar=closed.time;
-   E2H1ZoneV2Record zones[];
-   if(!g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))return;
+   E2H1ZoneV2Record zones[];g_h1_zone_engine.ActiveZones(zones);
    for(int i=0;i<ArraySize(zones);i++)
      {
       if(zones[i].state!=E2_H1_ZONE_V2_ACTIVE)continue;g_v2_m15_contexts++;
@@ -207,9 +208,9 @@ void E2RunM15ConfirmationV2(void)
 void E2RunTrendContinuationV2(void)
   {
    const datetime closed=iTime(_Symbol,PERIOD_M15,1);if(closed<=0 || closed==g_last_tc_v2_bar)return;g_last_tc_v2_bar=closed;
-   E2H4RegimeResult h4; E2H1ZoneV2Record zones[]; E2TrendContinuationCandidate candidates[];
-   if(!g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),h4) || !g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))return;
-   if(g_trend_continuation_engine.Evaluate(_Symbol,TimeCurrent(),h4,zones,candidates)){g_visualizer.UpdateTrendContinuationV2(candidates);if(g_configuration.research_verification_summary)for(int i=0;i<ArraySize(candidates);i++)g_logger.Info("#"+IntegerToString(i+1)+" "+E2TrendContinuationDirectionName(candidates[i].direction)+" regime="+E2RegimeTypeName(candidates[i].h4_regime_at_confirmation)+" eligible="+E2YesNo(candidates[i].trend_entry_eligible)+" overextended="+E2YesNo(candidates[i].overextended)+" zone="+candidates[i].source_zone_id+" attempt="+IntegerToString(candidates[i].attempt_number)+" breakoutCandle="+TimeToString(candidates[i].breakout_time,TIME_DATE|TIME_MINUTES)+" breakoutKnownFrom="+TimeToString(candidates[i].breakout_known_from_time,TIME_DATE|TIME_MINUTES)+" retest="+TimeToString(candidates[i].retest_time,TIME_DATE|TIME_MINUTES)+" retestKnownFrom="+TimeToString(candidates[i].retest_known_from_time,TIME_DATE|TIME_MINUTES)+" confirmationCandle="+TimeToString(candidates[i].candidate_time,TIME_DATE|TIME_MINUTES)+" confirmationKnownFrom="+TimeToString(candidates[i].candidate_known_from_time,TIME_DATE|TIME_MINUTES),"TCV2_CANDIDATE");}
+   E2H4RegimeResult h4; E2TrendContinuationCandidate candidates[];
+   if(!g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),h4) || ArraySize(g_h1_v2_zones)==0)return;
+   if(g_trend_continuation_engine.Evaluate(_Symbol,TimeCurrent(),h4,g_h1_v2_zones,candidates)){g_visualizer.UpdateTrendContinuationV2(candidates);if(g_configuration.research_verification_summary)for(int i=0;i<ArraySize(candidates);i++)g_logger.Info("#"+IntegerToString(i+1)+" "+E2TrendContinuationDirectionName(candidates[i].direction)+" regime="+E2RegimeTypeName(candidates[i].h4_regime_at_confirmation)+" eligible="+E2YesNo(candidates[i].trend_entry_eligible)+" overextended="+E2YesNo(candidates[i].overextended)+" zone="+candidates[i].source_zone_id+" attempt="+IntegerToString(candidates[i].attempt_number)+" breakoutCandle="+TimeToString(candidates[i].breakout_time,TIME_DATE|TIME_MINUTES)+" breakoutKnownFrom="+TimeToString(candidates[i].breakout_known_from_time,TIME_DATE|TIME_MINUTES)+" retest="+TimeToString(candidates[i].retest_time,TIME_DATE|TIME_MINUTES)+" retestKnownFrom="+TimeToString(candidates[i].retest_known_from_time,TIME_DATE|TIME_MINUTES)+" confirmationCandle="+TimeToString(candidates[i].candidate_time,TIME_DATE|TIME_MINUTES)+" confirmationKnownFrom="+TimeToString(candidates[i].candidate_known_from_time,TIME_DATE|TIME_MINUTES),"TCV2_CANDIDATE");}
   }
 
 void E2RunZoneDiagnostic(void)
@@ -576,6 +577,8 @@ void OnDeinit(const int reason)
       E2H1ZoneV2DepartureWindow dw=g_h1_zone_engine.DepartureWindow();
       E2H1ZoneV2DepartureMagnitude dm=g_h1_zone_engine.DepartureMagnitude();
       E2H1ZoneV2Lifetime life=g_h1_zone_engine.Lifetime();
+      E2H1ZoneV2PersistentDiagnostics pd=g_h1_zone_engine.PersistentDiagnostics();
+      E2H1ZoneV2Workload pw=g_h1_zone_engine.Workload();
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", uptrend="+IntegerToString((int)g.uptrend)+", eligible="+IntegerToString((int)g.eligible)+", resistanceBars="+IntegerToString((int)g.resistance_bar)+", resistanceObs="+IntegerToString((int)g.resistance_observations)+", checks="+IntegerToString((int)g.resistance_checks)+", aboveEdge="+IntegerToString((int)g.above_edge)+", distancePass="+IntegerToString((int)g.distance_long)+", accepted="+IntegerToString(v.break_long),"TCV2_GATE_LONG");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", downtrend="+IntegerToString((int)g.downtrend)+", eligible="+IntegerToString((int)g.eligible)+", supportBars="+IntegerToString((int)g.support_bar)+", supportObs="+IntegerToString((int)g.support_observations)+", checks="+IntegerToString((int)g.support_checks)+", belowEdge="+IntegerToString((int)g.below_edge)+", distancePass="+IntegerToString((int)g.distance_short)+", accepted="+IntegerToString(v.break_short),"TCV2_GATE_SHORT");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", zero="+IntegerToString((int)g.zero_zone)+", nonzero="+IntegerToString((int)g.nonzero_zone)+", maxZones="+IntegerToString((int)g.max_zones)+", maxSupport="+IntegerToString((int)g.max_support)+", maxResistance="+IntegerToString((int)g.max_resistance),"TCV2_ZONE_SUPPLY");
@@ -586,7 +589,8 @@ void OnDeinit(const int reason)
       if(dm.highs>0){g_logger.Info("rank=greatest, "+E2H1DepartureSampleText(dm.high_greatest),"H1ZV2_HIGH_SAMPLE");g_logger.Info("rank=median, "+E2H1DepartureSampleText(dm.high_median_sample),"H1ZV2_HIGH_SAMPLE");g_logger.Info("rank=smallest, "+E2H1DepartureSampleText(dm.high_smallest),"H1ZV2_HIGH_SAMPLE");}
       if(dm.lows>0){g_logger.Info("rank=greatest, "+E2H1DepartureSampleText(dm.low_greatest),"H1ZV2_LOW_SAMPLE");g_logger.Info("rank=median, "+E2H1DepartureSampleText(dm.low_median_sample),"H1ZV2_LOW_SAMPLE");g_logger.Info("rank=smallest, "+E2H1DepartureSampleText(dm.low_smallest),"H1ZV2_LOW_SAMPLE");}
       g_logger.Info("supportCreatedRun="+IntegerToString(life.support_created)+", resistanceCreatedRun="+IntegerToString(life.resistance_created)+", supportInvalidatedRun="+IntegerToString(life.support_invalidated)+", resistanceInvalidatedRun="+IntegerToString(life.resistance_invalidated)+", supportBars="+IntegerToString(life.support_bars)+", resistanceBars="+IntegerToString(life.resistance_bars)+", lookbackExpiryObserved="+E2YesNo(life.lookback_expiry_observed),"H1ZV2_LIFETIME");
-      g_logger.Info("h4Calls="+StringFormat("%I64u",g_v2_h4_calls)+", h1Calls="+StringFormat("%I64u",g_v2_h1_calls)+", m15StandaloneCalls="+StringFormat("%I64u",g_v2_m15_calls)+", standaloneContexts="+StringFormat("%I64u",g_v2_m15_contexts)+", tcConfirmationContexts="+IntegerToString((int)g.confirmation_contexts)+", m15CandidateCalcs="+StringFormat("%I64u",g_m15_confirmation_engine.MeasurementCount())+", tcCalls="+IntegerToString((int)g.tc_calls)+", activeStates="+IntegerToString((int)g.active_state_evaluations),"V2_WORKLOAD");
+      g_logger.Info("insertedSupport="+IntegerToString(pd.inserted_support)+", insertedResistance="+IntegerToString(pd.inserted_resistance)+", initializedSupport="+IntegerToString(pd.initialized_support)+", initializedResistance="+IntegerToString(pd.initialized_resistance)+", invalidatedSupport="+IntegerToString(pd.invalidated_support)+", invalidatedResistance="+IntegerToString(pd.invalidated_resistance)+", rediscoveries="+IntegerToString(pd.duplicate_rediscoveries)+", resurrectionAttempts="+IntegerToString(pd.resurrection_attempts)+", survivedSourceLookbackExpiry="+IntegerToString(pd.survived_source_lookback_expiry)+", maxActive="+IntegerToString(pd.max_active)+", maxTotal="+IntegerToString(pd.max_total)+", creationCausalityViolations="+IntegerToString(pd.creation_causality_violations)+", invalidationBeforeCreation="+IntegerToString(pd.invalidation_before_creation)+", duplicateActiveIds="+IntegerToString(pd.duplicate_active_ids)+", disappearedWithoutInvalidation="+IntegerToString(pd.disappeared_without_invalidation),"H1ZV2_PERSISTENT");
+      g_logger.Info("h4Calls="+StringFormat("%I64u",g_v2_h4_calls)+", h1Calls="+StringFormat("%I64u",g_v2_h1_calls)+", m15StandaloneCalls="+StringFormat("%I64u",g_v2_m15_calls)+", standaloneContexts="+StringFormat("%I64u",g_v2_m15_contexts)+", tcConfirmationContexts="+IntegerToString((int)g.confirmation_contexts)+", m15CandidateCalcs="+StringFormat("%I64u",g_m15_confirmation_engine.MeasurementCount())+", tcCalls="+IntegerToString((int)g.tc_calls)+", activeStates="+IntegerToString((int)g.active_state_evaluations)+", persistentLookupChecks="+StringFormat("%I64u",pw.persistent_lookup_checks)+", persistentActiveInvalidationChecks="+StringFormat("%I64u",pw.persistent_active_invalidation_checks)+", persistentTerminalChecks="+StringFormat("%I64u",pw.persistent_terminal_checks)+", activeZoneExports="+StringFormat("%I64u",pw.active_zone_exports)+", tcH1BreakoutZoneChecks="+StringFormat("%I64u",g.h1_breakout_zone_checks)+", tcM15StateChecks="+StringFormat("%I64u",g.m15_state_checks)+", tcRecordLookupChecks="+StringFormat("%I64u",g.record_lookup_checks)+", rediscoveryFastHits="+StringFormat("%I64u",pw.rediscovery_fast_hits),"V2_WORKLOAD");
       g_logger.Info("breakouts_long="+IntegerToString(v.break_long)+", breakouts_short="+IntegerToString(v.break_short)+", retests_long="+IntegerToString(v.retest_long)+", retests_short="+IntegerToString(v.retest_short)+", candidates_long="+IntegerToString(v.candidate_long)+", candidates_short="+IntegerToString(v.candidate_short)+", duplicates_suppressed="+IntegerToString(v.duplicate_suppressed)+", duplicate_candidates="+IntegerToString(v.duplicate_candidates),"TCV2_VERIFY");
       g_logger.Info("confirmations_long="+IntegerToString(v.confirm_long)+", confirmations_short="+IntegerToString(v.confirm_short)+", total_candidates="+IntegerToString(v.total)+", unique_zone_attempts="+IntegerToString(v.unique_attempts)+", invalid_h4_loss="+IntegerToString(v.h4_loss)+", invalid_h4_overextension="+IntegerToString(v.h4_overextended)+", invalid_flipped_zone="+IntegerToString(v.flipped_invalid)+", multiple_claimant_timestamps="+IntegerToString(v.confirmation_timestamps_with_multiple_claimants)+", max_claimants="+IntegerToString(v.maximum_claimants_one_confirmation)+", ownership_resolutions="+IntegerToString(v.ownership_resolutions)+", same_confirmation_multiple_candidates="+IntegerToString(v.same_confirmation_multiple_candidates)+", causal_order_violations="+IntegerToString(v.causal_order_violations),"TCV2_VERIFY");
      }

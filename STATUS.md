@@ -14,6 +14,8 @@ Sprint 1.4 Objective M15 Confirmation Engine is implemented but not runtime-veri
 
 Sprint 1.5 Trend Continuation V2 is implemented but not runtime-verified. It emits research candidates only and cannot place or influence trades.
 
+Corrective Sprint 1.3.3 performance architecture is implemented and compile-verified. Persistent H1 zone IDs use sorted lookup, active support/resistance indexes own invalidation iteration and active exports, terminal records remain retained for anti-resurrection, and TC breakout gating is H1-event-driven while M15 retest/confirmation work remains M15-driven. The optimization changes no thresholds, zone IDs, lifetime rules, or causal timestamps; exact one-year semantic/runtime comparison remains required.
+
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 
 | EURUSD, 2025.12.24–2025.12.27 | Value |

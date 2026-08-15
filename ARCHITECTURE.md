@@ -71,11 +71,15 @@ Sprint 1.2 verification support adds an H4-only, read-only `E2VIS_H4RV2_*` overl
 
 Sprint 1.3.1 corrects the Zone V2 source-pair explosion without changing thresholds: each newly qualifying pivot owns at most one deterministic two-touch construction with its nearest qualifying prior same-role pivot. H4/H1/TC orchestration is completed-bar gated; M15 median measurement is candle-cached; and TC submits only `RETEST_ACTIVE` contexts to M15 confirmation. The legacy v1.0 pipeline remains isolated.
 
+Sprint 1.3.3 keeps the append-only persistent record array authoritative and adds deterministic performance indexes around it. A sorted stable-zone-ID index provides logarithmic rediscovery lookup. Separate support/resistance active-record indexes drive H1 invalidation and active-only exports; invalidated terminal records remain retained in the authoritative store and ID index to prevent resurrection. These indexes are derived iteration structures and never redefine zone identity, boundaries, lifetime, or state.
+
 ## Sprint 1.4 M15 Confirmation Engine V2
 
 `E2M15ConfirmationEngine` consumes immutable H1 Zone V2 context and completed M15 history to emit four detailed research snapshots: bullish/bearish momentum and bullish/bearish range rejection. It uses its own preceding-20 median-body calculation, never the legacy average-body confirmation rule. `E2.mq5` invokes it only on a new completed M15 candle and sends its results one-way to the optional `E2VIS_M15CV2_*` audit overlay. No strategy, setup, planning, execution, or reporting component reads its output. See [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md).
 
 ## Sprint 1.5 Trend Continuation V2
+
+TC H1 breakout gates are event-driven: the completed-H1 close, ATR, and zone breakout predicates are evaluated only when the H1 known-from timestamp advances. M15 calls retain ownership of post-breakout approach, retest, and confirmation transitions. A sorted TC record index replaces linear record lookup, while the latest authoritative H1 snapshot is reused between H1 events instead of being recopied from the zone engine on every M15 candle. Causal breakout and confirmation timestamps are unchanged.
 
 `E2TrendContinuationEngine` is a research-only state machine consuming the V2 H4/H1/M15 stack and emitting immutable candidate snapshots for later routing. It remains isolated from all legacy strategy and execution components; see [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md).
 

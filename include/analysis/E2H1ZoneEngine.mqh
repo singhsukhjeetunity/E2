@@ -84,6 +84,10 @@ struct E2H1ZoneV2Lifetime
    int support_bars,resistance_bars;
    bool lookback_expiry_observed;
   };
+struct E2H1ZoneV2PersistentDiagnostics
+  {int inserted_support,inserted_resistance,initialized_support,initialized_resistance,invalidated_support,invalidated_resistance,duplicate_rediscoveries,resurrection_attempts,survived_source_lookback_expiry,max_active,max_total,creation_causality_violations,invalidation_before_creation,duplicate_active_ids,disappeared_without_invalidation;};
+struct E2H1ZoneV2Workload
+  {ulong persistent_lookup_checks,persistent_active_invalidation_checks,persistent_terminal_checks,active_zone_exports,rediscovery_fast_hits;};
 
 class E2H1ZoneEngine
   {
@@ -101,6 +105,13 @@ private:
    E2H1ZoneV2DepartureMagnitude m_departure_magnitude;
    E2H1ZoneV2Lifetime m_lifetime;
    string m_seen_created[],m_seen_invalidated[];
+   E2H1ZoneV2Record m_persistent[];
+   string m_persistent_ids[];
+   int m_persistent_id_records[],m_active_support[],m_active_resistance[];
+   bool m_persistent_initialized;
+   E2H1ZoneV2PersistentDiagnostics m_persistent_diagnostics;
+   string m_seen_expiry_survival[];
+   E2H1ZoneV2Workload m_workload;
 
    double Epsilon(const double value) const { return(MathMax(1e-10,MathAbs(value)*1e-10)); }
    bool GreaterOrEqual(const double a,const double b) const { return(a>b || MathAbs(a-b)<=Epsilon(b)); }
@@ -171,6 +182,22 @@ private:
          if(had_visit && away){zone.departure_after_attempt=true;zone.rearm_eligible=true;zone.armed=false;}
         }
      }
+   int PersistentIdPosition(const string id,bool &found)
+     {int lo=0,hi=ArraySize(m_persistent_ids)-1;found=false;while(lo<=hi){m_workload.persistent_lookup_checks++;const int mid=(lo+hi)/2;const int cmp=StringCompare(m_persistent_ids[mid],id);if(cmp==0){found=true;return(mid);}if(cmp<0)lo=mid+1;else hi=mid-1;}return(lo);}
+   int PersistentIndex(const string id)
+     {bool found=false;const int at=PersistentIdPosition(id,found);return(found?m_persistent_id_records[at]:-1);}
+   void IndexPersistent(const string id,const int record)
+     {bool found=false;const int at=PersistentIdPosition(id,found);if(found)return;const int n=ArraySize(m_persistent_ids);ArrayResize(m_persistent_ids,n+1);ArrayResize(m_persistent_id_records,n+1);for(int i=n;i>at;i--){m_persistent_ids[i]=m_persistent_ids[i-1];m_persistent_id_records[i]=m_persistent_id_records[i-1];}m_persistent_ids[at]=id;m_persistent_id_records[at]=record;}
+   void AppendActive(const int record)
+     {int n;if(m_persistent[record].type==E2_H1_ZONE_V2_SUPPORT){n=ArraySize(m_active_support);ArrayResize(m_active_support,n+1);m_active_support[n]=record;}else{n=ArraySize(m_active_resistance);ArrayResize(m_active_resistance,n+1);m_active_resistance[n]=record;}}
+   void RemoveActiveAt(int &active[],const int at) const
+     {const int n=ArraySize(active);for(int i=at+1;i<n;i++)active[i-1]=active[i];ArrayResize(active,n-1);}
+   void ApplyPersistentInvalidation(E2H1ZoneV2Record &zone,const MqlRates &bars[],const double &atr[])
+     {const int i=ArraySize(bars)-1;if(i<0||zone.state!=E2_H1_ZONE_V2_ACTIVE||atr[i]<=0.0)return;const datetime available=bars[i].time+PeriodSeconds(PERIOD_H1);if(available<zone.creation_time)return;const bool invalid=(zone.type==E2_H1_ZONE_V2_SUPPORT ? StrictBelow(bars[i].close,zone.lower-m_invalidation_atr*atr[i]) : StrictAbove(bars[i].close,zone.upper+m_invalidation_atr*atr[i]));if(!invalid)return;zone.state=E2_H1_ZONE_V2_INVALIDATED;zone.invalidation_time=available;zone.invalidation_close=bars[i].close;zone.invalidation_atr=atr[i];zone.invalidation_distance_atr=(zone.type==E2_H1_ZONE_V2_SUPPORT ? (zone.lower-bars[i].close)/atr[i] : (bars[i].close-zone.upper)/atr[i]);zone.invalidation_reason="H1_CLOSE_BEYOND_FAR_EDGE";if(zone.type==E2_H1_ZONE_V2_SUPPORT)m_persistent_diagnostics.invalidated_support++;else m_persistent_diagnostics.invalidated_resistance++;}
+   void ReconcilePersistent(const E2H1ZoneV2Record &discovered[],const MqlRates &bars[],const double &atr[])
+     {for(int i=0;i<ArraySize(discovered);i++){int p=PersistentIndex(discovered[i].zone_id);if(p>=0){m_workload.rediscovery_fast_hits++;m_persistent_diagnostics.duplicate_rediscoveries++;if(m_persistent[p].state==E2_H1_ZONE_V2_INVALIDATED&&discovered[i].state==E2_H1_ZONE_V2_ACTIVE)m_persistent_diagnostics.resurrection_attempts++;continue;}const int n=ArraySize(m_persistent);ArrayResize(m_persistent,n+1);m_persistent[n]=discovered[i];IndexPersistent(discovered[i].zone_id,n);if(m_persistent[n].state==E2_H1_ZONE_V2_ACTIVE)AppendActive(n);const bool support=(discovered[i].type==E2_H1_ZONE_V2_SUPPORT);if(!m_persistent_initialized){if(support)m_persistent_diagnostics.initialized_support++;else m_persistent_diagnostics.initialized_resistance++;}else{if(support)m_persistent_diagnostics.inserted_support++;else m_persistent_diagnostics.inserted_resistance++;}if(discovered[i].creation_time<=0)m_persistent_diagnostics.creation_causality_violations++;if(discovered[i].invalidation_time>0&&discovered[i].invalidation_time<discovered[i].creation_time)m_persistent_diagnostics.invalidation_before_creation++;}
+      for(int role=0;role<2;role++){if(role==0){for(int i=ArraySize(m_active_support)-1;i>=0;i--){m_workload.persistent_active_invalidation_checks++;const int p=m_active_support[i];ApplyPersistentInvalidation(m_persistent[p],bars,atr);if(m_persistent[p].state!=E2_H1_ZONE_V2_ACTIVE)RemoveActiveAt(m_active_support,i);}}else{for(int i=ArraySize(m_active_resistance)-1;i>=0;i--){m_workload.persistent_active_invalidation_checks++;const int p=m_active_resistance[i];ApplyPersistentInvalidation(m_persistent[p],bars,atr);if(m_persistent[p].state!=E2_H1_ZONE_V2_ACTIVE)RemoveActiveAt(m_active_resistance,i);}}}
+      const int active=ArraySize(m_active_support)+ArraySize(m_active_resistance);for(int role=0;role<2;role++){const int count=(role==0?ArraySize(m_active_support):ArraySize(m_active_resistance));for(int i=0;i<count;i++){const int p=(role==0?m_active_support[i]:m_active_resistance[i]);if(ArraySize(bars)>0&&(m_persistent[p].source_pivot_1_time<bars[0].time||m_persistent[p].source_pivot_2_time<bars[0].time)&&!ContainsId(m_seen_expiry_survival,m_persistent[p].zone_id)){RememberId(m_seen_expiry_survival,m_persistent[p].zone_id);m_persistent_diagnostics.survived_source_lookback_expiry++;}}}m_persistent_diagnostics.max_active=MathMax(m_persistent_diagnostics.max_active,active);m_persistent_diagnostics.max_total=MathMax(m_persistent_diagnostics.max_total,ArraySize(m_persistent));m_persistent_initialized=true;}
    void LogNewEvents(const E2H1ZoneV2Record &zones[],const datetime latest_available) const
      {
       if(m_logger==NULL || !m_logger.IsDebugEnabled() || !m_verbose)return;
@@ -265,15 +292,19 @@ private:
         }
      }
 public:
-   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_has_cached(false),m_verbose(false) {ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);}
+   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_has_cached(false),m_verbose(false),m_persistent_initialized(false) {ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
    void Initialize(const E2Config &config,E2MarketData &market,E2Logger &logger)
-     {m_market=&market;m_logger=&logger;m_verbose=config.research_verbose_diagnostics;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_has_cached=false;ArrayResize(m_cached,0);ArrayResize(m_seen_created,0);ArrayResize(m_seen_invalidated,0);ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);}
+     {m_market=&market;m_logger=&logger;m_verbose=config.research_verbose_diagnostics;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_has_cached=false;m_persistent_initialized=false;ArrayResize(m_cached,0);ArrayResize(m_persistent,0);ArrayResize(m_persistent_ids,0);ArrayResize(m_persistent_id_records,0);ArrayResize(m_active_support,0);ArrayResize(m_active_resistance,0);ArrayResize(m_seen_created,0);ArrayResize(m_seen_invalidated,0);ArrayResize(m_seen_expiry_survival,0);ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
    datetime LastClosedTime(void) const { return(m_last_closed); }
    E2H1ZoneV2Verification Verification(void) const { return(m_verification); }
    E2H1ZoneV2RoleGate RoleGate(void) const { return(m_role_gate); }
    E2H1ZoneV2DepartureWindow DepartureWindow(void) const { return(m_departure_window); }
    E2H1ZoneV2DepartureMagnitude DepartureMagnitude(void) const { return(m_departure_magnitude); }
    E2H1ZoneV2Lifetime Lifetime(void) const { return(m_lifetime); }
+   E2H1ZoneV2PersistentDiagnostics PersistentDiagnostics(void) const {return(m_persistent_diagnostics);}
+   E2H1ZoneV2Workload Workload(void) const {return(m_workload);}
+   void ActiveZones(E2H1ZoneV2Record &result[])
+     {const int ns=ArraySize(m_active_support),nr=ArraySize(m_active_resistance);ArrayResize(result,ns+nr);for(int i=0;i<ns;i++)result[i]=m_persistent[m_active_support[i]];for(int i=0;i<nr;i++)result[ns+i]=m_persistent[m_active_resistance[i]];m_workload.active_zone_exports++;}
    bool Evaluate(const string symbol,const datetime evaluation_time,E2H1ZoneV2Record &result[])
      {
       ArrayResize(result,0);if(m_market==NULL)return(false);MqlRates latest;
@@ -302,6 +333,9 @@ public:
       MeasureDepartures(highs,true,bars);
       MeasureDepartures(lows,false,bars);
       BuildZonesFromPivots(symbol,E2_H1_ZONE_V2_SUPPORT,lows,result,bars,atr);BuildZonesFromPivots(symbol,E2_H1_ZONE_V2_RESISTANCE,highs,result,bars,atr);
+      E2H1ZoneV2Record discovered[];CopyRecords(discovered,result);
+      ReconcilePersistent(discovered,bars,atr);
+      CopyRecords(result,m_persistent);
       RecountVerification(result);
       RecordLifetime(result,bars);
       CopyRecords(m_cached,result);m_last_closed=latest.time;m_has_cached=true;LogNewEvents(result,latest.time+seconds);return(true);
