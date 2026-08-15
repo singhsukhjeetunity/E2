@@ -33,7 +33,7 @@ Sprint 1.3 introduces `E2H1ZoneEngine` solely as a future research-state produce
 
 Sprint 1.4 adds the separate `E2M15ConfirmationEngine`. Its median-body momentum and zone-context rejection snapshots are likewise not used by this strategy; the active v1.0 path continues to use `E2ConfirmationAnalyzer`. Details are in [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md).
 
-Sprint 1.5 Trend Continuation V2 candidates remain research-only and are not active strategy signals; see [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md).
+Sprint 1.5 Trend Continuation V2 candidates feed the isolated Sprint 1.6 research planner, not the legacy strategy or native executor. Each candidate receives one plan attempt at its designated next-M15 open; rejected candidates expire. Stop, causal opposing-zone target, available-R, management selection, and fixed-initial-balance sizing are documented in [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md).
 
 ## Implementation and safety rules
 

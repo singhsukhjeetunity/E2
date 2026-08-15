@@ -62,6 +62,8 @@ private:
    E2Logger          *m_logger;
    double            m_risk_percent;
    E2RiskBase        m_risk_base;
+   bool              m_fixed_base_override;
+   double            m_fixed_base_value;
 
    void ResetResult(E2PositionSizingResult &result)
      {
@@ -99,7 +101,7 @@ private:
      }
 
 public:
-                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_percent(0.0),m_risk_base(E2_RISK_BASE_EQUITY) {}
+                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_percent(0.0),m_risk_base(E2_RISK_BASE_EQUITY),m_fixed_base_override(false),m_fixed_base_value(0.0) {}
 
    void              Initialize(const E2Config &configuration,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2Logger &logger)
      {
@@ -110,6 +112,8 @@ public:
       // Sprint 5.1 fixes E2's planning risk base to equity, irrespective of
       // account balance movements or legacy configuration values.
       m_risk_base=E2_RISK_BASE_EQUITY;
+      m_fixed_base_override=false;
+      m_fixed_base_value=0.0;
      }
 
    bool              Calculate(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,E2PositionSizingResult &result)
@@ -150,7 +154,7 @@ public:
          return(false);
         }
 
-      result.risk_base_value=(m_risk_base==E2_RISK_BASE_BALANCE ? m_account_info.Balance() : m_account_info.Equity());
+      result.risk_base_value=(m_fixed_base_override ? m_fixed_base_value : (m_risk_base==E2_RISK_BASE_BALANCE ? m_account_info.Balance() : m_account_info.Equity()));
       if(result.risk_base_value<=0.0)
         {
          result.status=E2_SIZING_ACCOUNT_DATA_UNAVAILABLE;
@@ -205,6 +209,15 @@ public:
       result.actual_risk_percent=result.actual_risk_money/result.risk_base_value*100.0;
       result.status=E2_SIZING_VALID;
       return(true);
+     }
+
+   bool              CalculateFixedInitialBalance(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,const double initial_balance,E2PositionSizingResult &result)
+     {
+      if(initial_balance<=0.0){ResetResult(result);result.status=E2_SIZING_ACCOUNT_DATA_UNAVAILABLE;return(false);}
+      m_fixed_base_override=true;m_fixed_base_value=initial_balance;
+      const bool calculated=Calculate(symbol,direction,entry_price,stop_price,result);
+      m_fixed_base_override=false;m_fixed_base_value=0.0;
+      return(calculated);
      }
 
    void              LogDiagnostic(const E2PositionSizingResult &result) const

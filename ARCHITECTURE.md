@@ -81,6 +81,10 @@ Sprint 1.3.3 keeps the append-only persistent record array authoritative and add
 
 TC H1 breakout gates are event-driven: the completed-H1 close, ATR, and zone breakout predicates are evaluated only when the H1 known-from timestamp advances. M15 calls retain ownership of post-breakout approach, retest, and confirmation transitions. A sorted TC record index replaces linear record lookup, while the latest authoritative H1 snapshot is reused between H1 events instead of being recopied from the zone engine on every M15 candle. Causal breakout and confirmation timestamps are unchanged.
 
+## Sprint 1.6 V2 planning router
+
+`E2V2TradePlanEngine` is an isolated, strategy-aware research router. Sprint 1.6 accepts only `TREND_CONTINUATION`; range identities remain inactive placeholders. It converts a candidate into one next-M15 plan attempt, revalidates H4/session/news/exposure/quote state, selects a causal active opposing zone, applies fixed-initial-balance sizing, and records either a deterministic rejection or finalized plan. It never calls `E2OrderExecutor`. See [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md).
+
 `E2TrendContinuationEngine` is a research-only state machine consuming the V2 H4/H1/M15 stack and emitting immutable candidate snapshots for later routing. It remains isolated from all legacy strategy and execution components; see [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md).
 
 ## Backtesting and reporting

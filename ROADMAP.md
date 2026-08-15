@@ -39,6 +39,10 @@ Sprint 1.4 adds the parallel, causal M15 detector documented in [M15_CONFIRMATIO
 
 Sprint 1.5 adds an isolated V2 candidate producer documented in [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md). It does not route candidates to trading. Sprint 1.6 and later work remain out of scope.
 
+## E2 v1.1.0-alpha — Sprint 1.6: TC V2 trade planning and eligibility routing: implemented, manual verification pending
+
+Sprint 1.6 adds the isolated research planner documented in [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md). It performs one-shot next-M15 entry revalidation, causal target discovery, available-R and management routing, and fixed-initial-balance sizing. It produces no native orders; Range Mean Reversion, Range Breakout, trailing execution, and later execution integration remain future work.
+
 ## Then
 
 1. Sprint 1.3 — Approved v1.1 continuation only after Sprint 1.2 verification

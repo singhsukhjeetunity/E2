@@ -3,4 +3,5 @@
 #include "E2ResearchTypes.mqh"
 #include "E2StrategyAnalyzer.mqh"
 #include "E2SetupTracker.mqh"
+#include "E2V2TradePlanEngine.mqh"
 #endif
