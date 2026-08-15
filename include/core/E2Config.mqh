@@ -1,6 +1,8 @@
 #ifndef E2_CORE_E2CONFIG_MQH
 #define E2_CORE_E2CONFIG_MQH
 
+#include "..\\strategy\\E2ResearchTypes.mqh"
+
 // External EA inputs are intentionally kept here. Future modules receive the
 // E2Config structure instead of depending on these input variables directly.
 
@@ -22,6 +24,30 @@ input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders
 input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
 input bool  InpDebugMode        = false;   // Enables future diagnostic output.
 
+input group "V1.1 ALPHA STRATEGY FRAMEWORK"
+input bool InpEnableTrendContinuation = true;
+input bool InpEnableRangeMeanReversion = false;
+input bool InpEnableRangeBreakout = false;
+
+input group "V1.1 ALPHA MANAGEMENT FRAMEWORK"
+input bool InpEnableFixed2RManagement = true;
+input bool InpEnableZoneTargetTrailingManagement = false;
+
+input group "V1.1 ALPHA H4 RESEARCH (INERT)"
+input int InpResearchH4EmaFastPeriod = 20;
+input int InpResearchH4EmaSlowPeriod = 50;
+input int InpResearchH4EmaSlopeLookback = 5;
+input int InpResearchH4AtrPeriod = 14;
+input double InpResearchH4StructuralBreakoutDistanceAtr = 0.10;
+input double InpResearchH4TrendExtensionLimitAtr = 1.50;
+
+input group "V1.1 ALPHA RANGE RESEARCH (INERT)"
+input double InpResearchRangeClusterVariationMaximumAtr = 0.50;
+input double InpResearchRangeMinimumHeightAtr = 3.00;
+input double InpResearchRangeEma50FlatnessMaximumAtr = 0.10;
+input double InpResearchRangeBoundaryInvalidationAtr = 0.25;
+input double InpResearchRangeOuterEntryRegionFraction = 0.20;
+
 input group "TIMEFRAMES"
 input ENUM_TIMEFRAMES InpTrendTimeframe        = PERIOD_H4;  // H4 market structure timeframe.
 input ENUM_TIMEFRAMES InpZoneTimeframe         = PERIOD_H1;  // H1 support/resistance timeframe.
@@ -41,6 +67,20 @@ input double InpZoneTolerancePips       = 5.0; // Price-reaction tolerance, expr
 input double InpZoneMergeTolerancePips  = 5.0; // Nearby-zone merge tolerance, expressed in pips.
 input double InpStopLossZoneBufferPips  = 2.0; // Future stop buffer beyond a zone, expressed in pips.
 
+input group "V1.1 ALPHA H1 RESEARCH (INERT)"
+input double InpResearchH1ZonePivotClusteringAtr = 0.50;
+input int InpResearchH1MinimumTouchSeparationBars = 3;
+input double InpResearchH1MinimumPostTouchDepartureAtr = 1.00;
+input double InpResearchH1ZoneInvalidationAtr = 0.10;
+input double InpResearchH1BreakoutDistanceAtr = 0.10;
+input int InpResearchH1BreakoutBodyLookback = 20;
+input double InpResearchH1BreakoutBodyMultiplier = 1.25;
+input double InpResearchH1BreakoutBodyRangeMinimum = 0.60;
+input double InpResearchH1BreakoutClosingLocationFraction = 0.20;
+input int InpResearchH1BreakoutRetestExpiryBars = 12;
+input double InpResearchH1BreakoutInvalidationDepthAtr = 0.10;
+input double InpResearchH1ZoneRearmDistanceAtr = 0.50;
+
 input group "CONFIRMATIONS"
 input bool InpEnableEngulfingConfirmation           = true; // Enable future engulfing-candle confirmation.
 input bool InpEnablePinBarConfirmation              = true; // Enable future pin-bar confirmation.
@@ -50,6 +90,14 @@ input double InpPinBarMinimumWickToBodyRatio = 2.0; // Provisional minimum domin
 input double InpPinBarMaximumOppositeWickToBodyRatio = 1.0; // Provisional maximum opposite-wick/body ratio.
 input int InpMomentumBodyLookback = 20; // Prior closed M15 bodies used as momentum context.
 input double InpMomentumBodyMultiplier = 1.5; // Provisional body-size multiple of prior average.
+
+input group "V1.1 ALPHA M15 RESEARCH (INERT)"
+input int InpResearchM15BodyMedianLookback = 20;
+input double InpResearchM15MomentumBodyMultiplier = 1.25;
+input double InpResearchM15MomentumBodyRangeMinimum = 0.60;
+input double InpResearchM15MomentumClosingLocationFraction = 0.20;
+input double InpResearchM15RejectionWickBodyMinimum = 1.50;
+input double InpResearchM15RejectionWickRangeMinimum = 0.40;
 
 input group "RISK"
 input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
@@ -101,6 +149,23 @@ struct E2Config
    ulong           expert_magic_number;
    bool            trading_enabled;
    bool            debug_mode;
+   bool            enable_trend_continuation;
+   bool            enable_range_mean_reversion;
+   bool            enable_range_breakout;
+   bool            enable_fixed_2r_management;
+   bool            enable_zone_target_trailing_management;
+
+   int             research_h4_ema_fast_period;
+   int             research_h4_ema_slow_period;
+   int             research_h4_ema_slope_lookback;
+   int             research_h4_atr_period;
+   double          research_h4_structural_breakout_distance_atr;
+   double          research_h4_trend_extension_limit_atr;
+   double          research_range_cluster_variation_maximum_atr;
+   double          research_range_minimum_height_atr;
+   double          research_range_ema50_flatness_maximum_atr;
+   double          research_range_boundary_invalidation_atr;
+   double          research_range_outer_entry_region_fraction;
 
    ENUM_TIMEFRAMES trend_timeframe;
    ENUM_TIMEFRAMES zone_timeframe;
@@ -117,6 +182,18 @@ struct E2Config
    double          zone_tolerance_pips;
    double          zone_merge_tolerance_pips;
    double          stop_loss_zone_buffer_pips;
+   double          research_h1_zone_pivot_clustering_atr;
+   int             research_h1_minimum_touch_separation_bars;
+   double          research_h1_minimum_post_touch_departure_atr;
+   double          research_h1_zone_invalidation_atr;
+   double          research_h1_breakout_distance_atr;
+   int             research_h1_breakout_body_lookback;
+   double          research_h1_breakout_body_multiplier;
+   double          research_h1_breakout_body_range_minimum;
+   double          research_h1_breakout_closing_location_fraction;
+   int             research_h1_breakout_retest_expiry_bars;
+   double          research_h1_breakout_invalidation_depth_atr;
+   double          research_h1_zone_rearm_distance_atr;
 
    bool            enable_engulfing_confirmation;
    bool            enable_pin_bar_confirmation;
@@ -126,6 +203,12 @@ struct E2Config
    double          pin_bar_maximum_opposite_wick_to_body_ratio;
    int             momentum_body_lookback;
    double          momentum_body_multiplier;
+   int             research_m15_body_median_lookback;
+   double          research_m15_momentum_body_multiplier;
+   double          research_m15_momentum_body_range_minimum;
+   double          research_m15_momentum_closing_location_fraction;
+   double          research_m15_rejection_wick_body_minimum;
+   double          research_m15_rejection_wick_range_minimum;
 
    double          risk_percent;
    double          reward_risk_target;
@@ -172,6 +255,22 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.expert_magic_number                    = InpExpertMagicNumber;
    configuration.trading_enabled                        = InpTradingEnabled;
    configuration.debug_mode                             = InpDebugMode;
+   configuration.enable_trend_continuation              = InpEnableTrendContinuation;
+   configuration.enable_range_mean_reversion            = InpEnableRangeMeanReversion;
+   configuration.enable_range_breakout                  = InpEnableRangeBreakout;
+   configuration.enable_fixed_2r_management             = InpEnableFixed2RManagement;
+   configuration.enable_zone_target_trailing_management = InpEnableZoneTargetTrailingManagement;
+   configuration.research_h4_ema_fast_period            = InpResearchH4EmaFastPeriod;
+   configuration.research_h4_ema_slow_period            = InpResearchH4EmaSlowPeriod;
+   configuration.research_h4_ema_slope_lookback         = InpResearchH4EmaSlopeLookback;
+   configuration.research_h4_atr_period                 = InpResearchH4AtrPeriod;
+   configuration.research_h4_structural_breakout_distance_atr = InpResearchH4StructuralBreakoutDistanceAtr;
+   configuration.research_h4_trend_extension_limit_atr  = InpResearchH4TrendExtensionLimitAtr;
+   configuration.research_range_cluster_variation_maximum_atr = InpResearchRangeClusterVariationMaximumAtr;
+   configuration.research_range_minimum_height_atr      = InpResearchRangeMinimumHeightAtr;
+   configuration.research_range_ema50_flatness_maximum_atr = InpResearchRangeEma50FlatnessMaximumAtr;
+   configuration.research_range_boundary_invalidation_atr = InpResearchRangeBoundaryInvalidationAtr;
+   configuration.research_range_outer_entry_region_fraction = InpResearchRangeOuterEntryRegionFraction;
    configuration.trend_timeframe                        = InpTrendTimeframe;
    configuration.zone_timeframe                         = InpZoneTimeframe;
    configuration.confirmation_timeframe                 = InpConfirmationTimeframe;
@@ -185,6 +284,18 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.zone_tolerance_pips                    = InpZoneTolerancePips;
    configuration.zone_merge_tolerance_pips              = InpZoneMergeTolerancePips;
    configuration.stop_loss_zone_buffer_pips             = InpStopLossZoneBufferPips;
+   configuration.research_h1_zone_pivot_clustering_atr  = InpResearchH1ZonePivotClusteringAtr;
+   configuration.research_h1_minimum_touch_separation_bars = InpResearchH1MinimumTouchSeparationBars;
+   configuration.research_h1_minimum_post_touch_departure_atr = InpResearchH1MinimumPostTouchDepartureAtr;
+   configuration.research_h1_zone_invalidation_atr      = InpResearchH1ZoneInvalidationAtr;
+   configuration.research_h1_breakout_distance_atr      = InpResearchH1BreakoutDistanceAtr;
+   configuration.research_h1_breakout_body_lookback     = InpResearchH1BreakoutBodyLookback;
+   configuration.research_h1_breakout_body_multiplier   = InpResearchH1BreakoutBodyMultiplier;
+   configuration.research_h1_breakout_body_range_minimum = InpResearchH1BreakoutBodyRangeMinimum;
+   configuration.research_h1_breakout_closing_location_fraction = InpResearchH1BreakoutClosingLocationFraction;
+   configuration.research_h1_breakout_retest_expiry_bars = InpResearchH1BreakoutRetestExpiryBars;
+   configuration.research_h1_breakout_invalidation_depth_atr = InpResearchH1BreakoutInvalidationDepthAtr;
+   configuration.research_h1_zone_rearm_distance_atr    = InpResearchH1ZoneRearmDistanceAtr;
    configuration.enable_engulfing_confirmation          = InpEnableEngulfingConfirmation;
    configuration.enable_pin_bar_confirmation            = InpEnablePinBarConfirmation;
    configuration.enable_momentum_candle_confirmation    = InpEnableMomentumCandleConfirmation;
@@ -193,6 +304,12 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.pin_bar_maximum_opposite_wick_to_body_ratio = InpPinBarMaximumOppositeWickToBodyRatio;
    configuration.momentum_body_lookback = InpMomentumBodyLookback;
    configuration.momentum_body_multiplier = InpMomentumBodyMultiplier;
+   configuration.research_m15_body_median_lookback = InpResearchM15BodyMedianLookback;
+   configuration.research_m15_momentum_body_multiplier = InpResearchM15MomentumBodyMultiplier;
+   configuration.research_m15_momentum_body_range_minimum = InpResearchM15MomentumBodyRangeMinimum;
+   configuration.research_m15_momentum_closing_location_fraction = InpResearchM15MomentumClosingLocationFraction;
+   configuration.research_m15_rejection_wick_body_minimum = InpResearchM15RejectionWickBodyMinimum;
+   configuration.research_m15_rejection_wick_range_minimum = InpResearchM15RejectionWickRangeMinimum;
    configuration.risk_percent                           = InpRiskPercent;
    configuration.reward_risk_target                     = InpRewardRiskTarget;
    configuration.risk_base                              = InpRiskBase;

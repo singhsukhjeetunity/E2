@@ -4,6 +4,8 @@
 
 **Release baseline: E2 v1.0.0 — Mechanically Verified Backtesting & Execution Engine.** Sprint 6.3 is verified and no Sprint 7 edge research is included in this baseline. Future strategy research and changes belong in later branches and versions. Mechanical verification establishes trustworthy implementation and reporting; it does not establish profitability or trading edge.
 
+**Development line: E2 v1.1.0-alpha.** Sprint 1.1 is implemented but awaits the required short engineering regression. It adds only canonical research types, a resettable shared metadata contract, inert strategy/management/research configuration, and one startup configuration diagnostic. The v1.0 strategy, sessions, risk base, planning, execution, reporting, and visualization behavior are intentionally unchanged. The v1.0.0 tag remains the recovery guarantee.
+
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 
 | EURUSD, 2025.12.24–2025.12.27 | Value |
@@ -48,3 +50,6 @@ Sprint 4.6 historical news filtering is runtime verified. `E2NewsFilter` reads a
 - No large-sample, robustness, out-of-sample, walk-forward, multi-pair/regime, or forward/live validation has been completed.
 - Sprint 6.2–6.2.3 audit-only visualization is accepted with an MT5 limitation: visual inspection may require separate H4/H1/M15 Tester runs. Programmatic period switching is intentionally avoided because it can reinitialize the EA. Visualization remains isolated from trading decisions.
 - Sprint 6.3 is VERIFIED. [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md) records the source findings and accepted manual regression checklist for closed-bar analysis, setup lifecycle, filters, planning/execution, reporting, summary, determinism, reconciliation, and visualizer isolation.
+- v1.1.0-alpha framework controls are intentionally inert until later strategy and management routers exist. Future management routing must reject incompatible simultaneous modes.
+- The session filter requires a manually configured fixed broker UTC offset for a historical run; a future session/time-source sprint owns any change.
+- Future fixed-risk work must add a distinct initial-Tester-balance/no-compounding risk mode without changing the v1.0 current-equity sizing path.

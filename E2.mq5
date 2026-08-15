@@ -61,6 +61,11 @@ string E2YesNo(const bool value)
    return(value ? "yes" : "no");
   }
 
+string E2EnabledDisabled(const bool value)
+  {
+   return(value ? "enabled" : "disabled");
+  }
+
 void E2LogSessionDiagnostic(const E2SessionResult &result,const E2StrategySignal signal)
   {
    g_logger.Debug("Evaluation="+TimeToString(result.source_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.utc_time>0 ? TimeToString(result.utc_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", londonLocal="+(result.london_local_time>0 ? TimeToString(result.london_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", newYorkLocal="+(result.new_york_local_time>0 ? TimeToString(result.new_york_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", london="+E2YesNo(result.in_london)+", newYork="+E2YesNo(result.in_new_york)+", reason="+E2SessionStatusName(result.status)+".","Session");
@@ -103,6 +108,7 @@ void E2LogStartupDiagnostics(void)
    g_logger.Info("Runtime: symbol="+_Symbol+", timeframe="+E2TimeframeName((ENUM_TIMEFRAMES)Period())+", environment="+g_environment.Name()+".","Lifecycle");
    g_logger.Info("Timeframes: trend="+E2TimeframeName(g_configuration.trend_timeframe)+", zone="+E2TimeframeName(g_configuration.zone_timeframe)+", confirmation="+E2TimeframeName(g_configuration.confirmation_timeframe)+".","Lifecycle");
    g_logger.Info("Flags: tester="+E2YesNo(g_environment.IsTester())+", optimization="+E2YesNo(g_environment.IsOptimization())+", trading="+E2YesNo(g_configuration.trading_enabled)+", logging="+E2YesNo(g_configuration.logging_enabled)+", csv="+E2YesNo(g_configuration.csv_export_enabled)+".","Lifecycle");
+   g_logger.Info("Research framework (inert): TrendContinuation="+E2EnabledDisabled(g_configuration.enable_trend_continuation)+", RangeMeanReversion="+E2EnabledDisabled(g_configuration.enable_range_mean_reversion)+", RangeBreakout="+E2EnabledDisabled(g_configuration.enable_range_breakout)+", Fixed2RManagement="+E2EnabledDisabled(g_configuration.enable_fixed_2r_management)+", ZoneTargetTrailingManagement="+E2EnabledDisabled(g_configuration.enable_zone_target_trailing_management)+".","Lifecycle");
   }
 
 void E2LogClosedBarDiagnostic(const string label,const ENUM_TIMEFRAMES timeframe,const datetime evaluation_time)

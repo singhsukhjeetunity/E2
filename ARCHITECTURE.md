@@ -39,6 +39,26 @@ Closed M15 candle
 
 Strategy analysis does not place orders or size positions. Execution does not add strategy conditions. Reporting is observational and cannot place, modify, or close a trade.
 
+## v1.1.0-alpha research framework
+
+E2 v1.0.0 is the permanent mechanically verified baseline. The active development line is **E2 v1.1.0-alpha**. Sprint 1.1 adds only the shared framework in `include/strategy/E2ResearchTypes.mqh`; it does not route, calculate, or trade a new strategy.
+
+The canonical types are `E2StrategyType` (`NONE`, `TREND_CONTINUATION`, `RANGE_MEAN_REVERSION`, `RANGE_BREAKOUT`), `E2ManagementMode` (`NONE`, `FIXED_2R`, `ZONE_TARGET_TRAILING`), `E2RegimeType` (`UNKNOWN`, `UPTREND`, `DOWNTREND`, `RANGE`, `TRANSITION_UNCLASSIFIED`), `E2TacticalBreakoutState`, and `E2BoundaryResponse`. Their string conversions and the resettable `E2ResearchMetadata` contract are defined once in that module for future strategy/state producers, reporting, and visualization.
+
+The intended one-way flow is:
+
+```text
+market / strategy / state logic
+  -> immutable decision-time E2ResearchMetadata
+  -> reporting and visualization consumers
+```
+
+Sprint 1.1 stores three independent strategy toggles and two management toggles in `E2Config`, but does not consume them in the existing v1.0 pipeline. Later router work must fail configuration explicitly if incompatible management modes would both become behaviorally active; applying that validation now would incorrectly change baseline behavior.
+
+The inert baseline research inputs cover H4 EMA(20/50), EMA slope lookback 5, ATR(14), structure/extension thresholds (0.10/1.50 ATR); range thresholds (0.50, 3.00, 0.10, 0.25 ATR and 0.20 outer fraction); H1 clustering/touch/departure/breakout/retest/rearm values; and M15 median-body/momentum/rejection values. Existing news buffers are reused because their 30-minute before/after semantics already match. Existing M15 momentum inputs are preserved because they use an average-body current-strategy meaning rather than the future median-body research meaning.
+
+The current session filter already converts the explicit per-run broker UTC offset into London/New York local time and applies DST rules. Its remaining architectural limitation is that the historical server offset is a manually configured fixed value for a run; a later session/time-source sprint owns any change. The current sizer uses percentage of current equity. A later risk sprint may add fixed-initial-Tester-balance 1R/no-compounding behavior as a distinct compatible mode; Sprint 1.1 does not alter sizing.
+
 ## Backtesting and reporting
 
 MT5 Strategy Tester is authoritative for price/tick simulation, orders, fills, SL/TP, balance, equity, and its native Results/Graph/statistics. E2 has no custom or shadow P&L/equity simulator.

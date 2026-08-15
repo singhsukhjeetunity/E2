@@ -2,6 +2,14 @@
 
 E2’s current strategy seeks M15-confirmed pullbacks into H1 support/resistance in the H4 directional context. It is an implemented research strategy, not evidence of an edge or a production-readiness claim.
 
+## v1.1.0-alpha framework boundary
+
+Sprint 1.1 introduces the future research identities `TREND_CONTINUATION`, `RANGE_MEAN_REVERSION`, and `RANGE_BREAKOUT`, with independent configuration toggles. Only the existing v1.0 trend-pullback implementation remains behaviorally active; Sprint 1.1 does not implement a strategy router, range logic, breakout state, alternative confirmation, or alternative exits.
+
+`FIXED_2R` and `ZONE_TARGET_TRAILING` are framework-only management identities. They are not an instruction to change current exits. Future management routing must reject ambiguous active management configurations rather than silently select one.
+
+Future strategy/state code will record decision-time regime, breakout, boundary, range/zone/attempt, and timestamp metadata in the shared `E2ResearchMetadata` contract before passing it one-way to reporting and visualization. No reporting or visual state may be used by strategy decisions.
+
 ## Strategy rules
 
 - **H4 context:** `E2TrendAnalyzer` classifies confirmed structure as bullish, bearish, or range, with optional ADX strength filtering. Range and unknown context produce no signal.

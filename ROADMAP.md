@@ -19,14 +19,17 @@ The audit-only native chart-object layer is implemented and accepted. Sprint 6.2
 
 The integrity audit is recorded in [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md). It found no established source-level mechanical defect and confirms closed-bar access, native execution/reporting, and visualization isolation. The required manual checks were accepted, closing the mechanically verified engine phase. This does not establish a trading edge.
 
+## E2 v1.1.0-alpha — Sprint 1.1: Strategy Framework & Research Configuration: implemented, regression verification pending
+
+E2 v1.0.0 remains the permanent recovery baseline. Sprint 1.1 adds canonical future strategy/regime/tactical/boundary/management types, inert research configuration, and shared decision-time metadata only. The current v1.0 trading path is intentionally not routed through those controls. No parameters were optimized.
+
+Sprint 1.2 is next: it may implement only the explicitly approved next strategy-framework work after the required v1.1.0-alpha regression confirms no candidate, execution, reporting, or balance change under default settings.
+
 ## Then
 
-1. Sprint 7.1 — Large-Sample Baseline Backtesting
-2. Sprint 7.2 — Edge Decomposition / Diagnostics
-3. Sprint 7.3 — Parameter Robustness / Sensitivity
-4. Sprint 7.4 — Out-of-Sample / Walk-Forward Validation
-5. Sprint 7.5 — Multi-Period / Multi-Pair / Regime Validation
-6. Sprint 8.x — Forward/demo/live readiness
+1. Sprint 1.2 — Approved v1.1 strategy-framework continuation
+2. Later v1.1 strategy research sprints — only after each approved scope and regression
+3. Sprint 7.x research — only after the v1.1 development line is mechanically revalidated
 
 ## v1.0.0 baseline
 
