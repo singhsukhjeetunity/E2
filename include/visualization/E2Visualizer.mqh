@@ -6,6 +6,7 @@
 #include "..\\strategy\\E2StrategyAnalyzer.mqh"
 #include "..\\reporting\\E2TradeReporter.mqh"
 #include "..\\analysis\\E2H4RegimeEngine.mqh"
+#include "..\\analysis\\E2H1ZoneEngine.mqh"
 
 // Read-only visual audit. It consumes existing runtime metadata only.
 class E2Visualizer
@@ -185,7 +186,21 @@ public:
       DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h1);DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h2);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l1);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l2);if(r.active_break_direction!=m_h4rv2_active_break_direction || r.breakout_time!=m_h4rv2_active_break)DeemphasizeH4RegimeBreak();
       DrawH4RegimePanel(r);DrawH4RegimeSwing(r.latest_swing_high,"H1");DrawH4RegimeSwing(r.previous_swing_high,"H2");DrawH4RegimeSwing(r.latest_swing_low,"L1");DrawH4RegimeSwing(r.previous_swing_low,"L2");DrawH4RegimeBreak(r);DrawH4RegimeRange(r);DrawH4RegimeEma(r);
       if(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime || r.trend_entry_eligible!=m_h4rv2_last_eligible || r.trend_overextended!=m_h4rv2_last_overextended){const string key="H4RV2_REGIME_"+IntegerToString((int)r.closed_h4_time);if(Create(Id(key),OBJ_VLINE,H4(),r.closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,Id(key),OBJPROP_COLOR,clrDarkSlateGray);ObjectSetInteger(m_chart_id,Id(key),OBJPROP_STYLE,STYLE_DOT);}const string marker=(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime ? H4RegimeMarkerText(r.regime) : (r.trend_overextended?"EXT":"ELIG"));H4RegimeLabel(key+"_LABEL",r.closed_h4_time,r.latest_close,marker,clrSilver);}
-      m_h4rv2_has_state=true;m_h4rv2_last_regime=r.regime;m_h4rv2_last_eligible=r.trend_entry_eligible;m_h4rv2_last_overextended=r.trend_overextended;m_h4rv2_last_time=r.closed_h4_time;m_h4rv2_last_ema20=r.ema20;m_h4rv2_last_ema50=r.ema50;m_h4rv2_active_h1=r.latest_swing_high.pivot_time;m_h4rv2_active_h2=r.previous_swing_high.pivot_time;m_h4rv2_active_l1=r.latest_swing_low.pivot_time;m_h4rv2_active_l2=r.previous_swing_low.pivot_time;m_h4rv2_active_break=r.breakout_time;m_h4rv2_active_break_direction=r.active_break_direction;Refresh();
+     m_h4rv2_has_state=true;m_h4rv2_last_regime=r.regime;m_h4rv2_last_eligible=r.trend_entry_eligible;m_h4rv2_last_overextended=r.trend_overextended;m_h4rv2_last_time=r.closed_h4_time;m_h4rv2_last_ema20=r.ema20;m_h4rv2_last_ema50=r.ema50;m_h4rv2_active_h1=r.latest_swing_high.pivot_time;m_h4rv2_active_h2=r.previous_swing_high.pivot_time;m_h4rv2_active_l1=r.latest_swing_low.pivot_time;m_h4rv2_active_l2=r.previous_swing_low.pivot_time;m_h4rv2_active_break=r.breakout_time;m_h4rv2_active_break_direction=r.active_break_direction;Refresh();
+     }
+   void UpdateH1ZoneV2(const E2H1ZoneV2Record &zones[],const datetime evaluation)
+     {
+      if(!m_active || !m_config.visual_show_h1_zone_v2 || Period()!=PERIOD_H1)return;
+      for(int i=0;i<ArraySize(zones);i++)
+        {
+         const E2H1ZoneV2Record zone=zones[i];const string key=Id("H1ZV2_"+zone.zone_id);const datetime end=(zone.invalidation_time>0 ? zone.invalidation_time : evaluation);
+         if(Create(key,OBJ_RECTANGLE,H1(),zone.creation_time,zone.lower,end,zone.upper))
+           {ObjectSetInteger(m_chart_id,key,OBJPROP_COLOR,(zone.type==E2_H1_ZONE_V2_SUPPORT ? clrMediumSeaGreen : clrIndianRed));ObjectSetInteger(m_chart_id,key,OBJPROP_FILL,true);ObjectSetInteger(m_chart_id,key,OBJPROP_BACK,true);ObjectSetInteger(m_chart_id,key,OBJPROP_WIDTH,(zone.state==E2_H1_ZONE_V2_ACTIVE ? 2 : 1));ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,"Zone: "+zone.zone_id+"\nType: "+E2H1ZoneV2TypeName(zone.type)+"\nCreated: "+TimeToString(zone.creation_time,TIME_DATE|TIME_MINUTES)+"\nP1: "+TimeToString(zone.source_pivot_1_time,TIME_DATE|TIME_MINUTES)+" known "+TimeToString(zone.source_pivot_1_known_from,TIME_DATE|TIME_MINUTES)+" departed "+TimeToString(zone.source_pivot_1_departure_confirmed_time,TIME_DATE|TIME_MINUTES)+"\nP2: "+TimeToString(zone.source_pivot_2_time,TIME_DATE|TIME_MINUTES)+" known "+TimeToString(zone.source_pivot_2_known_from,TIME_DATE|TIME_MINUTES)+" departed "+TimeToString(zone.source_pivot_2_departure_confirmed_time,TIME_DATE|TIME_MINUTES)+"\nState: "+E2H1ZoneV2StateName(zone.state));}
+         Label(Id("H1ZV2_LABEL_"+zone.zone_id),H1(),zone.creation_time,zone.upper,"ZV2 "+E2H1ZoneV2TypeName(zone.type),zone.type==E2_H1_ZONE_V2_SUPPORT ? clrMediumSeaGreen : clrIndianRed);
+         Marker(Id("H1ZV2_P1_"+zone.zone_id),H1(),zone.source_pivot_1_time,zone.source_pivot_1_price,zone.type==E2_H1_ZONE_V2_SUPPORT,clrSilver);Marker(Id("H1ZV2_P2_"+zone.zone_id),H1(),zone.source_pivot_2_time,zone.source_pivot_2_price,zone.type==E2_H1_ZONE_V2_SUPPORT,clrSilver);
+         if(zone.invalidation_time>0)Marker(Id("H1ZV2_INVALID_"+zone.zone_id),H1(),zone.invalidation_time,zone.invalidation_close,zone.type==E2_H1_ZONE_V2_SUPPORT,clrOrange);
+        }
+      Refresh();
      }
    void MarkCandidate(const E2StrategyResult &result,const MqlRates &candle,const string rejection="")
      {

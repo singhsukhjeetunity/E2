@@ -68,6 +68,7 @@ input double InpZoneMergeTolerancePips  = 5.0; // Nearby-zone merge tolerance, e
 input double InpStopLossZoneBufferPips  = 2.0; // Future stop buffer beyond a zone, expressed in pips.
 
 input group "V1.1 ALPHA H1 RESEARCH (INERT)"
+input int InpResearchH1AtrPeriod = 14;
 input double InpResearchH1ZonePivotClusteringAtr = 0.50;
 input int InpResearchH1MinimumTouchSeparationBars = 3;
 input double InpResearchH1MinimumPostTouchDepartureAtr = 1.00;
@@ -141,6 +142,7 @@ input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
 input bool InpVisualShowRejectedCandidates = false;
 input bool InpVisualShowH4RegimeV2 = true; // Read-only H4 Regime V2 audit overlay.
+input bool InpVisualShowH1ZoneV2 = true; // Read-only H1 Zone V2 audit overlay.
 input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
 input ulong InpVisualFocusTradeId = 0; // Position identity for SINGLE_TRADE mode; 0 is invalid/no focus.
 input bool InpVisualCleanupOnDeinit = true;
@@ -183,6 +185,7 @@ struct E2Config
    double          zone_tolerance_pips;
    double          zone_merge_tolerance_pips;
    double          stop_loss_zone_buffer_pips;
+   int             research_h1_atr_period;
    double          research_h1_zone_pivot_clustering_atr;
    int             research_h1_minimum_touch_separation_bars;
    double          research_h1_minimum_post_touch_departure_atr;
@@ -245,6 +248,7 @@ struct E2Config
    bool            visual_show_trades;
    bool            visual_show_rejected_candidates;
    bool            visual_show_h4_regime_v2;
+   bool            visual_show_h1_zone_v2;
    E2VisualAuditMode visual_audit_mode;
    ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
@@ -286,6 +290,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.zone_tolerance_pips                    = InpZoneTolerancePips;
    configuration.zone_merge_tolerance_pips              = InpZoneMergeTolerancePips;
    configuration.stop_loss_zone_buffer_pips             = InpStopLossZoneBufferPips;
+   configuration.research_h1_atr_period                 = InpResearchH1AtrPeriod;
    configuration.research_h1_zone_pivot_clustering_atr  = InpResearchH1ZonePivotClusteringAtr;
    configuration.research_h1_minimum_touch_separation_bars = InpResearchH1MinimumTouchSeparationBars;
    configuration.research_h1_minimum_post_touch_departure_atr = InpResearchH1MinimumPostTouchDepartureAtr;
@@ -343,6 +348,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_trades                     = InpVisualShowTrades;
    configuration.visual_show_rejected_candidates        = InpVisualShowRejectedCandidates;
    configuration.visual_show_h4_regime_v2               = InpVisualShowH4RegimeV2;
+   configuration.visual_show_h1_zone_v2                 = InpVisualShowH1ZoneV2;
    configuration.visual_audit_mode                      = InpVisualAuditMode;
    configuration.visual_focus_trade_id                  = InpVisualFocusTradeId;
    configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;
@@ -403,6 +409,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
      {
       reason = "Zone tolerances and stop-loss zone buffer cannot be negative.";
      return(false);
+     }
+   if(configuration.research_h1_atr_period < 1 || configuration.research_h1_minimum_touch_separation_bars < 1 || configuration.research_h1_zone_pivot_clustering_atr < 0.0 || configuration.research_h1_minimum_post_touch_departure_atr <= 0.0 || configuration.research_h1_zone_invalidation_atr < 0.0 || configuration.research_h1_zone_rearm_distance_atr < 0.0)
+     {
+      reason = "H1 Zone V2 research values are invalid.";
+      return(false);
      }
    if(configuration.pin_bar_minimum_wick_to_body_ratio < 0.0 || configuration.pin_bar_maximum_opposite_wick_to_body_ratio < 0.0 || configuration.momentum_body_lookback < 1 || configuration.momentum_body_multiplier <= 0.0)
      {

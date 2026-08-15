@@ -8,6 +8,8 @@
 
 Sprint 1.2 verification support adds an H4-only read-only visual audit overlay behind `InpVisualShowH4RegimeV2` (default `true`). It remains part of the unverified Sprint 1.2 diagnostic surface and cannot influence engine or trading state.
 
+Sprint 1.3 H1 Zone Engine V2 is implemented but not runtime-verified. It is a bounded, closed-H1, parallel research layer behind `E2H1ZoneEngine`, with `InpVisualShowH1ZoneV2` (default `true`) enabling only its H1 audit overlay. It is isolated from the existing v1.0 zone/strategy/setup/planning/execution/reporting path. The current implementation intentionally keeps overlapping source-pair zones separate; merge behavior is deferred until a later strategy consumer defines its policy.
+
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 
 | EURUSD, 2025.12.24–2025.12.27 | Value |

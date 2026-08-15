@@ -65,6 +65,10 @@ The current session filter already converts the explicit per-run broker UTC offs
 
 Sprint 1.2 verification support adds an H4-only, read-only `E2VIS_H4RV2_*` overlay. It receives `const E2H4RegimeResult` snapshots after engine evaluation and is never read by the engine, strategy, or execution layers. Its H4 audit hierarchy keeps only the current H1/H2/L1/L2 structure prominent; detailed causal metadata is available through object tooltips while superseded history is deliberately subdued.
 
+## Sprint 1.3 H1 Zone Engine V2
+
+`E2H1ZoneEngine` reconstructs causal, ATR-relative H1 support/resistance research records from completed H1 data only. It is parallel to `E2ZoneAnalyzer`: no Zone V2 output is read by the strategy, setup tracker, planner, execution, reporting, or legacy zone visualizer. The engine exposes frozen source-pair boundaries, causal pivot/known-from/departure timestamps, prospective invalidation, and H1 rearm foundation state. Its one-way `E2VIS_H1ZV2_*` H1 overlay is an audit consumer only. Exact semantics and the deliberate Sprint 1.3 no-merge policy are in [H1_ZONE_V2.md](H1_ZONE_V2.md).
+
 ## Backtesting and reporting
 
 MT5 Strategy Tester is authoritative for price/tick simulation, orders, fills, SL/TP, balance, equity, and its native Results/Graph/statistics. E2 has no custom or shadow P&L/equity simulator.

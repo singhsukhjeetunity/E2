@@ -27,6 +27,10 @@ Sprint 1.2 supplies a parallel H4 Regime Engine V2 for future research. Its UPTR
 - The target is the configured fixed reward-to-risk target (`InpRewardRiskTarget`; default 2.0).
 - `E2PositionSizer` uses native symbol trade-calculation facilities and the configured percentage risk base (default equity) to normalize volume.
 
+## v1.1 H1 Zone V2 research isolation
+
+Sprint 1.3 introduces `E2H1ZoneEngine` solely as a future research-state producer. It is not used by this strategy: current entries continue to use `E2ZoneAnalyzer` and `E2SetupTracker`. Zone V2's ATR-relative pivot qualification, frozen boundaries, invalidation, and rearm state are documented in [H1_ZONE_V2.md](H1_ZONE_V2.md); they make no edge claim and cannot change current signals or trades.
+
 ## Implementation and safety rules
 
 These are safeguards, not a claim about market edge:

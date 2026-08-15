@@ -27,6 +27,10 @@ E2 v1.0.0 remains the permanent recovery baseline. Sprint 1.1 adds canonical fut
 
 Sprint 1.2 adds the parallel closed-H4 regime engine documented in [H4_REGIME_V2.md](H4_REGIME_V2.md). It is diagnostic/future-research state only; the existing v1.0 strategy remains isolated. Manual causal-timestamp, threshold, range, and no-regression tests are required before proceeding.
 
+## E2 v1.1.0-alpha — Sprint 1.3: H1 Zone Engine V2: implemented, manual verification pending
+
+Sprint 1.3 adds the parallel causal H1 zone research engine documented in [H1_ZONE_V2.md](H1_ZONE_V2.md). It uses confirmed strength-3 pivots, causal ATR departure qualification, frozen two-pivot boundaries, prospective invalidation, and an H1-only rearm foundation. It does not route Zone V2 into the existing v1.0 strategy. Sprint 1.4 remains future work pending manual threshold, causal-timestamp, visual, and legacy-regression validation.
+
 ## Then
 
 1. Sprint 1.3 — Approved v1.1 continuation only after Sprint 1.2 verification
