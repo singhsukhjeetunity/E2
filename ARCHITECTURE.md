@@ -69,6 +69,10 @@ Sprint 1.2 verification support adds an H4-only, read-only `E2VIS_H4RV2_*` overl
 
 `E2H1ZoneEngine` reconstructs causal, ATR-relative H1 support/resistance research records from completed H1 data only. It is parallel to `E2ZoneAnalyzer`: no Zone V2 output is read by the strategy, setup tracker, planner, execution, reporting, or legacy zone visualizer. The engine exposes frozen source-pair boundaries, causal pivot/known-from/departure timestamps, prospective invalidation, and H1 rearm foundation state. Its one-way `E2VIS_H1ZV2_*` H1 overlay is an audit consumer only. Exact semantics and the deliberate Sprint 1.3 no-merge policy are in [H1_ZONE_V2.md](H1_ZONE_V2.md).
 
+## Sprint 1.4 M15 Confirmation Engine V2
+
+`E2M15ConfirmationEngine` consumes immutable H1 Zone V2 context and completed M15 history to emit four detailed research snapshots: bullish/bearish momentum and bullish/bearish range rejection. It uses its own preceding-20 median-body calculation, never the legacy average-body confirmation rule. `E2.mq5` invokes it only on a new completed M15 candle and sends its results one-way to the optional `E2VIS_M15CV2_*` audit overlay. No strategy, setup, planning, execution, or reporting component reads its output. See [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md).
+
 ## Backtesting and reporting
 
 MT5 Strategy Tester is authoritative for price/tick simulation, orders, fills, SL/TP, balance, equity, and its native Results/Graph/statistics. E2 has no custom or shadow P&L/equity simulator.

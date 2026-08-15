@@ -31,6 +31,10 @@ Sprint 1.2 adds the parallel closed-H4 regime engine documented in [H4_REGIME_V2
 
 Sprint 1.3 adds the parallel causal H1 zone research engine documented in [H1_ZONE_V2.md](H1_ZONE_V2.md). It uses confirmed strength-3 pivots, causal ATR departure qualification, frozen two-pivot boundaries, prospective invalidation, and an H1-only rearm foundation. It does not route Zone V2 into the existing v1.0 strategy. Sprint 1.4 remains future work pending manual threshold, causal-timestamp, visual, and legacy-regression validation.
 
+## E2 v1.1.0-alpha — Sprint 1.4: Objective M15 Confirmation Engine: implemented, manual verification pending
+
+Sprint 1.4 adds the parallel, causal M15 detector documented in [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md). It produces detailed median-body momentum and zone-context range-rejection research snapshots, with optional audit markers, while the legacy v1.0 confirmation analyzer remains the only active strategy input. Sprint 1.5 and all strategy routing remain future work.
+
 ## Then
 
 1. Sprint 1.3 — Approved v1.1 continuation only after Sprint 1.2 verification

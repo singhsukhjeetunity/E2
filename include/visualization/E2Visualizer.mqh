@@ -202,6 +202,18 @@ public:
         }
       Refresh();
      }
+   void UpdateM15ConfirmationV2(const E2M15ConfirmationResult &results[])
+     {
+      if(!m_active || !m_config.visual_show_m15_confirmation_v2 || Period()!=PERIOD_M15)return;
+      for(int i=0;i<ArraySize(results);i++)
+        {
+         const E2M15ConfirmationResult result=results[i];if(!result.passed)continue;
+         const bool bullish=(result.type==E2_RESEARCH_CONFIRMATION_BULLISH_MOMENTUM || result.type==E2_RESEARCH_CONFIRMATION_BULLISH_RANGE_REJECTION);const bool momentum=(result.type==E2_RESEARCH_CONFIRMATION_BULLISH_MOMENTUM || result.type==E2_RESEARCH_CONFIRMATION_BEARISH_MOMENTUM);const string compact=(momentum ? (bullish ? "MOM+" : "MOM-") : (bullish ? "REJ+" : "REJ-"));const string key=Id("M15CV2_"+result.zone_id+"_"+IntegerToString((int)result.candle_time)+"_"+IntegerToString((int)result.type));
+         Marker(key,M15(),result.candle_time,(bullish ? result.low : result.high),bullish,(momentum ? clrDodgerBlue : clrMediumPurple));Label(key+"_LABEL",M15(),result.candle_time,(bullish ? result.low : result.high),compact,(momentum ? clrDodgerBlue : clrMediumPurple));
+         const string tooltip="Type: "+E2ResearchConfirmationTypeName(result.type)+"\nCandle: "+TimeToString(result.candle_time,TIME_DATE|TIME_MINUTES)+"\nKnown From: "+TimeToString(result.known_from_time,TIME_DATE|TIME_MINUTES)+"\nZone: "+result.zone_id+" ["+DoubleToString(result.zone_lower,_Digits)+", "+DoubleToString(result.zone_upper,_Digits)+"]\nBody: "+DoubleToString(result.body,_Digits)+" Median: "+DoubleToString(result.median_body,_Digits)+" Mult: "+DoubleToString(result.body_multiplier,2)+"\nBody/Range: "+DoubleToString(result.body_range_ratio,2)+" CloseLoc: "+DoubleToString(result.close_location,2)+"\nPrev H/L: "+DoubleToString(result.previous_high,_Digits)+" / "+DoubleToString(result.previous_low,_Digits)+"\nWick Body/Range: "+DoubleToString(result.wick_body_ratio,2)+" / "+DoubleToString(result.wick_range_ratio,2)+"\nPass: direction="+(result.direction_pass?"yes":"no")+", body="+(result.body_multiplier_pass?"yes":"no")+", range="+(result.body_range_pass?"yes":"no")+", close="+(result.closing_location_pass?"yes":"no")+", prev="+(result.previous_break_pass?"yes":"no")+", zone="+(result.zone_edge_pass?"yes":"no")+", wick="+(result.wick_body_pass&&result.wick_range_pass?"yes":"no");
+         ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,tooltip);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,tooltip);
+        }
+     }
    void MarkCandidate(const E2StrategyResult &result,const MqlRates &candle,const string rejection="")
      {
       if(!m_active || !IsStrategyAudit())return;

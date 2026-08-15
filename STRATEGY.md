@@ -31,6 +31,8 @@ Sprint 1.2 supplies a parallel H4 Regime Engine V2 for future research. Its UPTR
 
 Sprint 1.3 introduces `E2H1ZoneEngine` solely as a future research-state producer. It is not used by this strategy: current entries continue to use `E2ZoneAnalyzer` and `E2SetupTracker`. Zone V2's ATR-relative pivot qualification, frozen boundaries, invalidation, and rearm state are documented in [H1_ZONE_V2.md](H1_ZONE_V2.md); they make no edge claim and cannot change current signals or trades.
 
+Sprint 1.4 adds the separate `E2M15ConfirmationEngine`. Its median-body momentum and zone-context rejection snapshots are likewise not used by this strategy; the active v1.0 path continues to use `E2ConfirmationAnalyzer`. Details are in [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md).
+
 ## Implementation and safety rules
 
 These are safeguards, not a claim about market edge:

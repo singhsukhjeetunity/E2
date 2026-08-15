@@ -28,6 +28,7 @@ E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
 E2H4RegimeEngine g_h4_regime_engine;
 E2H1ZoneEngine g_h1_zone_engine;
+E2M15ConfirmationEngine g_m15_confirmation_engine;
 E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
@@ -51,6 +52,7 @@ datetime g_last_zone_diagnostic_day=0;
 datetime g_last_confirmation_diagnostic_candle=0;
 datetime g_last_strategy_evaluated_candle=0;
 datetime g_last_h1_zone_v2_visual_bar=0;
+datetime g_last_m15_confirmation_v2_bar=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -168,6 +170,22 @@ void E2RunH1ZoneV2(void)
       const datetime closed_h1=g_h1_zone_engine.LastClosedTime();
       if(closed_h1!=g_last_h1_zone_v2_visual_bar)
         {g_last_h1_zone_v2_visual_bar=closed_h1;g_visualizer.UpdateH1ZoneV2(zones,TimeCurrent());}
+     }
+  }
+
+void E2RunM15ConfirmationV2(void)
+  {
+   MqlRates closed;
+   if(!g_market_data.GetClosedBarAsOf(_Symbol,PERIOD_M15,TimeCurrent(),closed) || closed.time==g_last_m15_confirmation_v2_bar)return;
+   g_last_m15_confirmation_v2_bar=closed.time;
+   E2H1ZoneV2Record zones[];
+   if(!g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))return;
+   for(int i=0;i<ArraySize(zones);i++)
+     {
+      if(zones[i].state!=E2_H1_ZONE_V2_ACTIVE)continue;
+      E2M15ZoneContext context;context.zone_id=zones[i].zone_id;context.type=zones[i].type;context.state=zones[i].state;context.lower=zones[i].lower;context.upper=zones[i].upper;context.creation_time=zones[i].creation_time;context.invalidation_time=zones[i].invalidation_time;
+      E2M15ConfirmationResult results[];
+      if(g_m15_confirmation_engine.Evaluate(_Symbol,TimeCurrent(),context,results))g_visualizer.UpdateM15ConfirmationV2(results);
      }
   }
 
@@ -434,6 +452,7 @@ int OnInit()
    g_last_confirmation_diagnostic_candle=0;
    g_last_strategy_evaluated_candle=0;
    g_last_h1_zone_v2_visual_bar=0;
+   g_last_m15_confirmation_v2_bar=0;
    g_setup_tracker.Reset();
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
@@ -461,6 +480,7 @@ int OnInit()
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    g_h4_regime_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_h1_zone_engine.Initialize(g_configuration,g_market_data,g_logger);
+   g_m15_confirmation_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
@@ -475,6 +495,7 @@ int OnInit()
    E2RunMarketDataStartupDiagnostic();
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
+   E2RunM15ConfirmationV2();
    E2RunSpecificationStartupDiagnostic();
    E2RunSessionStartupDiagnostics();
    E2RunNewsStartupDiagnostics();
@@ -551,6 +572,7 @@ void OnTick()
    g_position_manager.Refresh();
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
+   E2RunM15ConfirmationV2();
    E2RunStrategySignalDiagnostic();
    E2RunExecutionTestHarness();
   }
