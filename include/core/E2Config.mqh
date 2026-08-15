@@ -26,6 +26,8 @@ input bool  InpDebugMode        = false;   // Enables future diagnostic output.
 
 input group "V1.1 ALPHA STRATEGY FRAMEWORK"
 input bool InpEnableTrendContinuation = true;
+input bool InpResearchVerificationSummary = true; // Diagnostic-only V2 verification summary.
+input bool InpResearchVerboseDiagnostics = false;
 input bool InpEnableRangeMeanReversion = false;
 input bool InpEnableRangeBreakout = false;
 
@@ -144,6 +146,7 @@ input bool InpVisualShowRejectedCandidates = false;
 input bool InpVisualShowH4RegimeV2 = true; // Read-only H4 Regime V2 audit overlay.
 input bool InpVisualShowH1ZoneV2 = true; // Read-only H1 Zone V2 audit overlay.
 input bool InpVisualShowM15ConfirmationV2 = true; // Read-only M15 Confirmation V2 audit overlay.
+input bool InpVisualShowTrendContinuationV2 = true; // Read-only Trend Continuation V2 audit overlay.
 input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
 input ulong InpVisualFocusTradeId = 0; // Position identity for SINGLE_TRADE mode; 0 is invalid/no focus.
 input bool InpVisualCleanupOnDeinit = true;
@@ -154,6 +157,8 @@ struct E2Config
    bool            trading_enabled;
    bool            debug_mode;
    bool            enable_trend_continuation;
+   bool            research_verification_summary;
+   bool            research_verbose_diagnostics;
    bool            enable_range_mean_reversion;
    bool            enable_range_breakout;
    bool            enable_fixed_2r_management;
@@ -251,6 +256,7 @@ struct E2Config
    bool            visual_show_h4_regime_v2;
    bool            visual_show_h1_zone_v2;
    bool            visual_show_m15_confirmation_v2;
+   bool            visual_show_trend_continuation_v2;
    E2VisualAuditMode visual_audit_mode;
    ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
@@ -264,6 +270,8 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.trading_enabled                        = InpTradingEnabled;
    configuration.debug_mode                             = InpDebugMode;
    configuration.enable_trend_continuation              = InpEnableTrendContinuation;
+   configuration.research_verification_summary          = InpResearchVerificationSummary;
+   configuration.research_verbose_diagnostics           = InpResearchVerboseDiagnostics;
    configuration.enable_range_mean_reversion            = InpEnableRangeMeanReversion;
    configuration.enable_range_breakout                  = InpEnableRangeBreakout;
    configuration.enable_fixed_2r_management             = InpEnableFixed2RManagement;
@@ -352,6 +360,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_h4_regime_v2               = InpVisualShowH4RegimeV2;
    configuration.visual_show_h1_zone_v2                 = InpVisualShowH1ZoneV2;
    configuration.visual_show_m15_confirmation_v2        = InpVisualShowM15ConfirmationV2;
+   configuration.visual_show_trend_continuation_v2      = InpVisualShowTrendContinuationV2;
    configuration.visual_audit_mode                      = InpVisualAuditMode;
    configuration.visual_focus_trade_id                  = InpVisualFocusTradeId;
    configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;

@@ -8,9 +8,11 @@
 
 Sprint 1.2 verification support adds an H4-only read-only visual audit overlay behind `InpVisualShowH4RegimeV2` (default `true`). It remains part of the unverified Sprint 1.2 diagnostic surface and cannot influence engine or trading state.
 
-Sprint 1.3 H1 Zone Engine V2 is implemented but not runtime-verified. It is a bounded, closed-H1, parallel research layer behind `E2H1ZoneEngine`, with `InpVisualShowH1ZoneV2` (default `true`) enabling only its H1 audit overlay. It is isolated from the existing v1.0 zone/strategy/setup/planning/execution/reporting path. The current implementation intentionally keeps overlapping source-pair zones separate; merge behavior is deferred until a later strategy consumer defines its policy.
+Sprint 1.3.1 H1 Zone V2 corrective repair is implemented but not runtime-verified. It replaces the combinatorial historical-pair expansion with one nearest qualifying prior same-role source pivot per newly qualified pivot, preserves thresholds and closed-bar causality, and adds role-lifecycle verification counts. H4/H1/TC updates are source-bar gated; the M15 median is reused once per candidate candle; TC confirmation is restricted to active retests. It remains isolated from the existing v1.0 zone/strategy/setup/planning/execution/reporting path.
 
 Sprint 1.4 Objective M15 Confirmation Engine is implemented but not runtime-verified. `E2M15ConfirmationEngine` is a parallel completed-M15 research layer that consumes immutable H1 Zone V2 context, uses a preceding-20 median-body benchmark, and produces four detailed pass/fail snapshots. `InpVisualShowM15ConfirmationV2` (default `true`) enables passed-only M15 audit markers. The active v1.0 strategy continues to use `E2ConfirmationAnalyzer`; no V2 confirmation can alter trading, reporting, or account state.
+
+Sprint 1.5 Trend Continuation V2 is implemented but not runtime-verified. It emits research candidates only and cannot place or influence trades.
 
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 

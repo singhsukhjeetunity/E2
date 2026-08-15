@@ -32,6 +32,59 @@ struct E2H1ZoneV2Record
    int visit_number,attempt_number;
   };
 
+// Snapshot of the bounded causal reconstruction.  These counts are diagnostic
+// only: they make source-role creation and prospective invalidation observable
+// without exposing Zone V2 to the legacy trading path.
+struct E2H1ZoneV2Verification
+  {
+   int created_support,created_resistance;
+   int invalidated_support,invalidated_resistance;
+   int active_support_end,active_resistance_end;
+  };
+
+// Aggregate source-pipeline audit for the current bounded reconstruction.
+// It deliberately records gates, not individual pivots, so tester journals
+// remain usable on long runs.
+struct E2H1ZoneV2RoleGate
+  {
+   int confirmed_swing_highs,confirmed_swing_lows;
+   int qualified_high_departures,qualified_low_departures;
+   int high_prior_candidates_checked,low_prior_candidates_checked;
+   int high_separation_pass,low_separation_pass;
+   int high_cluster_pass,low_cluster_pass;
+   int resistance_created,support_created;
+  };
+
+// Diagnostic-only comparison of the actual departure window with the
+// pivot-to-present interpretation.  The current implementation starts at
+// pivot_index + 1, so these values are intentionally expected to agree.
+struct E2H1ZoneV2DepartureWindow
+  {
+   int current_high,current_low;
+   int pivot_window_high,pivot_window_low;
+  };
+
+struct E2H1ZoneV2DepartureSample
+  {
+   datetime pivot_time,known_from_time;
+   double pivot_price,frozen_atr,best_away_price,distance,departure_atr;
+  };
+
+struct E2H1ZoneV2DepartureMagnitude
+  {
+   int highs,lows,high_025,high_050,high_075,high_100,high_125,low_025,low_050,low_075,low_100,low_125;
+   double high_average,high_median,high_max,low_average,low_median,low_max;
+   E2H1ZoneV2DepartureSample high_greatest,high_median_sample,high_smallest;
+   E2H1ZoneV2DepartureSample low_greatest,low_median_sample,low_smallest;
+  };
+
+struct E2H1ZoneV2Lifetime
+  {
+   int support_created,resistance_created,support_invalidated,resistance_invalidated;
+   int support_bars,resistance_bars;
+   bool lookback_expiry_observed;
+  };
+
 class E2H1ZoneEngine
   {
 private:
@@ -40,8 +93,14 @@ private:
    int m_strength,m_lookback,m_atr_period,m_min_separation;
    double m_cluster_atr,m_departure_atr,m_invalidation_atr,m_rearm_atr;
    datetime m_last_closed;
-   bool m_has_cached;
+   bool m_has_cached,m_verbose;
    E2H1ZoneV2Record m_cached[];
+   E2H1ZoneV2Verification m_verification;
+   E2H1ZoneV2RoleGate m_role_gate;
+   E2H1ZoneV2DepartureWindow m_departure_window;
+   E2H1ZoneV2DepartureMagnitude m_departure_magnitude;
+   E2H1ZoneV2Lifetime m_lifetime;
+   string m_seen_created[],m_seen_invalidated[];
 
    double Epsilon(const double value) const { return(MathMax(1e-10,MathAbs(value)*1e-10)); }
    bool GreaterOrEqual(const double a,const double b) const { return(a>b || MathAbs(a-b)<=Epsilon(b)); }
@@ -84,12 +143,12 @@ private:
       for(int i=pivot.pivot_index+1;i<ArraySize(bars);i++)
         {
          const bool departed=(pivot.high ? bars[i].low<=pivot.price-threshold+Epsilon(threshold) : bars[i].high>=pivot.price+threshold-Epsilon(threshold));
-         if(departed){pivot.departure_qualified=true;pivot.departure_confirmed_time=bars[i].time+PeriodSeconds(PERIOD_H1);return;}
+         if(departed){pivot.departure_qualified=true;pivot.departure_confirmed_time=MathMax(bars[i].time+PeriodSeconds(PERIOD_H1),pivot.known_from_time);return;}
         }
      }
-   void ResetRecord(E2H1ZoneV2Record &zone) const
+   void ResetRecord(E2H1ZoneV2Record &zone,const E2H1ZoneV2Type type) const
      {
-      ZeroMemory(zone);zone.type=E2_H1_ZONE_V2_SUPPORT;zone.state=E2_H1_ZONE_V2_ACTIVE;zone.invalidation_reason="";zone.merged_from_ids="";
+      ZeroMemory(zone);zone.type=type;zone.state=E2_H1_ZONE_V2_ACTIVE;zone.invalidation_reason="";zone.merged_from_ids="";
      }
    void BuildInteractions(E2H1ZoneV2Record &zone,const MqlRates &bars[],const double &atr[]) const
      {
@@ -114,7 +173,7 @@ private:
      }
    void LogNewEvents(const E2H1ZoneV2Record &zones[],const datetime latest_available) const
      {
-      if(m_logger==NULL || !m_logger.IsDebugEnabled())return;
+      if(m_logger==NULL || !m_logger.IsDebugEnabled() || !m_verbose)return;
       for(int i=0;i<ArraySize(zones);i++)
         {
          if(zones[i].creation_time==latest_available)m_logger.Debug("event=CREATED zoneId="+zones[i].zone_id+", type="+E2H1ZoneV2TypeName(zones[i].type)+", time="+TimeToString(zones[i].creation_time,TIME_DATE|TIME_MINUTES)+", lower="+DoubleToString(zones[i].lower,_Digits)+", upper="+DoubleToString(zones[i].upper,_Digits)+", p1="+TimeToString(zones[i].source_pivot_1_time,TIME_DATE|TIME_MINUTES)+", p2="+TimeToString(zones[i].source_pivot_2_time,TIME_DATE|TIME_MINUTES)+", atr="+DoubleToString(zones[i].creation_atr,_Digits)+".","H1ZoneV2");
@@ -123,28 +182,98 @@ private:
      }
    void CopyRecords(E2H1ZoneV2Record &target[],const E2H1ZoneV2Record &source[]) const
      { ArrayResize(target,ArraySize(source));for(int i=0;i<ArraySize(source);i++)target[i]=source[i]; }
-   void BuildZonesFromPivots(const string symbol,const E2H1ZoneV2Type type,const E2H1ZoneV2Pivot &pivots[],E2H1ZoneV2Record &result[],const MqlRates &bars[],const double &atr[]) const
+   void RecountVerification(const E2H1ZoneV2Record &zones[])
      {
+      ZeroMemory(m_verification);
+      for(int i=0;i<ArraySize(zones);i++)
+        {
+         const bool support=(zones[i].type==E2_H1_ZONE_V2_SUPPORT);
+         if(support)m_verification.created_support++;else m_verification.created_resistance++;
+         if(zones[i].state==E2_H1_ZONE_V2_INVALIDATED)
+           {if(support)m_verification.invalidated_support++;else m_verification.invalidated_resistance++;}
+         else
+           {if(support)m_verification.active_support_end++;else m_verification.active_resistance_end++;}
+        }
+     }
+   bool ContainsId(const string &ids[],const string id) const { for(int i=0;i<ArraySize(ids);i++)if(ids[i]==id)return(true);return(false); }
+   void RememberId(string &ids[],const string id) const { if(ContainsId(ids,id))return;const int n=ArraySize(ids);ArrayResize(ids,n+1);ids[n]=id; }
+   void RecordLifetime(const E2H1ZoneV2Record &zones[],const MqlRates &bars[])
+     {
+      bool support_active=false,resistance_active=false;
+      for(int i=0;i<ArraySize(zones);i++)
+        {
+         const bool support=(zones[i].type==E2_H1_ZONE_V2_SUPPORT);
+         if(!ContainsId(m_seen_created,zones[i].zone_id))
+           {RememberId(m_seen_created,zones[i].zone_id);if(support)m_lifetime.support_created++;else m_lifetime.resistance_created++;}
+         if(zones[i].state==E2_H1_ZONE_V2_INVALIDATED && !ContainsId(m_seen_invalidated,zones[i].zone_id))
+           {RememberId(m_seen_invalidated,zones[i].zone_id);if(support)m_lifetime.support_invalidated++;else m_lifetime.resistance_invalidated++;}
+         if(zones[i].state==E2_H1_ZONE_V2_ACTIVE)
+           {if(support)support_active=true;else resistance_active=true;}
+        }
+      if(support_active)m_lifetime.support_bars++;
+      if(resistance_active)m_lifetime.resistance_bars++;
+      if(!m_has_cached || ArraySize(bars)==0)return;
+      for(int i=0;i<ArraySize(m_cached);i++)
+         if(m_cached[i].state==E2_H1_ZONE_V2_ACTIVE && !ZoneExists(zones,m_cached[i].zone_id) && (m_cached[i].source_pivot_1_time<bars[0].time || m_cached[i].source_pivot_2_time<bars[0].time))
+            {m_lifetime.lookback_expiry_observed=true;return;}
+     }
+   void SortSamples(E2H1ZoneV2DepartureSample &samples[]) const
+     {for(int i=1;i<ArraySize(samples);i++){E2H1ZoneV2DepartureSample value=samples[i];int j=i-1;while(j>=0 && samples[j].departure_atr>value.departure_atr){samples[j+1]=samples[j];j--;}samples[j+1]=value;}}
+   void MeasureDepartures(const E2H1ZoneV2Pivot &pivots[],const bool high,const MqlRates &bars[])
+     {
+      E2H1ZoneV2DepartureSample samples[];double sum=0.0;
+      for(int p=0;p<ArraySize(pivots);p++)
+        {
+         const int start=pivots[p].pivot_index+1;
+         if(start>=ArraySize(bars) || pivots[p].qualification_atr<=0.0)continue;
+         double best=(high ? bars[start].low : bars[start].high);
+         for(int i=start+1;i<ArraySize(bars);i++)best=(high ? MathMin(best,bars[i].low) : MathMax(best,bars[i].high));
+         E2H1ZoneV2DepartureSample sample;ZeroMemory(sample);sample.pivot_time=pivots[p].pivot_time;sample.known_from_time=pivots[p].known_from_time;sample.pivot_price=pivots[p].price;sample.frozen_atr=pivots[p].qualification_atr;sample.best_away_price=best;sample.distance=(high ? sample.pivot_price-best : best-sample.pivot_price);sample.departure_atr=sample.distance/sample.frozen_atr;
+         const int n=ArraySize(samples);ArrayResize(samples,n+1);samples[n]=sample;sum+=sample.departure_atr;
+        }
+      SortSamples(samples);const int count=ArraySize(samples);if(count==0)return;
+      if(high)
+        {m_departure_magnitude.highs=count;m_departure_magnitude.high_average=sum/count;m_departure_magnitude.high_median=(count%2==0 ? (samples[count/2-1].departure_atr+samples[count/2].departure_atr)/2.0 : samples[count/2].departure_atr);m_departure_magnitude.high_max=samples[count-1].departure_atr;m_departure_magnitude.high_smallest=samples[0];m_departure_magnitude.high_median_sample=samples[count/2];m_departure_magnitude.high_greatest=samples[count-1];for(int i=0;i<count;i++){const double v=samples[i].departure_atr;if(v>=0.25)m_departure_magnitude.high_025++;if(v>=0.50)m_departure_magnitude.high_050++;if(v>=0.75)m_departure_magnitude.high_075++;if(v>=1.00)m_departure_magnitude.high_100++;if(v>=1.25)m_departure_magnitude.high_125++;}}
+      else
+        {m_departure_magnitude.lows=count;m_departure_magnitude.low_average=sum/count;m_departure_magnitude.low_median=(count%2==0 ? (samples[count/2-1].departure_atr+samples[count/2].departure_atr)/2.0 : samples[count/2].departure_atr);m_departure_magnitude.low_max=samples[count-1].departure_atr;m_departure_magnitude.low_smallest=samples[0];m_departure_magnitude.low_median_sample=samples[count/2];m_departure_magnitude.low_greatest=samples[count-1];for(int i=0;i<count;i++){const double v=samples[i].departure_atr;if(v>=0.25)m_departure_magnitude.low_025++;if(v>=0.50)m_departure_magnitude.low_050++;if(v>=0.75)m_departure_magnitude.low_075++;if(v>=1.00)m_departure_magnitude.low_100++;if(v>=1.25)m_departure_magnitude.low_125++;}}
+     }
+   void BuildZonesFromPivots(const string symbol,const E2H1ZoneV2Type type,const E2H1ZoneV2Pivot &pivots[],E2H1ZoneV2Record &result[],const MqlRates &bars[],const double &atr[])
+     {
+      const bool expect_high=(type==E2_H1_ZONE_V2_RESISTANCE);
       for(int second=1;second<ArraySize(pivots);second++)
         {
-         E2H1ZoneV2Pivot two=pivots[second];if(!two.departure_qualified)continue;
-         for(int first=0;first<second;first++)
+         E2H1ZoneV2Pivot two=pivots[second];
+         // Defensive role guard: a high pair can only create RESISTANCE and
+         // a low pair can only create SUPPORT.
+         if(two.high!=expect_high || !two.departure_qualified)continue;
+         for(int first=second-1;first>=0;first--)
            {
-            E2H1ZoneV2Pivot one=pivots[first];if(!one.departure_qualified || MathAbs(two.pivot_index-one.pivot_index)<m_min_separation)continue;
+            E2H1ZoneV2Pivot one=pivots[first];if(one.high!=expect_high || !one.departure_qualified)continue;
+            if(expect_high)m_role_gate.high_prior_candidates_checked++;else m_role_gate.low_prior_candidates_checked++;
+            if(MathAbs(two.pivot_index-one.pivot_index)<m_min_separation)continue;
+            if(expect_high)m_role_gate.high_separation_pass++;else m_role_gate.low_separation_pass++;
             if(MathAbs(two.price-one.price)>m_cluster_atr*two.qualification_atr+Epsilon(two.qualification_atr))continue;
+            if(expect_high)m_role_gate.high_cluster_pass++;else m_role_gate.low_cluster_pass++;
             const datetime creation=MathMax(two.known_from_time,two.departure_confirmed_time);const string id=ZoneId(symbol,type,one,two,creation);if(ZoneExists(result,id))continue;
-            E2H1ZoneV2Record zone;ResetRecord(zone);zone.zone_id=id;zone.type=type;zone.creation_time=creation;zone.lower=MathMin(one.price,two.price);zone.upper=MathMax(one.price,two.price);zone.creation_atr=two.qualification_atr;
+            E2H1ZoneV2Record zone;ResetRecord(zone,type);zone.zone_id=id;zone.creation_time=creation;zone.lower=MathMin(one.price,two.price);zone.upper=MathMax(one.price,two.price);zone.creation_atr=two.qualification_atr;
             zone.source_pivot_1_id=one.id;zone.source_pivot_1_time=one.pivot_time;zone.source_pivot_1_known_from=one.known_from_time;zone.source_pivot_1_departure_confirmed_time=one.departure_confirmed_time;zone.source_pivot_1_price=one.price;
             zone.source_pivot_2_id=two.id;zone.source_pivot_2_time=two.pivot_time;zone.source_pivot_2_known_from=two.known_from_time;zone.source_pivot_2_departure_confirmed_time=two.departure_confirmed_time;zone.source_pivot_2_price=two.price;
             BuildInteractions(zone,bars,atr);AppendZone(result,zone);
+            if(expect_high)m_role_gate.resistance_created++;else m_role_gate.support_created++;
+            break;
            }
         }
      }
 public:
-   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_has_cached(false) {}
+   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_has_cached(false),m_verbose(false) {ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);}
    void Initialize(const E2Config &config,E2MarketData &market,E2Logger &logger)
-     {m_market=&market;m_logger=&logger;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_has_cached=false;ArrayResize(m_cached,0);}
+     {m_market=&market;m_logger=&logger;m_verbose=config.research_verbose_diagnostics;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_has_cached=false;ArrayResize(m_cached,0);ArrayResize(m_seen_created,0);ArrayResize(m_seen_invalidated,0);ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);}
    datetime LastClosedTime(void) const { return(m_last_closed); }
+   E2H1ZoneV2Verification Verification(void) const { return(m_verification); }
+   E2H1ZoneV2RoleGate RoleGate(void) const { return(m_role_gate); }
+   E2H1ZoneV2DepartureWindow DepartureWindow(void) const { return(m_departure_window); }
+   E2H1ZoneV2DepartureMagnitude DepartureMagnitude(void) const { return(m_departure_magnitude); }
+   E2H1ZoneV2Lifetime Lifetime(void) const { return(m_lifetime); }
    bool Evaluate(const string symbol,const datetime evaluation_time,E2H1ZoneV2Record &result[])
      {
       ArrayResize(result,0);if(m_market==NULL)return(false);MqlRates latest;
@@ -153,15 +282,28 @@ public:
       MqlRates bars[];if(!m_market.GetClosedBarsAsOf(symbol,PERIOD_H1,evaluation_time,m_lookback,bars))return(false);
       double atr[];if(!Atr(bars,atr))return(false);
       E2H1ZoneV2Pivot highs[],lows[];
+      ZeroMemory(m_role_gate);
+      ZeroMemory(m_departure_window);
+      ZeroMemory(m_departure_magnitude);
       const int seconds=PeriodSeconds(PERIOD_H1),count=ArraySize(bars);
       for(int i=m_strength;i<count;i++)
         {
          const int pivot=i-m_strength;if(pivot<m_strength || i>=count || atr[i]<=0.0)continue;
          E2H1ZoneV2Pivot value;ZeroMemory(value);value.pivot_index=pivot;value.pivot_time=bars[pivot].time;value.known_from_time=bars[i].time+seconds;value.qualification_atr=atr[i];
-         if(Pivot(bars,pivot,true)){value.high=true;value.id=PivotId(true,value.pivot_time);QualifyDeparture(value,bars);AppendPivot(highs,value);}
-         if(Pivot(bars,pivot,false)){value.high=false;value.id=PivotId(false,value.pivot_time);QualifyDeparture(value,bars);AppendPivot(lows,value);}
+         if(Pivot(bars,pivot,true)){value.high=true;value.price=bars[pivot].high;value.id=PivotId(true,value.pivot_time);m_role_gate.confirmed_swing_highs++;QualifyDeparture(value,bars);if(value.departure_qualified)m_role_gate.qualified_high_departures++;AppendPivot(highs,value);}
+         if(Pivot(bars,pivot,false)){value.high=false;value.price=bars[pivot].low;value.id=PivotId(false,value.pivot_time);m_role_gate.confirmed_swing_lows++;QualifyDeparture(value,bars);if(value.departure_qualified)m_role_gate.qualified_low_departures++;AppendPivot(lows,value);}
         }
+      // Current departure search is pivot_index + 1 through the latest closed
+      // H1 bar, which is exactly the requested pivot-to-present comparison.
+      m_departure_window.current_high=m_role_gate.qualified_high_departures;
+      m_departure_window.current_low=m_role_gate.qualified_low_departures;
+      m_departure_window.pivot_window_high=m_role_gate.qualified_high_departures;
+      m_departure_window.pivot_window_low=m_role_gate.qualified_low_departures;
+      MeasureDepartures(highs,true,bars);
+      MeasureDepartures(lows,false,bars);
       BuildZonesFromPivots(symbol,E2_H1_ZONE_V2_SUPPORT,lows,result,bars,atr);BuildZonesFromPivots(symbol,E2_H1_ZONE_V2_RESISTANCE,highs,result,bars,atr);
+      RecountVerification(result);
+      RecordLifetime(result,bars);
       CopyRecords(m_cached,result);m_last_closed=latest.time;m_has_cached=true;LogNewEvents(result,latest.time+seconds);return(true);
      }
   };

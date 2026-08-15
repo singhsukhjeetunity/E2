@@ -214,6 +214,11 @@ public:
          ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,tooltip);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,tooltip);
         }
      }
+   void UpdateTrendContinuationV2(const E2TrendContinuationCandidate &candidates[])
+     {
+      if(!m_active || !m_config.visual_show_trend_continuation_v2 || Period()!=PERIOD_M15)return;
+      for(int i=0;i<ArraySize(candidates);i++){const E2TrendContinuationCandidate c=candidates[i];const bool up=(c.direction==E2_TC_LONG);const string key=Id("TCV2_"+c.candidate_id);Marker(key,M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),up,clrGold);Label(key+"_LABEL",M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),(up?"TC+":"TC-"),clrGold);ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,"Candidate: "+c.candidate_id+"\nZone: "+c.source_zone_id+"\nBreakout: "+TimeToString(c.breakout_known_from_time,TIME_DATE|TIME_MINUTES)+"\nRetest: "+TimeToString(c.retest_time,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(c.candidate_known_from_time,TIME_DATE|TIME_MINUTES)+"\nAttempt: "+IntegerToString(c.attempt_number));}
+     }
    void MarkCandidate(const E2StrategyResult &result,const MqlRates &candle,const string rejection="")
      {
       if(!m_active || !IsStrategyAudit())return;

@@ -27,13 +27,17 @@ E2 v1.0.0 remains the permanent recovery baseline. Sprint 1.1 adds canonical fut
 
 Sprint 1.2 adds the parallel closed-H4 regime engine documented in [H4_REGIME_V2.md](H4_REGIME_V2.md). It is diagnostic/future-research state only; the existing v1.0 strategy remains isolated. Manual causal-timestamp, threshold, range, and no-regression tests are required before proceeding.
 
-## E2 v1.1.0-alpha — Sprint 1.3: H1 Zone Engine V2: implemented, manual verification pending
+## E2 v1.1.0-alpha — Sprint 1.3 / 1.3.1: H1 Zone Engine V2: corrective repair implemented, manual verification pending
 
-Sprint 1.3 adds the parallel causal H1 zone research engine documented in [H1_ZONE_V2.md](H1_ZONE_V2.md). It uses confirmed strength-3 pivots, causal ATR departure qualification, frozen two-pivot boundaries, prospective invalidation, and an H1-only rearm foundation. It does not route Zone V2 into the existing v1.0 strategy. Sprint 1.4 remains future work pending manual threshold, causal-timestamp, visual, and legacy-regression validation.
+Sprint 1.3.1 replaces redundant all-prior-pivot pairing with a nearest-prior deterministic two-touch policy, adds source-role lifecycle counts, completed-bar orchestration, M15 candle-measurement reuse, and TC retest-only confirmation contexts. It does not route Zone V2 into the existing v1.0 strategy. Sprint 1.4 remains future work pending manual threshold, causal-timestamp, visual, workload, and legacy-regression validation.
 
 ## E2 v1.1.0-alpha — Sprint 1.4: Objective M15 Confirmation Engine: implemented, manual verification pending
 
 Sprint 1.4 adds the parallel, causal M15 detector documented in [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md). It produces detailed median-body momentum and zone-context range-rejection research snapshots, with optional audit markers, while the legacy v1.0 confirmation analyzer remains the only active strategy input. Sprint 1.5 and all strategy routing remain future work.
+
+## E2 v1.1.0-alpha — Sprint 1.5: Trend Continuation State Machine: implemented, manual verification pending
+
+Sprint 1.5 adds an isolated V2 candidate producer documented in [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md). It does not route candidates to trading. Sprint 1.6 and later work remain out of scope.
 
 ## Then
 

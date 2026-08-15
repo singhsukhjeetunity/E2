@@ -6,6 +6,7 @@
 #include "E2H4RegimeEngine.mqh"
 #include "E2H1ZoneEngine.mqh"
 #include "E2M15ConfirmationEngine.mqh"
+#include "E2TrendContinuationEngine.mqh"
 #include "E2ZoneAnalyzer.mqh"
 #include "E2ConfirmationAnalyzer.mqh"
 

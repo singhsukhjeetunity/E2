@@ -37,7 +37,7 @@ private:
    double m_adx_min,m_break_atr,m_extension_atr,m_cluster_atr,m_range_height_atr,m_flat_atr,m_range_invalidation_atr;
    datetime m_last_closed;
    E2H4RegimeResult m_cached;
-   bool m_has_cached;
+   bool m_has_cached,m_verbose;
 
    double Epsilon(const double scale) const { return(MathMax(1e-10,MathAbs(scale)*1e-10)); }
    bool GreaterOrEqual(const double left,const double right) const { return(left>right || MathAbs(left-right)<=Epsilon(right)); }
@@ -102,7 +102,7 @@ private:
      }
    void LogChange(const E2H4RegimeResult &r) const
      {
-      if(m_logger==NULL || !m_logger.IsDebugEnabled())return;
+      if(m_logger==NULL || !m_logger.IsDebugEnabled() || !m_verbose)return;
       m_logger.Debug("time="+TimeToString(r.closed_h4_time,TIME_DATE|TIME_MINUTES)+", regime="+E2RegimeTypeName(r.regime)+", eligible="+(r.trend_entry_eligible?"yes":"no")+", overextended="+(r.trend_overextended?"yes":"no")+", HH="+(r.latest_swing_high.valid?DoubleToString(r.latest_swing_high.price,8):"NA")+", HL="+(r.latest_swing_low.valid?DoubleToString(r.latest_swing_low.price,8):"NA")+", EMA20="+DoubleToString(r.ema20,8)+", EMA50="+DoubleToString(r.ema50,8)+", EMA50Slope5="+DoubleToString(r.ema50-r.ema50_five_bars_ago,8)+", ADX="+DoubleToString(r.adx,2)+", ATR="+DoubleToString(r.atr,8)+", extensionATR="+DoubleToString(r.distance_close_to_ema20_atr,3)+", bullBreak="+(r.bullish_structure_break_active?"yes":"no")+", rangeId="+IntegerToString(r.active_range_id)+".","H4RegimeV2");
      }
    bool Changed(const E2H4RegimeResult &a,const E2H4RegimeResult &b) const
@@ -110,7 +110,7 @@ private:
 public:
    E2H4RegimeEngine(void):m_market(NULL),m_logger(NULL),m_sensitivity(3),m_lookback(300),m_fast(20),m_slow(50),m_slope(5),m_atr_period(14),m_adx_period(14),m_adx_min(20.0),m_break_atr(0.10),m_extension_atr(1.50),m_cluster_atr(0.50),m_range_height_atr(3.0),m_flat_atr(0.10),m_range_invalidation_atr(0.25),m_last_closed(0),m_has_cached(false){}
    void Initialize(const E2Config &c,E2MarketData &market,E2Logger &logger)
-     {m_market=&market;m_logger=&logger;m_sensitivity=c.swing_sensitivity;m_lookback=MathMax(c.trend_structure_lookback_bars,300);m_fast=c.research_h4_ema_fast_period;m_slow=c.research_h4_ema_slow_period;m_slope=c.research_h4_ema_slope_lookback;m_atr_period=c.research_h4_atr_period;m_adx_period=c.adx_period;m_adx_min=c.adx_minimum_threshold;m_break_atr=c.research_h4_structural_breakout_distance_atr;m_extension_atr=c.research_h4_trend_extension_limit_atr;m_cluster_atr=c.research_range_cluster_variation_maximum_atr;m_range_height_atr=c.research_range_minimum_height_atr;m_flat_atr=c.research_range_ema50_flatness_maximum_atr;m_range_invalidation_atr=c.research_range_boundary_invalidation_atr;m_last_closed=0;m_has_cached=false;}
+     {m_market=&market;m_logger=&logger;m_verbose=c.research_verbose_diagnostics;m_sensitivity=c.swing_sensitivity;m_lookback=MathMax(c.trend_structure_lookback_bars,300);m_fast=c.research_h4_ema_fast_period;m_slow=c.research_h4_ema_slow_period;m_slope=c.research_h4_ema_slope_lookback;m_atr_period=c.research_h4_atr_period;m_adx_period=c.adx_period;m_adx_min=c.adx_minimum_threshold;m_break_atr=c.research_h4_structural_breakout_distance_atr;m_extension_atr=c.research_h4_trend_extension_limit_atr;m_cluster_atr=c.research_range_cluster_variation_maximum_atr;m_range_height_atr=c.research_range_minimum_height_atr;m_flat_atr=c.research_range_ema50_flatness_maximum_atr;m_range_invalidation_atr=c.research_range_boundary_invalidation_atr;m_last_closed=0;m_has_cached=false;}
    bool Evaluate(const string symbol,const datetime evaluation_time,E2H4RegimeResult &result)
      {
       Reset(result,evaluation_time);if(m_market==NULL)return(false);MqlRates latest;

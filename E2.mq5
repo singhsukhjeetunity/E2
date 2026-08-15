@@ -29,6 +29,7 @@ E2TrendAnalyzer g_trend_analyzer;
 E2H4RegimeEngine g_h4_regime_engine;
 E2H1ZoneEngine g_h1_zone_engine;
 E2M15ConfirmationEngine g_m15_confirmation_engine;
+E2TrendContinuationEngine g_trend_continuation_engine;
 E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
@@ -53,6 +54,8 @@ datetime g_last_confirmation_diagnostic_candle=0;
 datetime g_last_strategy_evaluated_candle=0;
 datetime g_last_h1_zone_v2_visual_bar=0;
 datetime g_last_m15_confirmation_v2_bar=0;
+datetime g_last_h4_v2_bar=0,g_last_h1_v2_bar=0,g_last_tc_v2_bar=0;
+ulong g_v2_h4_calls=0,g_v2_h1_calls=0,g_v2_m15_calls=0,g_v2_m15_contexts=0;
 
 string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
   {
@@ -69,6 +72,11 @@ string E2YesNo(const bool value)
 string E2EnabledDisabled(const bool value)
   {
    return(value ? "enabled" : "disabled");
+  }
+
+string E2H1DepartureSampleText(const E2H1ZoneV2DepartureSample &sample)
+  {
+   return("pivot="+TimeToString(sample.pivot_time,TIME_DATE|TIME_MINUTES)+", price="+DoubleToString(sample.pivot_price,_Digits)+", knownFrom="+TimeToString(sample.known_from_time,TIME_DATE|TIME_MINUTES)+", frozenATR="+DoubleToString(sample.frozen_atr,_Digits)+", bestAway="+DoubleToString(sample.best_away_price,_Digits)+", distance="+DoubleToString(sample.distance,_Digits)+", departureATR="+DoubleToString(sample.departure_atr,3));
   }
 
 void E2LogSessionDiagnostic(const E2SessionResult &result,const E2StrategySignal signal)
@@ -157,6 +165,8 @@ void E2RunTrendDiagnostic(void)
 
 void E2RunH4RegimeV2(void)
   {
+   const datetime closed=iTime(_Symbol,PERIOD_H4,1);if(closed<=0 || closed==g_last_h4_v2_bar)return;g_last_h4_v2_bar=closed;
+   g_v2_h4_calls++;
    E2H4RegimeResult result;
    if(g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),result))
       g_visualizer.UpdateH4RegimeV2(result);
@@ -164,6 +174,8 @@ void E2RunH4RegimeV2(void)
 
 void E2RunH1ZoneV2(void)
   {
+   const datetime closed=iTime(_Symbol,PERIOD_H1,1);if(closed<=0 || closed==g_last_h1_v2_bar)return;g_last_h1_v2_bar=closed;
+   g_v2_h1_calls++;
    E2H1ZoneV2Record zones[];
    if(g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))
      {
@@ -175,6 +187,9 @@ void E2RunH1ZoneV2(void)
 
 void E2RunM15ConfirmationV2(void)
   {
+   // Standalone all-active-zone confirmation is an optional visual audit only.
+   // TC V2 evaluates its own RETEST_ACTIVE contexts below, regardless of this.
+   if(!g_configuration.visual_mode_enabled || !g_configuration.visual_show_m15_confirmation_v2)return;
    MqlRates closed;
    if(!g_market_data.GetClosedBarAsOf(_Symbol,PERIOD_M15,TimeCurrent(),closed) || closed.time==g_last_m15_confirmation_v2_bar)return;
    g_last_m15_confirmation_v2_bar=closed.time;
@@ -182,11 +197,19 @@ void E2RunM15ConfirmationV2(void)
    if(!g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))return;
    for(int i=0;i<ArraySize(zones);i++)
      {
-      if(zones[i].state!=E2_H1_ZONE_V2_ACTIVE)continue;
+      if(zones[i].state!=E2_H1_ZONE_V2_ACTIVE)continue;g_v2_m15_contexts++;
       E2M15ZoneContext context;context.zone_id=zones[i].zone_id;context.type=zones[i].type;context.state=zones[i].state;context.lower=zones[i].lower;context.upper=zones[i].upper;context.creation_time=zones[i].creation_time;context.invalidation_time=zones[i].invalidation_time;
       E2M15ConfirmationResult results[];
-      if(g_m15_confirmation_engine.Evaluate(_Symbol,TimeCurrent(),context,results))g_visualizer.UpdateM15ConfirmationV2(results);
+      g_v2_m15_calls++;if(g_m15_confirmation_engine.Evaluate(_Symbol,TimeCurrent(),context,results))g_visualizer.UpdateM15ConfirmationV2(results);
      }
+  }
+
+void E2RunTrendContinuationV2(void)
+  {
+   const datetime closed=iTime(_Symbol,PERIOD_M15,1);if(closed<=0 || closed==g_last_tc_v2_bar)return;g_last_tc_v2_bar=closed;
+   E2H4RegimeResult h4; E2H1ZoneV2Record zones[]; E2TrendContinuationCandidate candidates[];
+   if(!g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),h4) || !g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))return;
+   if(g_trend_continuation_engine.Evaluate(_Symbol,TimeCurrent(),h4,zones,candidates)){g_visualizer.UpdateTrendContinuationV2(candidates);if(g_configuration.research_verification_summary)for(int i=0;i<ArraySize(candidates);i++)g_logger.Info("#"+IntegerToString(i+1)+" "+E2TrendContinuationDirectionName(candidates[i].direction)+" regime="+E2RegimeTypeName(candidates[i].h4_regime_at_confirmation)+" eligible="+E2YesNo(candidates[i].trend_entry_eligible)+" overextended="+E2YesNo(candidates[i].overextended)+" zone="+candidates[i].source_zone_id+" attempt="+IntegerToString(candidates[i].attempt_number)+" breakoutCandle="+TimeToString(candidates[i].breakout_time,TIME_DATE|TIME_MINUTES)+" breakoutKnownFrom="+TimeToString(candidates[i].breakout_known_from_time,TIME_DATE|TIME_MINUTES)+" retest="+TimeToString(candidates[i].retest_time,TIME_DATE|TIME_MINUTES)+" retestKnownFrom="+TimeToString(candidates[i].retest_known_from_time,TIME_DATE|TIME_MINUTES)+" confirmationCandle="+TimeToString(candidates[i].candidate_time,TIME_DATE|TIME_MINUTES)+" confirmationKnownFrom="+TimeToString(candidates[i].candidate_known_from_time,TIME_DATE|TIME_MINUTES),"TCV2_CANDIDATE");}
   }
 
 void E2RunZoneDiagnostic(void)
@@ -453,6 +476,13 @@ int OnInit()
    g_last_strategy_evaluated_candle=0;
    g_last_h1_zone_v2_visual_bar=0;
    g_last_m15_confirmation_v2_bar=0;
+   g_last_h4_v2_bar=0;
+   g_last_h1_v2_bar=0;
+   g_last_tc_v2_bar=0;
+   g_v2_h4_calls=0;
+   g_v2_h1_calls=0;
+   g_v2_m15_calls=0;
+   g_v2_m15_contexts=0;
    g_setup_tracker.Reset();
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
@@ -481,6 +511,7 @@ int OnInit()
    g_h4_regime_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_h1_zone_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_m15_confirmation_engine.Initialize(g_configuration,g_market_data,g_logger);
+   g_trend_continuation_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
    g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
@@ -496,6 +527,7 @@ int OnInit()
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
+   E2RunTrendContinuationV2();
    E2RunSpecificationStartupDiagnostic();
    E2RunSessionStartupDiagnostics();
    E2RunNewsStartupDiagnostics();
@@ -535,6 +567,29 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
+   if(g_environment.IsTester() && g_configuration.research_verification_summary)
+     {
+      E2TrendContinuationVerification v=g_trend_continuation_engine.Verification();
+      E2TCGateDiagnostics g=g_trend_continuation_engine.Gates();
+      E2H1ZoneV2Verification z=g_h1_zone_engine.Verification();
+      E2H1ZoneV2RoleGate rg=g_h1_zone_engine.RoleGate();
+      E2H1ZoneV2DepartureWindow dw=g_h1_zone_engine.DepartureWindow();
+      E2H1ZoneV2DepartureMagnitude dm=g_h1_zone_engine.DepartureMagnitude();
+      E2H1ZoneV2Lifetime life=g_h1_zone_engine.Lifetime();
+      g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", uptrend="+IntegerToString((int)g.uptrend)+", eligible="+IntegerToString((int)g.eligible)+", resistanceBars="+IntegerToString((int)g.resistance_bar)+", resistanceObs="+IntegerToString((int)g.resistance_observations)+", checks="+IntegerToString((int)g.resistance_checks)+", aboveEdge="+IntegerToString((int)g.above_edge)+", distancePass="+IntegerToString((int)g.distance_long)+", accepted="+IntegerToString(v.break_long),"TCV2_GATE_LONG");
+      g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", downtrend="+IntegerToString((int)g.downtrend)+", eligible="+IntegerToString((int)g.eligible)+", supportBars="+IntegerToString((int)g.support_bar)+", supportObs="+IntegerToString((int)g.support_observations)+", checks="+IntegerToString((int)g.support_checks)+", belowEdge="+IntegerToString((int)g.below_edge)+", distancePass="+IntegerToString((int)g.distance_short)+", accepted="+IntegerToString(v.break_short),"TCV2_GATE_SHORT");
+      g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", zero="+IntegerToString((int)g.zero_zone)+", nonzero="+IntegerToString((int)g.nonzero_zone)+", maxZones="+IntegerToString((int)g.max_zones)+", maxSupport="+IntegerToString((int)g.max_support)+", maxResistance="+IntegerToString((int)g.max_resistance),"TCV2_ZONE_SUPPLY");
+      g_logger.Info("created_support="+IntegerToString(z.created_support)+", created_resistance="+IntegerToString(z.created_resistance)+", invalidated_support="+IntegerToString(z.invalidated_support)+", invalidated_resistance="+IntegerToString(z.invalidated_resistance)+", active_support_end="+IntegerToString(z.active_support_end)+", active_resistance_end="+IntegerToString(z.active_resistance_end),"H1ZV2_VERIFY");
+      g_logger.Info("highs="+IntegerToString(rg.confirmed_swing_highs)+", lows="+IntegerToString(rg.confirmed_swing_lows)+", highDepartures="+IntegerToString(rg.qualified_high_departures)+", lowDepartures="+IntegerToString(rg.qualified_low_departures)+", highPriorChecks="+IntegerToString(rg.high_prior_candidates_checked)+", lowPriorChecks="+IntegerToString(rg.low_prior_candidates_checked)+", highSeparationPass="+IntegerToString(rg.high_separation_pass)+", lowSeparationPass="+IntegerToString(rg.low_separation_pass)+", highClusterPass="+IntegerToString(rg.high_cluster_pass)+", lowClusterPass="+IntegerToString(rg.low_cluster_pass)+", resistanceCreated="+IntegerToString(rg.resistance_created)+", supportCreated="+IntegerToString(rg.support_created),"H1ZV2_ROLE_GATE");
+      g_logger.Info("currentHigh="+IntegerToString(dw.current_high)+", currentLow="+IntegerToString(dw.current_low)+", pivotWindowHigh="+IntegerToString(dw.pivot_window_high)+", pivotWindowLow="+IntegerToString(dw.pivot_window_low),"H1ZV2_DEPARTURE_WINDOW");
+      g_logger.Info("highs="+IntegerToString(dm.highs)+", high025="+IntegerToString(dm.high_025)+", high050="+IntegerToString(dm.high_050)+", high075="+IntegerToString(dm.high_075)+", high100="+IntegerToString(dm.high_100)+", high125="+IntegerToString(dm.high_125)+", highAvg="+DoubleToString(dm.high_average,3)+", highMedian="+DoubleToString(dm.high_median,3)+", highMax="+DoubleToString(dm.high_max,3)+", lows="+IntegerToString(dm.lows)+", low025="+IntegerToString(dm.low_025)+", low050="+IntegerToString(dm.low_050)+", low075="+IntegerToString(dm.low_075)+", low100="+IntegerToString(dm.low_100)+", low125="+IntegerToString(dm.low_125)+", lowAvg="+DoubleToString(dm.low_average,3)+", lowMedian="+DoubleToString(dm.low_median,3)+", lowMax="+DoubleToString(dm.low_max,3),"H1ZV2_DEPARTURE_MAG");
+      if(dm.highs>0){g_logger.Info("rank=greatest, "+E2H1DepartureSampleText(dm.high_greatest),"H1ZV2_HIGH_SAMPLE");g_logger.Info("rank=median, "+E2H1DepartureSampleText(dm.high_median_sample),"H1ZV2_HIGH_SAMPLE");g_logger.Info("rank=smallest, "+E2H1DepartureSampleText(dm.high_smallest),"H1ZV2_HIGH_SAMPLE");}
+      if(dm.lows>0){g_logger.Info("rank=greatest, "+E2H1DepartureSampleText(dm.low_greatest),"H1ZV2_LOW_SAMPLE");g_logger.Info("rank=median, "+E2H1DepartureSampleText(dm.low_median_sample),"H1ZV2_LOW_SAMPLE");g_logger.Info("rank=smallest, "+E2H1DepartureSampleText(dm.low_smallest),"H1ZV2_LOW_SAMPLE");}
+      g_logger.Info("supportCreatedRun="+IntegerToString(life.support_created)+", resistanceCreatedRun="+IntegerToString(life.resistance_created)+", supportInvalidatedRun="+IntegerToString(life.support_invalidated)+", resistanceInvalidatedRun="+IntegerToString(life.resistance_invalidated)+", supportBars="+IntegerToString(life.support_bars)+", resistanceBars="+IntegerToString(life.resistance_bars)+", lookbackExpiryObserved="+E2YesNo(life.lookback_expiry_observed),"H1ZV2_LIFETIME");
+      g_logger.Info("h4Calls="+StringFormat("%I64u",g_v2_h4_calls)+", h1Calls="+StringFormat("%I64u",g_v2_h1_calls)+", m15StandaloneCalls="+StringFormat("%I64u",g_v2_m15_calls)+", standaloneContexts="+StringFormat("%I64u",g_v2_m15_contexts)+", tcConfirmationContexts="+IntegerToString((int)g.confirmation_contexts)+", m15CandidateCalcs="+StringFormat("%I64u",g_m15_confirmation_engine.MeasurementCount())+", tcCalls="+IntegerToString((int)g.tc_calls)+", activeStates="+IntegerToString((int)g.active_state_evaluations),"V2_WORKLOAD");
+      g_logger.Info("breakouts_long="+IntegerToString(v.break_long)+", breakouts_short="+IntegerToString(v.break_short)+", retests_long="+IntegerToString(v.retest_long)+", retests_short="+IntegerToString(v.retest_short)+", candidates_long="+IntegerToString(v.candidate_long)+", candidates_short="+IntegerToString(v.candidate_short)+", duplicates_suppressed="+IntegerToString(v.duplicate_suppressed)+", duplicate_candidates="+IntegerToString(v.duplicate_candidates),"TCV2_VERIFY");
+      g_logger.Info("confirmations_long="+IntegerToString(v.confirm_long)+", confirmations_short="+IntegerToString(v.confirm_short)+", total_candidates="+IntegerToString(v.total)+", unique_zone_attempts="+IntegerToString(v.unique_attempts)+", invalid_h4_loss="+IntegerToString(v.h4_loss)+", invalid_h4_overextension="+IntegerToString(v.h4_overextended)+", invalid_flipped_zone="+IntegerToString(v.flipped_invalid)+", multiple_claimant_timestamps="+IntegerToString(v.confirmation_timestamps_with_multiple_claimants)+", max_claimants="+IntegerToString(v.maximum_claimants_one_confirmation)+", ownership_resolutions="+IntegerToString(v.ownership_resolutions)+", same_confirmation_multiple_candidates="+IntegerToString(v.same_confirmation_multiple_candidates)+", causal_order_violations="+IntegerToString(v.causal_order_violations),"TCV2_VERIFY");
+     }
    g_trend_analyzer.Deinitialize();
    g_trade_reporter.Reconcile();
    const int unresolved=g_trade_reporter.ReportUnresolved();
@@ -573,6 +628,7 @@ void OnTick()
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
+   E2RunTrendContinuationV2();
    E2RunStrategySignalDiagnostic();
    E2RunExecutionTestHarness();
   }
