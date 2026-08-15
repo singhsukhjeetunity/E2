@@ -4,7 +4,9 @@
 
 **Release baseline: E2 v1.0.0 — Mechanically Verified Backtesting & Execution Engine.** Sprint 6.3 is verified and no Sprint 7 edge research is included in this baseline. Future strategy research and changes belong in later branches and versions. Mechanical verification establishes trustworthy implementation and reporting; it does not establish profitability or trading edge.
 
-**Development line: E2 v1.1.0-alpha.** Sprint 1.1 is implemented but awaits the required short engineering regression. It adds only canonical research types, a resettable shared metadata contract, inert strategy/management/research configuration, and one startup configuration diagnostic. The v1.0 strategy, sessions, risk base, planning, execution, reporting, and visualization behavior are intentionally unchanged. The v1.0.0 tag remains the recovery guarantee.
+**Development line: E2 v1.1.0-alpha.** Sprint 1.1 is runtime regression-verified. Sprint 1.2 H4 Regime Engine V2 is implemented but not runtime-verified. It reconstructs causal H4 research state in parallel and remains isolated from the v1.0 strategy, sessions, risk base, planning, execution, reporting, and visualization behavior. The v1.0.0 tag remains the recovery guarantee.
+
+Sprint 1.2 verification support adds an H4-only read-only visual audit overlay behind `InpVisualShowH4RegimeV2` (default `true`). It remains part of the unverified Sprint 1.2 diagnostic surface and cannot influence engine or trading state.
 
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:
 
@@ -53,3 +55,4 @@ Sprint 4.6 historical news filtering is runtime verified. `E2NewsFilter` reads a
 - v1.1.0-alpha framework controls are intentionally inert until later strategy and management routers exist. Future management routing must reject incompatible simultaneous modes.
 - The session filter requires a manually configured fixed broker UTC offset for a historical run; a future session/time-source sprint owns any change.
 - Future fixed-risk work must add a distinct initial-Tester-balance/no-compounding risk mode without changing the v1.0 current-equity sizing path.
+- Sprint 1.2 uses a bounded deterministic 300-H4-bar minimum reconstruction and internal Wilder/EMA seeding. Its result requires manual causal timestamp, threshold/range-boundary, and legacy no-regression verification; see [H4_REGIME_V2.md](H4_REGIME_V2.md).

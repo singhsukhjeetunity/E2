@@ -26,6 +26,7 @@ E2TradeReporter g_trade_reporter;
 E2BacktestSummary g_backtest_summary;
 E2MarketData g_market_data;
 E2TrendAnalyzer g_trend_analyzer;
+E2H4RegimeEngine g_h4_regime_engine;
 E2ZoneAnalyzer g_zone_analyzer;
 E2ConfirmationAnalyzer g_confirmation_analyzer;
 E2StrategyAnalyzer g_strategy_analyzer;
@@ -148,6 +149,13 @@ void E2RunTrendDiagnostic(void)
      }
    else
       g_logger.Debug("Not ready: "+result.readiness_reason+" Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+(result.closed_bar_time>0 ? TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", H4bars="+IntegerToString(result.h4_available_bars)+", ADXrequiredBars="+IntegerToString(result.adx_required_bars)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
+  }
+
+void E2RunH4RegimeV2(void)
+  {
+   E2H4RegimeResult result;
+   if(g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),result))
+      g_visualizer.UpdateH4RegimeV2(result);
   }
 
 void E2RunZoneDiagnostic(void)
@@ -437,6 +445,7 @@ int OnInit()
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_position_manager,g_execution_safety,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
    g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
+   g_h4_regime_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
    g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
    g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
@@ -449,6 +458,7 @@ int OnInit()
       g_logger.Warning("Backtest summary CSV reporting disabled for this run because initialization failed.","Reporting");
    E2LogStartupDiagnostics();
    E2RunMarketDataStartupDiagnostic();
+   E2RunH4RegimeV2();
    E2RunSpecificationStartupDiagnostic();
    E2RunSessionStartupDiagnostics();
    E2RunNewsStartupDiagnostics();
@@ -523,6 +533,7 @@ void OnTick()
   {
    g_diagnostic_tick_count++;
    g_position_manager.Refresh();
+   E2RunH4RegimeV2();
    E2RunStrategySignalDiagnostic();
    E2RunExecutionTestHarness();
   }

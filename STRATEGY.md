@@ -10,6 +10,8 @@ Sprint 1.1 introduces the future research identities `TREND_CONTINUATION`, `RANG
 
 Future strategy/state code will record decision-time regime, breakout, boundary, range/zone/attempt, and timestamp metadata in the shared `E2ResearchMetadata` contract before passing it one-way to reporting and visualization. No reporting or visual state may be used by strategy decisions.
 
+Sprint 1.2 supplies a parallel H4 Regime Engine V2 for future research. Its UPTREND/DOWNTREND result is directional structure, not an entry instruction: a separate anti-extension flag can mark the trend temporarily ineligible without changing its regime. The existing trend-pullback rules below remain the only active strategy behavior until a later approved router sprint.
+
 ## Strategy rules
 
 - **H4 context:** `E2TrendAnalyzer` classifies confirmed structure as bullish, bearish, or range, with optional ADX strength filtering. Range and unknown context produce no signal.

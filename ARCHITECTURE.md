@@ -59,6 +59,12 @@ The inert baseline research inputs cover H4 EMA(20/50), EMA slope lookback 5, AT
 
 The current session filter already converts the explicit per-run broker UTC offset into London/New York local time and applies DST rules. Its remaining architectural limitation is that the historical server offset is a manually configured fixed value for a run; a later session/time-source sprint owns any change. The current sizer uses percentage of current equity. A later risk sprint may add fixed-initial-Tester-balance 1R/no-compounding behavior as a distinct compatible mode; Sprint 1.1 does not alter sizing.
 
+## Sprint 1.2 H4 Regime Engine V2
+
+`E2H4RegimeEngine` reconstructs a closed-H4-only `E2H4RegimeResult` in parallel with the permanent legacy trend analyzer. It uses Sprint 1.1 H4/range fields, canonical regime types, causal strength-3 swings, internal deterministic EMA/ATR/ADX calculations, structural breaks, frozen two-swing range boundaries, and prospective range invalidation. The legacy `E2StrategyAnalyzer` does not read this result in Sprint 1.2. Detailed causal timing, range construction, precedence, and seeding limitations are in [H4_REGIME_V2.md](H4_REGIME_V2.md).
+
+Sprint 1.2 verification support adds an H4-only, read-only `E2VIS_H4RV2_*` overlay. It receives `const E2H4RegimeResult` snapshots after engine evaluation and is never read by the engine, strategy, or execution layers. Its H4 audit hierarchy keeps only the current H1/H2/L1/L2 structure prominent; detailed causal metadata is available through object tooltips while superseded history is deliberately subdued.
+
 ## Backtesting and reporting
 
 MT5 Strategy Tester is authoritative for price/tick simulation, orders, fills, SL/TP, balance, equity, and its native Results/Graph/statistics. E2 has no custom or shadow P&L/equity simulator.

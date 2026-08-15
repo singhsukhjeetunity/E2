@@ -23,11 +23,13 @@ The integrity audit is recorded in [INTEGRITY_AUDIT.md](INTEGRITY_AUDIT.md). It 
 
 E2 v1.0.0 remains the permanent recovery baseline. Sprint 1.1 adds canonical future strategy/regime/tactical/boundary/management types, inert research configuration, and shared decision-time metadata only. The current v1.0 trading path is intentionally not routed through those controls. No parameters were optimized.
 
-Sprint 1.2 is next: it may implement only the explicitly approved next strategy-framework work after the required v1.1.0-alpha regression confirms no candidate, execution, reporting, or balance change under default settings.
+## E2 v1.1.0-alpha — Sprint 1.2: H4 Regime Engine V2: implemented, manual verification pending
+
+Sprint 1.2 adds the parallel closed-H4 regime engine documented in [H4_REGIME_V2.md](H4_REGIME_V2.md). It is diagnostic/future-research state only; the existing v1.0 strategy remains isolated. Manual causal-timestamp, threshold, range, and no-regression tests are required before proceeding.
 
 ## Then
 
-1. Sprint 1.2 — Approved v1.1 strategy-framework continuation
+1. Sprint 1.3 — Approved v1.1 continuation only after Sprint 1.2 verification
 2. Later v1.1 strategy research sprints — only after each approved scope and regression
 3. Sprint 7.x research — only after the v1.1 development line is mechanically revalidated
 

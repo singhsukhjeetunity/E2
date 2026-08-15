@@ -5,6 +5,7 @@
 #include "..\\analysis\\E2ZoneAnalyzer.mqh"
 #include "..\\strategy\\E2StrategyAnalyzer.mqh"
 #include "..\\reporting\\E2TradeReporter.mqh"
+#include "..\\analysis\\E2H4RegimeEngine.mqh"
 
 // Read-only visual audit. It consumes existing runtime metadata only.
 class E2Visualizer
@@ -15,6 +16,12 @@ private:
    bool m_active,m_has_trend,m_focus_missing_reported;
    long m_chart_id;
    E2TrendState m_last_trend;
+   bool m_h4rv2_has_state,m_h4rv2_last_eligible,m_h4rv2_last_overextended;
+   E2RegimeType m_h4rv2_last_regime;
+   datetime m_h4rv2_last_time;
+   datetime m_h4rv2_active_h1,m_h4rv2_active_h2,m_h4rv2_active_l1,m_h4rv2_active_l2,m_h4rv2_active_break;
+   E2H4BreakDirection m_h4rv2_active_break_direction;
+   double m_h4rv2_last_ema20,m_h4rv2_last_ema50;
    E2Zone m_latest_zones[];
    E2ReportEntryData m_entries[];
 
@@ -48,7 +55,59 @@ private:
       if(!m_active)return;
       const string name=Id("AUDIT_VIEW_INSTRUCTION");
       if(ObjectFind(m_chart_id,name)<0)ObjectCreate(m_chart_id,name,OBJ_LABEL,0,0,0);
-      ObjectSetInteger(m_chart_id,name,OBJPROP_TIMEFRAMES,OBJ_ALL_PERIODS);ObjectSetInteger(m_chart_id,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,name,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,name,OBJPROP_YDISTANCE,44);ObjectSetInteger(m_chart_id,name,OBJPROP_COLOR,clrLightSteelBlue);ObjectSetInteger(m_chart_id,name,OBJPROP_FONTSIZE,8);ObjectSetInteger(m_chart_id,name,OBJPROP_HIDDEN,false);ObjectSetString(m_chart_id,name,OBJPROP_TEXT,"Audit views: use MT5 timeframe selector on this chart - H4=WHY | H1=WHERE | M15=WHEN");
+     ObjectSetInteger(m_chart_id,name,OBJPROP_TIMEFRAMES,OBJ_ALL_PERIODS);ObjectSetInteger(m_chart_id,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,name,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,name,OBJPROP_YDISTANCE,44);ObjectSetInteger(m_chart_id,name,OBJPROP_COLOR,clrLightSteelBlue);ObjectSetInteger(m_chart_id,name,OBJPROP_FONTSIZE,8);ObjectSetInteger(m_chart_id,name,OBJPROP_HIDDEN,false);ObjectSetString(m_chart_id,name,OBJPROP_TEXT,"Audit views: use MT5 timeframe selector on this chart - H4=WHY | H1=WHERE | M15=WHEN");
+     }
+   void H4RegimeLabel(const string name,const datetime time,const double price,const string text,const color shade)
+     { Label(Id("H4RV2_"+name),H4(),time,price,text,shade); }
+   string H4Structure(const E2H4RegimeSwing &latest,const E2H4RegimeSwing &previous,const bool high) const
+     { if(!latest.valid || !previous.valid)return("INVALID");if(latest.price==previous.price)return("EQ");if(high)return(latest.price>previous.price ? "HH" : "LH");return(latest.price>previous.price ? "HL" : "LL"); }
+   string H4RegimeMarkerText(const E2RegimeType regime) const
+     { if(regime==E2_REGIME_UPTREND)return("UP");if(regime==E2_REGIME_DOWNTREND)return("DOWN");if(regime==E2_REGIME_RANGE)return("RANGE");return("TRANS"); }
+   void DeemphasizeH4RegimeSwing(const bool high,const datetime pivot_time)
+     {
+      if(pivot_time<=0)return;const string key=(high?"SWING_H_":"SWING_L_")+IntegerToString((int)pivot_time);const string marker=Id("H4RV2_"+key);
+      ObjectDelete(m_chart_id,Id("H4RV2_"+key+"_LABEL"));ObjectDelete(m_chart_id,Id("H4RV2_"+key+"_KNOWN"));ObjectDelete(m_chart_id,Id("H4RV2_"+key+"_KNOWN_LABEL"));
+      if(ObjectFind(m_chart_id,marker)>=0){ObjectSetInteger(m_chart_id,marker,OBJPROP_COLOR,clrDimGray);ObjectSetInteger(m_chart_id,marker,OBJPROP_WIDTH,1);}
+     }
+   void DeemphasizeH4RegimeBreak(void)
+     {
+      if(m_h4rv2_active_break<=0 || m_h4rv2_active_break_direction==E2_H4_BREAK_NONE)return;const string key="H4RV2_BREAK_"+(m_h4rv2_active_break_direction==E2_H4_BREAK_BULLISH?"B_":"S_")+IntegerToString((int)m_h4rv2_active_break);
+      ObjectDelete(m_chart_id,Id(key+"_LABEL"));if(ObjectFind(m_chart_id,Id(key+"_MARK"))>=0)ObjectSetInteger(m_chart_id,Id(key+"_MARK"),OBJPROP_COLOR,clrDimGray);if(ObjectFind(m_chart_id,Id(key+"_LEVEL"))>=0){ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_COLOR,clrDimGray);ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_WIDTH,1);}
+     }
+   void DrawH4RegimePanel(const E2H4RegimeResult &r)
+     {
+      const string name=Id("H4RV2_PANEL");if(ObjectFind(m_chart_id,name)<0)ObjectCreate(m_chart_id,name,OBJ_LABEL,0,0,0);
+      ObjectSetInteger(m_chart_id,name,OBJPROP_TIMEFRAMES,H4());ObjectSetInteger(m_chart_id,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,name,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,name,OBJPROP_YDISTANCE,76);ObjectSetInteger(m_chart_id,name,OBJPROP_COLOR,clrLightSteelBlue);ObjectSetInteger(m_chart_id,name,OBJPROP_FONTSIZE,8);ObjectSetInteger(m_chart_id,name,OBJPROP_HIDDEN,false);
+      const string highs=H4Structure(r.latest_swing_high,r.previous_swing_high,true),lows=H4Structure(r.latest_swing_low,r.previous_swing_low,false);const bool bull=(r.active_break_direction==E2_H4_BREAK_BULLISH),bear=(r.active_break_direction==E2_H4_BREAK_BEARISH);
+      string text="E2 H4 REGIME V2\nREGIME: "+E2RegimeTypeName(r.regime)+"\nENTRY: "+(r.trend_overextended?"BLOCKED - OVEREXTENDED":(r.trend_entry_eligible?"ELIGIBLE":"N/A"))+"\nSTRUCTURE\nHighs: "+highs+" "+((highs=="HH"||highs=="LH")?"OK":"X")+"\nLows:  "+lows+" "+((lows=="HL"||lows=="LL")?"OK":"X")+"\nBreak: "+(bull?"BULL OK":(bear?"BEAR OK":"NONE"))+"\nTREND FILTERS\nEMA20 "+(r.ema20>r.ema50?">":"<=")+" EMA50\nEMA50 d5: "+DoubleToString(r.ema50-r.ema50_five_bars_ago,_Digits)+"\nADX: "+DoubleToString(r.adx,2)+" / 20\nExtension: "+DoubleToString(r.distance_close_to_ema20_atr,3)+" / 1.500 ATR\nATR: "+DoubleToString(r.atr,_Digits);
+      if(r.range_valid)text+="\nR"+IntegerToString(r.active_range_id)+" U="+DoubleToString(r.range_upper_centre,_Digits)+" L="+DoubleToString(r.range_lower_centre,_Digits)+" H="+DoubleToString((r.range_upper_centre-r.range_lower_centre)/r.atr,2)+" ATR";ObjectSetString(m_chart_id,name,OBJPROP_TEXT,text);
+     }
+   void DrawH4RegimeSwing(const E2H4RegimeSwing &s,const string role)
+     {
+      if(!s.valid)return;const string key=(s.high?"SWING_H_":"SWING_L_")+IntegerToString((int)s.pivot_time);const color shade=(s.high?clrTomato:clrLimeGreen);
+      Marker(Id("H4RV2_"+key),H4(),s.pivot_time,s.price,!s.high,shade);
+      const string metadata="Type: "+(s.high?"Swing High":"Swing Low")+"\nPivot: "+TimeToString(s.pivot_time,TIME_DATE|TIME_MINUTES)+"\nKnown From: "+TimeToString(s.known_from_time,TIME_DATE|TIME_MINUTES)+"\nPrice: "+DoubleToString(s.price,_Digits);ObjectSetString(m_chart_id,Id("H4RV2_"+key),OBJPROP_TOOLTIP,metadata);ObjectSetInteger(m_chart_id,Id("H4RV2_"+key),OBJPROP_WIDTH,3);
+      H4RegimeLabel(key+"_LABEL",s.pivot_time,s.price,role,shade);ObjectSetInteger(m_chart_id,Id("H4RV2_"+key+"_LABEL"),OBJPROP_FONTSIZE,9);ObjectSetString(m_chart_id,Id("H4RV2_"+key+"_LABEL"),OBJPROP_TOOLTIP,metadata);
+      const string known=Id("H4RV2_"+key+"_KNOWN");if(Create(known,OBJ_VLINE,H4(),s.known_from_time,0.0)){ObjectSetInteger(m_chart_id,known,OBJPROP_COLOR,shade);ObjectSetInteger(m_chart_id,known,OBJPROP_STYLE,STYLE_DOT);}H4RegimeLabel(key+"_KNOWN_LABEL",s.known_from_time,s.price,"K",shade);ObjectSetString(m_chart_id,Id("H4RV2_"+key+"_KNOWN_LABEL"),OBJPROP_TOOLTIP,metadata);
+     }
+   void DrawH4RegimeBreak(const E2H4RegimeResult &r)
+     {
+      if(r.active_break_direction==E2_H4_BREAK_NONE || r.breakout_time<=0)return;const bool bull=(r.active_break_direction==E2_H4_BREAK_BULLISH);const string key="H4RV2_BREAK_"+(bull?"B_":"S_")+IntegerToString((int)r.breakout_time);const color shade=(bull?clrDodgerBlue:clrOrangeRed);
+      if(Create(Id(key+"_LEVEL"),OBJ_TREND,H4(),r.breakout_time,r.broken_swing_price,r.closed_h4_time,r.broken_swing_price)){ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_COLOR,shade);ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_STYLE,STYLE_DASH);ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_RAY_RIGHT,false);}
+      Marker(Id(key+"_MARK"),H4(),r.breakout_time,r.breakout_close,bull,shade);ObjectSetInteger(m_chart_id,Id(key+"_MARK"),OBJPROP_WIDTH,3);H4RegimeLabel(key+"_LABEL",r.breakout_time,r.breakout_close,(bull?"BULL BREAK ":"BEAR BREAK ")+"+"+DoubleToString(r.breakout_distance_atr,2)+" ATR",shade);
+     }
+   void DrawH4RegimeRange(const E2H4RegimeResult &r)
+     {
+      if(r.range_confirmation_time<=0 || (r.range_upper_boundary<=r.range_lower_boundary))return;const datetime end=(r.range_invalidation_time>0?r.range_invalidation_time:r.closed_h4_time);const string key="H4RV2_RANGE_"+IntegerToString((int)r.range_confirmation_time);
+      const double levels[]={r.range_upper_boundary,r.range_lower_boundary,r.range_upper_centre,r.range_lower_centre};const string names[]={"UPPER","LOWER","UC","LC"};
+      for(int i=0;i<ArraySize(levels);i++)if(Create(Id(key+"_"+names[i]),OBJ_TREND,H4(),r.range_confirmation_time,levels[i],end,levels[i])){ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_COLOR,(i<2?clrMediumPurple:clrSlateGray));ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_STYLE,(i<2?STYLE_SOLID:STYLE_DOT));ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_RAY_RIGHT,false);}
+      if(r.range_valid)H4RegimeLabel(key+"_LABEL",r.range_confirmation_time,r.range_upper_boundary,"R"+IntegerToString(r.active_range_id),clrMediumPurple);
+     }
+   void DrawH4RegimeEma(const E2H4RegimeResult &r)
+     {
+      if(m_h4rv2_last_time<=0)return;const string suffix=IntegerToString((int)r.closed_h4_time);
+      if(Create(Id("H4RV2_EMA20_"+suffix),OBJ_TREND,H4(),m_h4rv2_last_time,m_h4rv2_last_ema20,r.closed_h4_time,r.ema20)){ObjectSetInteger(m_chart_id,Id("H4RV2_EMA20_"+suffix),OBJPROP_COLOR,clrGold);ObjectSetInteger(m_chart_id,Id("H4RV2_EMA20_"+suffix),OBJPROP_RAY_RIGHT,false);}
+      if(Create(Id("H4RV2_EMA50_"+suffix),OBJ_TREND,H4(),m_h4rv2_last_time,m_h4rv2_last_ema50,r.closed_h4_time,r.ema50)){ObjectSetInteger(m_chart_id,Id("H4RV2_EMA50_"+suffix),OBJPROP_COLOR,clrDeepSkyBlue);ObjectSetInteger(m_chart_id,Id("H4RV2_EMA50_"+suffix),OBJPROP_RAY_RIGHT,false);}
      }
    int FindZone(const int zone_id) const { for(int i=0;i<ArraySize(m_latest_zones);i++)if(m_latest_zones[i].id==zone_id)return(i);return(-1); }
    string ConfirmationText(const E2ReportEntryData &entry) const
@@ -95,10 +154,11 @@ private:
       for(int i=0;i<ArraySize(suffix);i++)ObjectDelete(m_chart_id,key+suffix[i]);
      }
 public:
-   E2Visualizer(void):m_logger(NULL),m_active(false),m_has_trend(false),m_focus_missing_reported(false),m_chart_id(0),m_last_trend(E2_TREND_UNKNOWN) {}
+   E2Visualizer(void):m_logger(NULL),m_active(false),m_has_trend(false),m_focus_missing_reported(false),m_chart_id(0),m_last_trend(E2_TREND_UNKNOWN),m_h4rv2_has_state(false),m_h4rv2_last_eligible(false),m_h4rv2_last_overextended(false),m_h4rv2_last_regime(E2_REGIME_UNKNOWN),m_h4rv2_last_time(0),m_h4rv2_active_h1(0),m_h4rv2_active_h2(0),m_h4rv2_active_l1(0),m_h4rv2_active_l2(0),m_h4rv2_active_break(0),m_h4rv2_active_break_direction(E2_H4_BREAK_NONE),m_h4rv2_last_ema20(0.0),m_h4rv2_last_ema50(0.0) {}
    void Initialize(const E2Config &config,E2Logger &logger)
      {
       m_config=config;m_logger=&logger;m_chart_id=ChartID();m_active=(m_config.visual_mode_enabled && MQLInfoInteger(MQL_TESTER)!=0 && m_chart_id>=0);m_has_trend=false;m_focus_missing_reported=false;ArrayResize(m_latest_zones,0);ArrayResize(m_entries,0);
+      m_h4rv2_has_state=false;m_h4rv2_last_time=0;m_h4rv2_active_h1=0;m_h4rv2_active_h2=0;m_h4rv2_active_l1=0;m_h4rv2_active_l2=0;m_h4rv2_active_break=0;m_h4rv2_active_break_direction=E2_H4_BREAK_NONE;m_h4rv2_last_ema20=0.0;m_h4rv2_last_ema50=0.0;
       if(m_logger!=NULL)m_logger.Debug("auditMode="+IntegerToString((int)m_config.visual_audit_mode)+", focusTradeId="+StringFormat("%I64u",m_config.visual_focus_trade_id)+", chartId="+StringFormat("%I64d",m_chart_id)+", H4/H1/M15 visibility enabled. Native MT5 timeframe selector is the audit switching mechanism.","Visualization");
       DrawAuditInstruction();
      }
@@ -117,7 +177,15 @@ public:
       if(!m_active || !m_config.visual_show_trend_panel)return;
       if(IsSingleTrade())return;
       const string panel=Id("TREND_PANEL");if(ObjectFind(m_chart_id,panel)<0)ObjectCreate(m_chart_id,panel,OBJ_LABEL,0,0,0);ObjectSetInteger(m_chart_id,panel,OBJPROP_TIMEFRAMES,H4());ObjectSetInteger(m_chart_id,panel,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,panel,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,panel,OBJPROP_YDISTANCE,20);ObjectSetInteger(m_chart_id,panel,OBJPROP_COLOR,clrYellow);ObjectSetInteger(m_chart_id,panel,OBJPROP_FONTSIZE,10);ObjectSetString(m_chart_id,panel,OBJPROP_TEXT,"E2 H4 "+E2TrendStateName(result.trend_state)+" | ADX "+DoubleToString(result.adx_value,2)+" / "+DoubleToString(threshold,2));
-      if(!m_has_trend || result.trend_state!=m_last_trend){const string marker=Id("REGIME_"+IntegerToString((int)result.trend_closed_h4_time));if(Create(marker,OBJ_VLINE,H4(),result.trend_closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,marker,OBJPROP_COLOR,clrDimGray);ObjectSetInteger(m_chart_id,marker,OBJPROP_STYLE,STYLE_DOT);}m_last_trend=result.trend_state;m_has_trend=true;}
+     if(!m_has_trend || result.trend_state!=m_last_trend){const string marker=Id("REGIME_"+IntegerToString((int)result.trend_closed_h4_time));if(Create(marker,OBJ_VLINE,H4(),result.trend_closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,marker,OBJPROP_COLOR,clrDimGray);ObjectSetInteger(m_chart_id,marker,OBJPROP_STYLE,STYLE_DOT);}m_last_trend=result.trend_state;m_has_trend=true;}
+     }
+   void UpdateH4RegimeV2(const E2H4RegimeResult &r)
+     {
+      if(!m_active || !m_config.visual_show_h4_regime_v2 || Period()!=PERIOD_H4 || !r.ready)return;
+      DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h1);DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h2);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l1);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l2);if(r.active_break_direction!=m_h4rv2_active_break_direction || r.breakout_time!=m_h4rv2_active_break)DeemphasizeH4RegimeBreak();
+      DrawH4RegimePanel(r);DrawH4RegimeSwing(r.latest_swing_high,"H1");DrawH4RegimeSwing(r.previous_swing_high,"H2");DrawH4RegimeSwing(r.latest_swing_low,"L1");DrawH4RegimeSwing(r.previous_swing_low,"L2");DrawH4RegimeBreak(r);DrawH4RegimeRange(r);DrawH4RegimeEma(r);
+      if(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime || r.trend_entry_eligible!=m_h4rv2_last_eligible || r.trend_overextended!=m_h4rv2_last_overextended){const string key="H4RV2_REGIME_"+IntegerToString((int)r.closed_h4_time);if(Create(Id(key),OBJ_VLINE,H4(),r.closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,Id(key),OBJPROP_COLOR,clrDarkSlateGray);ObjectSetInteger(m_chart_id,Id(key),OBJPROP_STYLE,STYLE_DOT);}const string marker=(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime ? H4RegimeMarkerText(r.regime) : (r.trend_overextended?"EXT":"ELIG"));H4RegimeLabel(key+"_LABEL",r.closed_h4_time,r.latest_close,marker,clrSilver);}
+      m_h4rv2_has_state=true;m_h4rv2_last_regime=r.regime;m_h4rv2_last_eligible=r.trend_entry_eligible;m_h4rv2_last_overextended=r.trend_overextended;m_h4rv2_last_time=r.closed_h4_time;m_h4rv2_last_ema20=r.ema20;m_h4rv2_last_ema50=r.ema50;m_h4rv2_active_h1=r.latest_swing_high.pivot_time;m_h4rv2_active_h2=r.previous_swing_high.pivot_time;m_h4rv2_active_l1=r.latest_swing_low.pivot_time;m_h4rv2_active_l2=r.previous_swing_low.pivot_time;m_h4rv2_active_break=r.breakout_time;m_h4rv2_active_break_direction=r.active_break_direction;Refresh();
      }
    void MarkCandidate(const E2StrategyResult &result,const MqlRates &candle,const string rejection="")
      {

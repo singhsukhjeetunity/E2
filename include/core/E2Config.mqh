@@ -140,6 +140,7 @@ input bool InpVisualShowTrendPanel = true;
 input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
 input bool InpVisualShowRejectedCandidates = false;
+input bool InpVisualShowH4RegimeV2 = true; // Read-only H4 Regime V2 audit overlay.
 input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
 input ulong InpVisualFocusTradeId = 0; // Position identity for SINGLE_TRADE mode; 0 is invalid/no focus.
 input bool InpVisualCleanupOnDeinit = true;
@@ -243,6 +244,7 @@ struct E2Config
    bool            visual_show_confirmations;
    bool            visual_show_trades;
    bool            visual_show_rejected_candidates;
+   bool            visual_show_h4_regime_v2;
    E2VisualAuditMode visual_audit_mode;
    ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
@@ -340,6 +342,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_confirmations              = InpVisualShowConfirmations;
    configuration.visual_show_trades                     = InpVisualShowTrades;
    configuration.visual_show_rejected_candidates        = InpVisualShowRejectedCandidates;
+   configuration.visual_show_h4_regime_v2               = InpVisualShowH4RegimeV2;
    configuration.visual_audit_mode                      = InpVisualAuditMode;
    configuration.visual_focus_trade_id                  = InpVisualFocusTradeId;
    configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;
