@@ -16,6 +16,8 @@ Sprint 1.5 Trend Continuation V2 is implemented but not runtime-verified. It emi
 
 Sprint 1.6 Trend Continuation V2 planning is implemented and compile-verified, with runtime verification pending. Candidates receive a single next-M15 research plan attempt using entry-time H4/session/news/exposure/quote checks, confirmation-frozen H1 ATR stops, causal active opposing-zone targets, available-R management routing, and fixed-initial-balance risk. No V2 order submission or later-sprint management behavior is connected.
 
+Sprint 1.7 V2 native execution integration is implemented and compile-verified, with runtime verification pending. Valid TC plans are execution-disabled or receive exactly one refreshed-geometry native submission; accepted deals register deterministic V2 position metadata and enter the existing authoritative reporter. No trade-management or later strategy sprint is included.
+
 Corrective Sprint 1.3.3 performance architecture is implemented and compile-verified. Persistent H1 zone IDs use sorted lookup, active support/resistance indexes own invalidation iteration and active exports, terminal records remain retained for anti-resurrection, and TC breakout gating is H1-event-driven while M15 retest/confirmation work remains M15-driven. The optimization changes no thresholds, zone IDs, lifetime rules, or causal timestamps; exact one-year semantic/runtime comparison remains required.
 
 The modular foundation, multi-timeframe data, H4 trend/range, H1 zones, M15 confirmation, session filter, risk/planning, native MT5 execution, spread correction, existing-position short-circuit, finalized trade reporting, unresolved-trade correction, and Sprint 6.1 summary are implemented. Sprint 6.1 was verified using this engineering case:

@@ -43,6 +43,10 @@ Sprint 1.5 adds an isolated V2 candidate producer documented in [TREND_CONTINUAT
 
 Sprint 1.6 adds the isolated research planner documented in [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md). It performs one-shot next-M15 entry revalidation, causal target discovery, available-R and management routing, and fixed-initial-balance sizing. It produces no native orders; Range Mean Reversion, Range Breakout, trailing execution, and later execution integration remain future work.
 
+## E2 v1.1.0-alpha — Sprint 1.7: V2 native execution integration: implemented, manual verification pending
+
+Sprint 1.7 connects valid TC V2 plans to the established native MT5 executor through the one-shot adapter documented in [EXECUTION_V2.md](EXECUTION_V2.md). It refreshes price geometry, recalculates fixed-base volume, validates authoritative broker results, and registers position metadata. It does not implement trailing management or either range strategy.
+
 ## Then
 
 1. Sprint 1.3 — Approved v1.1 continuation only after Sprint 1.2 verification

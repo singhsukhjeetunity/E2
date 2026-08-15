@@ -35,6 +35,8 @@ Sprint 1.4 adds the separate `E2M15ConfirmationEngine`. Its median-body momentum
 
 Sprint 1.5 Trend Continuation V2 candidates feed the isolated Sprint 1.6 research planner, not the legacy strategy or native executor. Each candidate receives one plan attempt at its designated next-M15 open; rejected candidates expire. Stop, causal opposing-zone target, available-R, management selection, and fixed-initial-balance sizing are documented in [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md).
 
+Sprint 1.7 permits valid V2 plans to reach native market execution only when `TradingEnabled=true`. The execution adapter refreshes price-dependent geometry without changing the setup or target, submits at most once, and registers the authoritative fill for reporting and future management. It does not alter legacy signal generation; see [EXECUTION_V2.md](EXECUTION_V2.md).
+
 ## Implementation and safety rules
 
 These are safeguards, not a claim about market edge:
