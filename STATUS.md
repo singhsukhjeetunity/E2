@@ -6,6 +6,7 @@
 - Affirmative H4 RANGE classification using completed-candle ADX and ATR-normalized containment, with a distinct neutral/unclassified outcome.
 - Persistent H1 support/resistance zones with stable IDs, prospective invalidation, indexed active iteration, and anti-resurrection behavior.
 - Deterministic frozen H1 range-boundary selection from active zones while H4 is RANGE, with prospective invalidation and no trading route.
+- Candidate-only Range Mean-Reversion state with interior approach, source-zone challenge, independent side attempts, rearm, existing rejection routing, and deterministic deduplication.
 - Completed-M15 confirmation measurements.
 - Trend Continuation breakout, retest, attempt ownership, confirmation, candidate generation, and deduplication.
 - Next-M15-open planning with session, news, exposure, stop, opposing-zone target, available-R, management, and fixed-initial-balance risk checks.
@@ -16,7 +17,7 @@
 - Complete Trend Continuation lifecycle reporting with setup-filtered funnel/results, immutable-original-R accounting, management-branch breakdowns, and conservative exit classification.
 - Bounded semantic-regression/invariant counters.
 
-Trend Continuation remains the only implemented setup. RANGE is a first-class H4 regime and H1 boundary research context, but Range Mean Reversion and Range Breakout still have no setup engines, planner routes, or trading behavior.
+Trend Continuation remains the only executable setup. Range Mean-Reversion now has a candidate-producing setup engine but no planner or trading route. Range Breakout remains inert.
 
 ## Mechanically verified
 
@@ -42,3 +43,5 @@ Sprint 1.8 position management remains compile-verified with manual Tester verif
 Sprint 2.1 H4 range-regime detection is implemented and compile-verified. Strategy Tester verification must confirm nonzero RANGE and NEUTRAL observations, zero causality violations, exclusive context totals, and the unchanged frozen Trend Continuation fingerprint. Range Mean Reversion and Range Breakout behavior are not implemented.
 
 Sprint 2.2 H1 boundary selection is implemented and compile-verified. Tester verification must confirm deterministic widest-pair selection, frozen boundaries, strict beyond-0.25-ATR invalidation, next-H1-only replacement, zero duplicate IDs, zero mutation/causality violations, and the unchanged Trend Continuation fingerprint.
+
+Sprint 2.3 Range Mean-Reversion setup state is implemented and compile-verified. Tester verification must confirm a nonzero raw candidate stream when enabled, zero duplicates/causality violations, correct manual boundary examples, no RMR plans or trades, and the unchanged disabled-RMR Trend Continuation fingerprint.

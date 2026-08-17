@@ -122,6 +122,7 @@ input bool InpVisualShowH1ZoneV2 = true; // Read-only H1 Zone V2 audit overlay.
 input bool InpVisualShowH1RangeBoundaries = true; // Read-only frozen range-boundary audit overlay.
 input bool InpVisualShowM15ConfirmationV2 = true; // Read-only M15 Confirmation V2 audit overlay.
 input bool InpVisualShowTrendContinuationV2 = true; // Read-only Trend Continuation V2 audit overlay.
+input bool InpVisualShowRangeMeanReversionV2 = true; // Passed RMR candidates only.
 input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
 input ulong InpVisualFocusTradeId = 0; // Position identity for SINGLE_TRADE mode; 0 is invalid/no focus.
 input bool InpVisualCleanupOnDeinit = true;
@@ -215,6 +216,7 @@ struct E2Config
    bool            visual_show_h1_range_boundaries;
    bool            visual_show_m15_confirmation_v2;
    bool            visual_show_trend_continuation_v2;
+   bool            visual_show_range_mean_reversion_v2;
    E2VisualAuditMode visual_audit_mode;
    ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
@@ -302,6 +304,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_h1_range_boundaries         = InpVisualShowH1RangeBoundaries;
    configuration.visual_show_m15_confirmation_v2        = InpVisualShowM15ConfirmationV2;
    configuration.visual_show_trend_continuation_v2      = InpVisualShowTrendContinuationV2;
+   configuration.visual_show_range_mean_reversion_v2    = InpVisualShowRangeMeanReversionV2;
    configuration.visual_audit_mode                      = InpVisualAuditMode;
    configuration.visual_focus_trade_id                  = InpVisualFocusTradeId;
    configuration.visual_cleanup_on_deinit               = InpVisualCleanupOnDeinit;

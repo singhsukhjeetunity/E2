@@ -6,6 +6,7 @@
 #include "..\\analysis\\E2H4RegimeEngine.mqh"
 #include "..\\analysis\\E2H1ZoneEngine.mqh"
 #include "..\\analysis\\E2H1RangeBoundaryEngine.mqh"
+#include "..\\analysis\\E2RangeMeanReversionEngine.mqh"
 
 // Read-only visual audit. It consumes existing runtime metadata only.
 class E2Visualizer
@@ -184,6 +185,18 @@ public:
      {
       if(!m_active || !m_config.visual_show_trend_continuation_v2 || Period()!=PERIOD_M15)return;
       for(int i=0;i<ArraySize(candidates);i++){const E2TrendContinuationCandidate c=candidates[i];const bool up=(c.direction==E2_TC_LONG);const string key=Id("TCV2_"+c.candidate_id);Marker(key,M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),up,clrGold);Label(key+"_LABEL",M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),(up?"TC+":"TC-"),clrGold);ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,"Candidate: "+c.candidate_id+"\nZone: "+c.source_zone_id+"\nBreakout: "+TimeToString(c.breakout_known_from_time,TIME_DATE|TIME_MINUTES)+"\nRetest: "+TimeToString(c.retest_time,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(c.candidate_known_from_time,TIME_DATE|TIME_MINUTES)+"\nAttempt: "+IntegerToString(c.attempt_number));}
+     }
+   void UpdateRangeMeanReversion(const E2RangeMeanReversionCandidate &candidates[])
+     {
+      if(!m_active || !m_config.visual_show_range_mean_reversion_v2 || Period()!=PERIOD_M15)return;
+      for(int i=0;i<ArraySize(candidates);i++)
+        {
+         const E2RangeMeanReversionCandidate candidate=candidates[i];const bool up=(candidate.direction==E2_RMR_LONG);const string key=Id("RMR_"+candidate.candidate_id);const double price=(up?candidate.confirmation.low:candidate.confirmation.high);const color shade=(up?clrMediumSeaGreen:clrIndianRed);
+         Marker(key,M15(),candidate.confirmation_candle,price,up,shade);Label(key+"_LABEL",M15(),candidate.confirmation_candle,price,(up?"RMR+":"RMR-"),shade);
+         const string tooltip="Range: "+candidate.range_id+"\nDirection: "+E2RangeMeanReversionDirectionName(candidate.direction)+"\nAttempt: "+IntegerToString(candidate.attempt_number)+"\nBoundary visit: "+TimeToString(candidate.boundary_visit_time,TIME_DATE|TIME_MINUTES)+"\nVisit known: "+TimeToString(candidate.boundary_visit_known_from,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(candidate.confirmation_candle,TIME_DATE|TIME_MINUTES)+"\nKnown From: "+TimeToString(candidate.confirmation_known_from,TIME_DATE|TIME_MINUTES)+"\nSource zone: "+candidate.source_zone_id+"\nWick/body: "+DoubleToString(candidate.confirmation.wick_body_ratio,2)+"\nWick/range: "+DoubleToString(candidate.confirmation.wick_range_ratio,2);
+         ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,tooltip);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,tooltip);
+        }
+      Refresh();
      }
    void DrawEntry(const E2ReportEntryData &entry)
      {
