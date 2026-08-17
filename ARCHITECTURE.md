@@ -98,6 +98,8 @@ Only positions registered by successful E2 execution enter `E2TradeReporter`; un
 
 MT5 deals are authoritative for fills, exits, commissions, swaps, fees, and profit. Open or unresolved records are never fabricated as closed results.
 
+Trend Continuation reporting preserves breakout, retest, confirmation, entry, execution, management, and exit identity end to end. Setup-filtered summary rows prevent cross-setup aggregation; future range setups must receive equivalent independent rows. The complete CSV, R-accounting, exit-classification, and invariant contract is documented in [TREND_CONTINUATION_REPORTING.md](TREND_CONTINUATION_REPORTING.md).
+
 ## 10. Diagnostics
 
 Operational lifecycle, error, broker-rejection, execution, and management-modification messages remain permanent. The gated verification summary retains causality, zone persistence, duplicate suppression, planning/rejection, risk/execution, management, and V2-only reporting counters. Detailed candidate and engine diagnostics are emitted only when the existing verification or verbose diagnostic controls enable them.

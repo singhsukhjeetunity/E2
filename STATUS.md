@@ -11,6 +11,7 @@
 - Fixed +2R management and opposing-zone milestone trailing as mutually exclusive branches.
 - Restart recovery with immutable original R and broker stop/freeze constraint handling.
 - Registered-position trade CSV, tester summary, and downstream-only visual audit layers.
+- Complete Trend Continuation lifecycle reporting with setup-filtered funnel/results, immutable-original-R accounting, management-branch breakdowns, and conservative exit classification.
 - Bounded semantic-regression/invariant counters.
 
 Trend Continuation is the only implemented setup. Range Mean Reversion and Range Breakout have shared identities and selection fields but no setup engines, planner routes, or trading behavior.
@@ -24,6 +25,8 @@ The earlier v1.0 mechanically verified baseline remains historical evidence only
 ## Runtime verification still required
 
 The architecture cleanup requires an identical-configuration Strategy Tester comparison against the immediately preceding V2-only baseline. Compare H4 regime, H1 zone lifecycle, Trend Continuation breakout/retest/candidate ownership, planner rejection, execution, management, finalized-trade, and financial outputs.
+
+Sprint 1.9 reporting is implemented and compile-verified. Trend Continuation may be marked complete only after the verified 2024 regression fingerprint remains 85 candidates, 9 valid plans, 9 execution attempts, 8 successful executions, 8 finalized trades, 6 wins, 2 losses, 11.68 Net R, 1.460 Average R, 6.7106 profit factor, 1.02 maximum R drawdown, and 11677.94 net profit.
 
 Sprint 1.8 position management remains compile-verified with manual Tester verification pending, particularly fixed-2R non-management, zone-trailing milestone gaps, broker deferrals, and restart recovery.
 

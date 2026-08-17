@@ -232,9 +232,16 @@ void OnDeinit(const int reason)
    const int unresolved=g_trade_reporter.ReportUnresolved();
    E2ReportedTrade finalized_trades[];
    g_trade_reporter.FinalizedTrades(finalized_trades);
+   const E2TrendContinuationVerification tc_summary_candidates=g_trend_continuation_engine.Verification();
+   const E2V2PlanVerification tc_summary_plans=g_v2_trade_plan_engine.Verification();
+   const E2V2ExecutionVerification tc_summary_execution=g_v2_execution_engine.Verification();
+   int cross_setup_contamination=0;
+   for(int report_trade=0;report_trade<ArraySize(finalized_trades);report_trade++)if(finalized_trades[report_trade].entry.strategy_type!="TREND_CONTINUATION")cross_setup_contamination++;
+   if(g_environment.IsTester() && g_configuration.research_verification_summary)
+      g_logger.Info("candidates="+IntegerToString(tc_summary_candidates.total)+", plannerCandidates="+IntegerToString(tc_summary_plans.candidates_received)+", validPlans="+IntegerToString(tc_summary_plans.plans_valid)+", executionPlans="+IntegerToString(tc_summary_execution.valid_plans_received)+", executionAttempts="+IntegerToString(tc_summary_execution.execution_attempts)+", executionSuccesses="+IntegerToString(tc_summary_execution.execution_successes)+", finalizedTrades="+IntegerToString(ArraySize(finalized_trades))+", unresolved="+IntegerToString(unresolved)+", crossSetupContamination="+IntegerToString(cross_setup_contamination)+", "+g_trade_reporter.InvariantSummary(),"TC_REPORT_VERIFY");
    for(int visual_trade=0;visual_trade<ArraySize(finalized_trades);visual_trade++) g_visualizer.DrawFinal(finalized_trades[visual_trade]);
    g_visualizer.ReportFocusNotFound();
-   g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved);
+   g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved,tc_summary_candidates.total,tc_summary_plans.entry_windows_reached,tc_summary_plans.plans_valid,tc_summary_execution.execution_attempts,tc_summary_execution.execution_successes);
    g_backtest_summary.Close();
    g_trade_reporter.Close();
    g_visualizer.Cleanup();
