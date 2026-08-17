@@ -3,7 +3,7 @@
 
 #include "..\\core\\E2Config.mqh"
 #include "..\\core\\E2SymbolInfo.mqh"
-#include "..\\risk\\E2TradePlanner.mqh"
+#include "..\\risk\\E2OrderRequest.mqh"
 
 enum E2ExecutionSafetyStatus
   {
@@ -97,7 +97,7 @@ public:
       m_logger=&logger;
      }
 
-   bool CanExecute(const E2TradePlan &plan,const E2SymbolSpecification &spec,E2ExecutionSafetyResult &result)
+   bool CanExecute(const E2OrderRequest &plan,const E2SymbolSpecification &spec,E2ExecutionSafetyResult &result)
      {
       result.status=E2_SAFETY_CLEAR;
       result.spread_pips=0.0;

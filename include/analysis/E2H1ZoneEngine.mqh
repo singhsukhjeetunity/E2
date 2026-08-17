@@ -34,7 +34,7 @@ struct E2H1ZoneV2Record
 
 // Snapshot of the bounded causal reconstruction.  These counts are diagnostic
 // only: they make source-role creation and prospective invalidation observable
-// without exposing Zone V2 to the legacy trading path.
+// while keeping the Zone V2 detector independent from trade execution.
 struct E2H1ZoneV2Verification
   {
    int created_support,created_resistance;

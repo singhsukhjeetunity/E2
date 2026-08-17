@@ -1,4 +1,0 @@
-#ifndef E2_VISUALIZATION_VISUALIZATION_MQH
-#define E2_VISUALIZATION_VISUALIZATION_MQH
-#include "E2Visualizer.mqh"
-#endif

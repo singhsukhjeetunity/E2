@@ -1,118 +1,113 @@
 # E2 Architecture
 
-E2 (Emotionless Edge) is a modular MQL5 Expert Advisor. `E2.mq5` orchestrates the active implementation; strategy, risk, execution, and reporting are separate components.
+## 1. System purpose
 
-## Decision and execution pipeline
+E2 is a deterministic MQL5 research Expert Advisor. The active implementation supports Trend Continuation from causal multi-timeframe observations through native MT5 execution, position management, and authoritative deal reporting. Mechanical correctness does not imply a profitable edge or live readiness.
 
-```text
-Closed M15 candle
-  -> E2MarketData synchronized closed-bar access
-  -> E2TrendAnalyzer (H4 structure + ADX)
-  -> E2ZoneAnalyzer / E2SetupTracker (H1 zones and visits)
-  -> E2ConfirmationAnalyzer (M15 confirmation)
-  -> E2StrategyAnalyzer (LONG / SHORT candidate)
-  -> E2SessionFilter
-  -> E2NewsFilter
-  -> E2PositionManager existing-position short-circuit
-  -> E2TradePlanner + E2PositionSizer
-  -> E2ExecutionSafety + E2PositionGuard
-  -> E2OrderExecutor native MT5 order execution
-  -> E2SetupTracker.Consume only after confirmed execution
-  -> E2TradeReporter authoritative MT5 deal reporting
-  -> E2BacktestSummary at Strategy Tester shutdown
-```
+The recoverable v1.0 implementation exists at tag `v1.0.0`; it is not part of the active runtime tree.
 
-`E2RunStrategySignalDiagnostic()` in `E2.mq5` evaluates only when a new closed M15 bar is available. `E2MarketData` supplies historical values as of the evaluation time, which is the no-look-ahead boundary.
+## 2. Supported setup types
 
-## Components
+`E2StrategyType` is the shared setup identity carried into planning, executed-position metadata, and reporting.
 
-| Area | Primary implementation |
-|---|---|
-| Configuration | `include/core/E2Config.mqh` |
-| Market data and analysis | `include/analysis/E2MarketData.mqh`, `E2TrendAnalyzer.mqh`, `E2ZoneAnalyzer.mqh`, `E2ConfirmationAnalyzer.mqh` |
-| Strategy/setup lifecycle | `include/strategy/E2StrategyAnalyzer.mqh`, `E2SetupTracker.mqh` |
-| Filters | `include/filters/E2SessionFilter.mqh`, `E2NewsFilter.mqh` |
-| Risk/planning | `include/risk/E2PositionSizer.mqh`, `E2TradePlanner.mqh` |
-| Execution | `include/execution/E2OrderExecutor.mqh`, `E2PositionGuard.mqh`, `E2PositionManager.mqh`, `E2ExecutionSafety.mqh` |
-| Reporting | `include/reporting/E2TradeReporter.mqh`, `E2BacktestSummary.mqh`, `E2CsvExporter.mqh`, `E2Logger.mqh` |
-| Visualization | `include/visualization/E2Visualizer.mqh` (audit-only MT5 Visual Mode objects) |
+- `TREND_CONTINUATION`: implemented and routable.
+- `RANGE_MEAN_REVERSION`: reserved identity and configuration selection only; no setup engine exists.
+- `RANGE_BREAKOUT`: reserved identity and configuration selection only; no setup engine exists.
 
-Strategy analysis does not place orders or size positions. Execution does not add strategy conditions. Reporting is observational and cannot place, modify, or close a trade.
+A future setup becomes active by implementing a setup engine that emits the canonical candidate metadata and by adding an explicit planner route. No range fallback or stub execution exists.
 
-## v1.1.0-alpha research framework
+## 3. Timeframe hierarchy
 
-E2 v1.0.0 is the permanent mechanically verified baseline. The active development line is **E2 v1.1.0-alpha**. Sprint 1.1 adds only the shared framework in `include/strategy/E2ResearchTypes.mqh`; it does not route, calculate, or trade a new strategy.
+- H4 owns structural regime, EMA/ADX/ATR context, ranges, and anti-extension eligibility.
+- H1 owns persistent support/resistance zones and their lifecycle.
+- M15 owns Trend Continuation retest/confirmation progression and the designated next-candle entry window.
 
-The canonical types are `E2StrategyType` (`NONE`, `TREND_CONTINUATION`, `RANGE_MEAN_REVERSION`, `RANGE_BREAKOUT`), `E2ManagementMode` (`NONE`, `FIXED_2R`, `ZONE_TARGET_TRAILING`), `E2RegimeType` (`UNKNOWN`, `UPTREND`, `DOWNTREND`, `RANGE`, `TRANSITION_UNCLASSIFIED`), `E2TacticalBreakoutState`, and `E2BoundaryResponse`. Their string conversions and the resettable `E2ResearchMetadata` contract are defined once in that module for future strategy/state producers, reporting, and visualization.
+Every decision uses completed candles. Pivot time and known-from time are distinct, and downstream stages may not observe an event before its known-from timestamp.
 
-The intended one-way flow is:
+## 4. Canonical runtime pipeline
 
 ```text
-market / strategy / state logic
-  -> immutable decision-time E2ResearchMetadata
-  -> reporting and visualization consumers
+MT5 rates/ticks
+  -> E2MarketData
+  -> E2H4RegimeEngine
+  -> E2H1ZoneEngine
+  -> E2TrendContinuationEngine
+       -> E2M15ConfirmationEngine
+  -> E2TrendContinuationCandidate
+  -> E2V2TradePlanEngine
+       -> session/news/exposure checks
+       -> stop, opposing-zone target, management branch, fixed-base risk
+  -> E2V2TradePlan
+  -> E2V2ExecutionEngine
+       -> execution-time quote/geometry/risk refresh
+       -> E2OrderRequest
+  -> E2OrderExecutor
+  -> E2V2PositionMetadata
+  -> E2V2PositionManager
+  -> E2TradeReporter / E2BacktestSummary
 ```
 
-Sprint 1.1 stores three independent strategy toggles and two management toggles in `E2Config`, but does not consume them in the existing v1.0 pipeline. Later router work must fail configuration explicitly if incompatible management modes would both become behaviorally active; applying that validation now would incorrectly change baseline behavior.
+`E2.mq5` owns initialization, completed-source-bar scheduling, module wiring, tick dispatch, transaction dispatch, and bounded tester summaries. Strategy formulas live in their owning modules.
 
-The inert baseline research inputs cover H4 EMA(20/50), EMA slope lookback 5, ATR(14), structure/extension thresholds (0.10/1.50 ATR); range thresholds (0.50, 3.00, 0.10, 0.25 ATR and 0.20 outer fraction); H1 clustering/touch/departure/breakout/retest/rearm values; and M15 median-body/momentum/rejection values. Existing news buffers are reused because their 30-minute before/after semantics already match. Existing M15 momentum inputs are preserved because they use an average-body current-strategy meaning rather than the future median-body research meaning.
+## 5. Module responsibilities
 
-The current session filter already converts the explicit per-run broker UTC offset into London/New York local time and applies DST rules. Its remaining architectural limitation is that the historical server offset is a manually configured fixed value for a run; a later session/time-source sprint owns any change. The current sizer uses percentage of current equity. A later risk sprint may add fixed-initial-Tester-balance 1R/no-compounding behavior as a distinct compatible mode; Sprint 1.1 does not alter sizing.
+| Stage | Owner | Responsibility |
+|---|---|---|
+| Configuration | `include/core/E2Config.mqh` | Single input definition, load, and validation |
+| Market data | `include/analysis/E2MarketData.mqh` | Synchronized causal closed-bar access |
+| H4 regime | `E2H4RegimeEngine.mqh` | Structure, EMA/ATR/ADX, ranges, trend eligibility |
+| H1 zones | `E2H1ZoneEngine.mqh` | Persistent IDs, creation, invalidation, indexes, anti-resurrection |
+| Setup state | `E2TrendContinuationEngine.mqh` | Breakout, retest, attempt ownership, confirmation, deduplication |
+| M15 confirmation | `E2M15ConfirmationEngine.mqh` | Completed-candle momentum and rejection measurements |
+| Planning | `include/strategy/E2V2TradePlanEngine.mqh` | Entry-window revalidation, filters, stop, target, risk, management route |
+| Risk | `include/risk/E2PositionSizer.mqh` | Fixed-initial-balance monetary risk and broker-normalized volume |
+| Native request | `include/risk/E2OrderRequest.mqh` | Minimal broker-facing order geometry |
+| Execution | `E2V2ExecutionEngine.mqh`, `E2OrderExecutor.mqh` | One-shot adapter and native MT5 submission |
+| Ownership/safety | `E2PositionGuard.mqh`, `E2ExecutionSafety.mqh` | Existing exposure, quote, spread, deviation, and cooldown checks |
+| Management | `E2V2PositionManager.mqh` | Branch-exclusive tick management and restart recovery |
+| Reporting | `E2TradeReporter.mqh`, `E2BacktestSummary.mqh` | Registered-position results and aggregate statistics |
+| Visualization | `E2Visualizer.mqh` | Downstream-only causal audit overlays |
 
-## Sprint 1.2 H4 Regime Engine V2
+## 6. State ownership
 
-`E2H4RegimeEngine` reconstructs a closed-H4-only `E2H4RegimeResult` in parallel with the permanent legacy trend analyzer. It uses Sprint 1.1 H4/range fields, canonical regime types, causal strength-3 swings, internal deterministic EMA/ATR/ADX calculations, structural breaks, frozen two-swing range boundaries, and prospective range invalidation. The legacy `E2StrategyAnalyzer` does not read this result in Sprint 1.2. Detailed causal timing, range construction, precedence, and seeding limitations are in [H4_REGIME_V2.md](H4_REGIME_V2.md).
+The H1 zone engine is the sole writer of zone lifecycle state. The Trend Continuation engine is the sole writer of breakout/retest/attempt/candidate state. The planner owns plan acceptance or rejection and does not mutate setup state. The execution engine owns one-shot submission identity and initial executed-position metadata. The position manager alone modifies post-entry stops. Reporting consumes registered entries and MT5 deals but cannot affect decisions.
 
-Sprint 1.2 verification support adds an H4-only, read-only `E2VIS_H4RV2_*` overlay. It receives `const E2H4RegimeResult` snapshots after engine evaluation and is never read by the engine, strategy, or execution layers. Its H4 audit hierarchy keeps only the current H1/H2/L1/L2 structure prominent; detailed causal metadata is available through object tooltips while superseded history is deliberately subdued.
+Read-only snapshots cross module boundaries. No reporting or visualization state is read by strategy code.
 
-## Sprint 1.3 H1 Zone Engine V2
+## 7. Canonical data transitions
 
-`E2H1ZoneEngine` reconstructs causal, ATR-relative H1 support/resistance research records from completed H1 data only. It is parallel to `E2ZoneAnalyzer`: no Zone V2 output is read by the strategy, setup tracker, planner, execution, reporting, or legacy zone visualizer. The engine exposes frozen source-pair boundaries, causal pivot/known-from/departure timestamps, prospective invalidation, and H1 rearm foundation state. Its one-way `E2VIS_H1ZV2_*` H1 overlay is an audit consumer only. Exact semantics and the deliberate Sprint 1.3 no-merge policy are in [H1_ZONE_V2.md](H1_ZONE_V2.md).
+Candidate: `E2TrendContinuationCandidate`, owned by the setup engine. It freezes setup type, direction, source-zone/attempt identity, causal timestamps, confirmation, and decision-time H4 context.
 
-Sprint 1.3.1 corrects the Zone V2 source-pair explosion without changing thresholds: each newly qualifying pivot owns at most one deterministic two-touch construction with its nearest qualifying prior same-role pivot. H4/H1/TC orchestration is completed-bar gated; M15 median measurement is candle-cached; and TC submits only `RETEST_ACTIVE` contexts to M15 confirmation. The legacy v1.0 pipeline remains isolated.
+Trade Plan: `E2V2TradePlan`, owned by the planner. It adds the entry window, structural stop, opposing-zone target, available R, fixed-base sizing, management branch, and deterministic rejection status.
 
-Sprint 1.3.3 keeps the append-only persistent record array authoritative and adds deterministic performance indexes around it. A sorted stable-zone-ID index provides logarithmic rediscovery lookup. Separate support/resistance active-record indexes drive H1 invalidation and active-only exports; invalidated terminal records remain retained in the authoritative store and ID index to prevent resurrection. These indexes are derived iteration structures and never redefine zone identity, boundaries, lifetime, or state.
+Executed Position: `E2V2PositionMetadata`, owned initially by execution and consumed by management. It records authoritative fill, original protective stop/R, position identity, strategy/plan/candidate/zone identity, target, and branch.
 
-## Sprint 1.4 M15 Confirmation Engine V2
+Closed Trade Result: `E2ReportedTrade`, owned by reporting. It combines the registered V2 entry metadata with authoritative MT5 exit deals and monetary components.
 
-`E2M15ConfirmationEngine` consumes immutable H1 Zone V2 context and completed M15 history to emit four detailed research snapshots: bullish/bearish momentum and bullish/bearish range rejection. It uses its own preceding-20 median-body calculation, never the legacy average-body confirmation rule. `E2.mq5` invokes it only on a new completed M15 candle and sends its results one-way to the optional `E2VIS_M15CV2_*` audit overlay. No strategy, setup, planning, execution, or reporting component reads its output. See [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md).
+`E2OrderRequest` is deliberately not another strategic plan. It is the minimal native-executor boundary produced after execution-time recalculation.
 
-## Sprint 1.5 Trend Continuation V2
+## 8. Persistence model
 
-TC H1 breakout gates are event-driven: the completed-H1 close, ATR, and zone breakout predicates are evaluated only when the H1 known-from timestamp advances. M15 calls retain ownership of post-breakout approach, retest, and confirmation transitions. A sorted TC record index replaces linear record lookup, while the latest authoritative H1 snapshot is reused between H1 events instead of being recopied from the zone engine on every M15 candle. Causal breakout and confirmation timestamps are unchanged.
+Position ownership requires the configured magic number and the stable `E2V2F|` or `E2V2Z|` comment prefix. Original entry, original stop/R, branch, and milestone are stored in terminal globals keyed by `E2V2M.<magic>.<position-id>.*`.
 
-## Sprint 1.6 V2 planning router
+These V2-prefixed strings are intentionally retained because changing them would break restart recovery and compatibility with positions opened by the immediately preceding baseline. Stable H1 zone IDs and plan/candidate identity formats are also retained.
 
-`E2V2TradePlanEngine` is an isolated, strategy-aware research router. Sprint 1.6 accepts only `TREND_CONTINUATION`; range identities remain inactive placeholders. It converts a candidate into one next-M15 plan attempt, revalidates H4/session/news/exposure/quote state, selects a causal active opposing zone, applies fixed-initial-balance sizing, and records either a deterministic rejection or finalized plan. It never calls `E2OrderExecutor`. See [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md).
+## 9. Reporting architecture
 
-## Sprint 1.7 V2 native execution
+Only positions registered by successful E2 execution enter `E2TradeReporter`; unrelated magic-number deals cannot create report records. Rows carry `strategy_type`, candidate/plan IDs, source and target zone IDs, and management branch so future setup engines remain independently filterable and backtestable.
 
-`E2V2ExecutionEngine` is the explicit finalized-plan-to-order adapter. It provides one-shot identity, execution-time quote/geometry/RR/risk recalculation, delegates native submission to the established `E2OrderExecutor`, and registers authoritative deal/position metadata for later management. Trading-disabled plans remain research-visible and submit no request. See [EXECUTION_V2.md](EXECUTION_V2.md).
+MT5 deals are authoritative for fills, exits, commissions, swaps, fees, and profit. Open or unresolved records are never fabricated as closed results.
 
-`E2TrendContinuationEngine` is a research-only state machine consuming the V2 H4/H1/M15 stack and emitting immutable candidate snapshots for later routing. It remains isolated from all legacy strategy and execution components; see [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md).
+## 10. Diagnostics
 
-## Backtesting and reporting
+Operational lifecycle, error, broker-rejection, execution, and management-modification messages remain permanent. The gated verification summary retains causality, zone persistence, duplicate suppression, planning/rejection, risk/execution, management, and V2-only reporting counters. Detailed candidate and engine diagnostics are emitted only when the existing verification or verbose diagnostic controls enable them.
 
-MT5 Strategy Tester is authoritative for price/tick simulation, orders, fills, SL/TP, balance, equity, and its native Results/Graph/statistics. E2 has no custom or shadow P&L/equity simulator.
+Startup-only closed-bar/specification dumps and the separate startup CSV were removed because they duplicated module validation and authoritative reporting without protecting runtime invariants.
 
-`E2TradeReporter` captures decision-time metadata at confirmed execution and links records through MT5 `DEAL_POSITION_ID`; order, deal, and position identifiers are not assumed interchangeable. Exit deals are handled by `OnTradeTransaction`, reconciled once at deinitialization, aggregated for partial exits, and de-duplicated by deal ticket. Only an authoritative closed position with complete exit-deal data produces a finalized row. Open/unresolved records, including an unavailable Tester forced-close, are explicitly excluded rather than fabricated.
+## 11. No-look-ahead guarantees
 
-With `InpCsvExportEnabled=true`, CSV files use the MT5 common files location:
+H4, H1, and M15 orchestration advances only when the corresponding completed source bar changes. Confirmed pivots retain explicit known-from times. Breakouts, retests, confirmations, candidates, and entry windows enforce causal timestamp order. Execution may refresh current quote, broker stop geometry, volume, and realized initial risk; it may not change setup direction, source zone, opposing target, or strategy thresholds.
 
-- `E2_trades_<symbol>_<run-id>.csv`: one finalized E2 strategy trade per row and strategy metadata.
-- `E2_summary_<symbol>_<run-id>.csv`: one Strategy Tester run-level research summary. It shares the reporter run ID.
-- `E2_startup.csv`: CSV infrastructure startup record.
+## 12. Extension point
 
-The Journal provides lifecycle, successful trade-result, warning/error, and one tester `[RESULT]` line. MT5’s native Tester report remains the authority for account-level results.
-
-Detailed metric definitions, schemas, verification status, and limitations are in [STATUS.md](STATUS.md).
-
-`E2Visualizer` is a one-way consumer of runtime analysis, execution, and reporter outputs. It uses `E2VIS_`-prefixed native chart objects only in Strategy Tester Visual Mode; it is not read by strategy, risk, execution, or reporting code. Sprint 6.2.1 separates objects with `OBJPROP_TIMEFRAMES`: H4 trend panel/regime markers, H1 zones, M15 selected confirmations, and H1+M15 trade objects. Sprint 6.2.2 adds three read-only audit modes: Strategy Audit (broad analysis), All Trades (executed-trade context only), and Single Trade (one authoritative position identity). Sprint 6.2.3 makes that one E2-attached chart the audit surface and adds a non-interactive audit-view instruction. MT5's native timeframe selector on that chart is the supported switching mechanism: H4 answers WHY, H1 WHERE, and M15 WHEN. MT5 Tester does not provide reliably controllable simultaneous E2 chart instances; calling `ChartSetSymbolPeriod` during a run would reinitialize the attached EA and is intentionally avoided. Separate Tester chart tabs are not synchronized E2 audit charts.
-
-## Architecture rules
-
-- Preserve the same production strategy implementation in Tester, demo, and live environments.
-- Keep strategy, generic risk, native execution, and reporting modular.
-- Preserve closed-bar/no-look-ahead evaluation.
-- New features must not bypass `E2PositionGuard` or consume a setup before execution succeeds.
-- Future visualization is audit-only and must never influence decisions.
+A future setup engine must emit setup-specific candidate state carrying `E2StrategyType`, receive an explicit planner route, and reuse shared filters, sizing, execution, management, and reporting. It must not mutate H4 regime or H1 zone state and cannot fall through the Trend Continuation route.

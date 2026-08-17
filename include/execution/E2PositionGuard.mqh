@@ -2,7 +2,7 @@
 #define E2_EXECUTION_E2POSITIONGUARD_MQH
 
 #include "..\\core\\E2Config.mqh"
-#include "..\\risk\\E2TradePlanner.mqh"
+#include "..\\risk\\E2OrderRequest.mqh"
 enum E2PositionGuardStatus { E2_GUARD_CLEAR,E2_GUARD_POSITION_ALREADY_OPEN,E2_GUARD_PENDING_ORDER_EXISTS,E2_GUARD_DIRECTION_CONFLICT,E2_GUARD_POSITION_STATE_UNAVAILABLE,E2_GUARD_ACCOUNT_MODE_UNSUPPORTED };
 struct E2PositionGuardResult { E2PositionGuardStatus status; int open_e2_positions; int pending_e2_orders; };
 string E2PositionGuardStatusName(const E2PositionGuardStatus status)
@@ -14,7 +14,7 @@ class E2PositionGuard
     int CountOpenE2Positions(const string s){int n=0;for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==s&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic)n++;}return(n);}
     bool HasOpenE2Position(const string s){return(CountOpenE2Positions(s)>0);}
     bool HasPendingE2Order(const string s){for(int i=0;i<OrdersTotal();i++){ulong t=OrderGetTicket(i);if(t>0&&OrderGetString(ORDER_SYMBOL)==s&&(ulong)OrderGetInteger(ORDER_MAGIC)==m_magic)return(true);}return(false);}
-    bool CanOpen(const E2TradePlan &p,E2PositionGuardResult &r)
+    bool CanOpen(const E2OrderRequest &p,E2PositionGuardResult &r)
       {r.status=E2_GUARD_CLEAR;r.open_e2_positions=CountOpenE2Positions(p.symbol);r.pending_e2_orders=HasPendingE2Order(p.symbol)?1:0;
        const bool netting=(AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING);
        if(netting){for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==p.symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)!=m_magic){r.status=E2_GUARD_ACCOUNT_MODE_UNSUPPORTED;return(false);}}}

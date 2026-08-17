@@ -6,12 +6,6 @@
 // External EA inputs are intentionally kept here. Future modules receive the
 // E2Config structure instead of depending on these input variables directly.
 
-enum E2RiskBase
-  {
-   E2_RISK_BASE_BALANCE,
-   E2_RISK_BASE_EQUITY
-  };
-
 enum E2VisualAuditMode
   {
    E2_VISUAL_STRATEGY_AUDIT=0,
@@ -24,18 +18,18 @@ input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders
 input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
 input bool  InpDebugMode        = false;   // Enables future diagnostic output.
 
-input group "V1.1 ALPHA STRATEGY FRAMEWORK"
+input group "SETUP SELECTION"
 input bool InpEnableTrendContinuation = true;
-input bool InpResearchVerificationSummary = true; // Diagnostic-only V2 verification summary.
+input bool InpResearchVerificationSummary = true; // Bounded semantic-regression and invariant summary.
 input bool InpResearchVerboseDiagnostics = false;
 input bool InpEnableRangeMeanReversion = false;
 input bool InpEnableRangeBreakout = false;
 
-input group "V1.1 ALPHA MANAGEMENT FRAMEWORK"
+input group "MANAGEMENT"
 input bool InpEnableFixed2RManagement = true;
 input bool InpEnableZoneTargetTrailingManagement = false;
 
-input group "V1.1 ALPHA H4 RESEARCH (INERT)"
+input group "H4 REGIME"
 input int InpResearchH4EmaFastPeriod = 20;
 input int InpResearchH4EmaSlowPeriod = 50;
 input int InpResearchH4EmaSlopeLookback = 5;
@@ -43,7 +37,7 @@ input int InpResearchH4AtrPeriod = 14;
 input double InpResearchH4StructuralBreakoutDistanceAtr = 0.10;
 input double InpResearchH4TrendExtensionLimitAtr = 1.50;
 
-input group "V1.1 ALPHA RANGE RESEARCH (INERT)"
+input group "RANGE CLASSIFICATION"
 input double InpResearchRangeClusterVariationMaximumAtr = 0.50;
 input double InpResearchRangeMinimumHeightAtr = 3.00;
 input double InpResearchRangeEma50FlatnessMaximumAtr = 0.10;
@@ -63,13 +57,9 @@ input int  InpAdxPeriod         = 14;   // ADX calculation period.
 input double InpAdxMinimumThreshold = 20.0; // Provisional ADX trend-strength threshold; finalized in Sprint 1.2.
 
 input group "SUPPORT / RESISTANCE"
-input int    InpMinimumZoneTouches     = 2;   // Minimum H1 reactions required to form a zone.
 input int    InpZoneLookbackBars        = 240; // Closed H1 bars used for deterministic zone analysis.
-input double InpZoneTolerancePips       = 5.0; // Price-reaction tolerance, expressed in pips.
-input double InpZoneMergeTolerancePips  = 5.0; // Nearby-zone merge tolerance, expressed in pips.
-input double InpStopLossZoneBufferPips  = 2.0; // Future stop buffer beyond a zone, expressed in pips.
 
-input group "V1.1 ALPHA H1 RESEARCH (INERT)"
+input group "H1 PERSISTENT ZONES / TREND CONTINUATION"
 input int InpResearchH1AtrPeriod = 14;
 input double InpResearchH1ZonePivotClusteringAtr = 0.50;
 input int InpResearchH1MinimumTouchSeparationBars = 3;
@@ -84,17 +74,7 @@ input int InpResearchH1BreakoutRetestExpiryBars = 12;
 input double InpResearchH1BreakoutInvalidationDepthAtr = 0.10;
 input double InpResearchH1ZoneRearmDistanceAtr = 0.50;
 
-input group "CONFIRMATIONS"
-input bool InpEnableEngulfingConfirmation           = true; // Enable future engulfing-candle confirmation.
-input bool InpEnablePinBarConfirmation              = true; // Enable future pin-bar confirmation.
-input bool InpEnableMomentumCandleConfirmation      = true; // Enable future momentum-candle confirmation.
-input bool InpEnableBreakPreviousCandleConfirmation = true; // Enable future previous-candle-break confirmation.
-input double InpPinBarMinimumWickToBodyRatio = 2.0; // Provisional minimum dominant-wick/body ratio.
-input double InpPinBarMaximumOppositeWickToBodyRatio = 1.0; // Provisional maximum opposite-wick/body ratio.
-input int InpMomentumBodyLookback = 20; // Prior closed M15 bodies used as momentum context.
-input double InpMomentumBodyMultiplier = 1.5; // Provisional body-size multiple of prior average.
-
-input group "V1.1 ALPHA M15 RESEARCH (INERT)"
+input group "M15 CONFIRMATION"
 input int InpResearchM15BodyMedianLookback = 20;
 input double InpResearchM15MomentumBodyMultiplier = 1.25;
 input double InpResearchM15MomentumBodyRangeMinimum = 0.60;
@@ -104,12 +84,9 @@ input double InpResearchM15RejectionWickRangeMinimum = 0.40;
 
 input group "RISK"
 input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
-input double InpRewardRiskTarget    = 2.0; // Take-profit target expressed as reward-to-risk (R).
-input E2RiskBase InpRiskBase         = E2_RISK_BASE_EQUITY; // E2 trade planning uses account equity as its risk base.
 
 input group "EXECUTION"
 input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
-input bool   InpExecutionTestEnabled  = false; // Explicit one-attempt test harness; restricted to tester/demo environments.
 input double InpMaxSpreadPips          = 3.0;  // Provisional broker-generic spread ceiling; set to zero to disable this filter.
 input int    InpMaxQuoteAgeSeconds     = 10;   // Reject quotes older than this; set to zero to disable the age check.
 input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldown after a successful execution.
@@ -122,7 +99,6 @@ input int  InpLondonSessionStartHour = 8;   // London local session start, inclu
 input int  InpLondonSessionEndHour   = 17;  // London local session end, exclusive.
 input int  InpNewYorkSessionStartHour = 8;  // New York local session start, inclusive.
 input int  InpNewYorkSessionEndHour   = 17; // New York local session end, exclusive.
-input bool InpSessionDiagnosticsEnabled = false; // Emit concise deterministic session/DST examples when debug logging is enabled.
 
 input group "NEWS"
 input bool InpNewsFilterEnabled          = true; // Enable deterministic historical-news entry exclusion.
@@ -130,7 +106,6 @@ input int  InpHighImpactBufferBeforeMins = 30;   // Minutes to exclude before a 
 input int  InpHighImpactBufferAfterMins  = 30;   // Minutes to exclude after a scheduled event, inclusive.
 input bool InpNewsHighImpactOnly          = true; // When false, all recognized event impacts are blocking.
 input string InpNewsDataFile              = "E2_news_events.csv"; // FILE_COMMON CSV; schema is documented in E2NewsFilter.mqh.
-input bool InpNewsDiagnosticsEnabled      = false; // Emit concise data-load diagnostics when debug logging is enabled.
 
 input group "REPORTING"
 input bool InpLoggingEnabled   = true;  // Enable future strategy-independent logging.
@@ -138,11 +113,8 @@ input bool InpCsvExportEnabled = false; // Enable future CSV export.
 
 input group "VISUALIZATION"
 input bool InpVisualModeEnabled = true; // Audit-only MT5 Strategy Tester Visual Mode overlay.
-input bool InpVisualShowZones = true;
-input bool InpVisualShowTrendPanel = true;
 input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
-input bool InpVisualShowRejectedCandidates = false;
 input bool InpVisualShowH4RegimeV2 = true; // Read-only H4 Regime V2 audit overlay.
 input bool InpVisualShowH1ZoneV2 = true; // Read-only H1 Zone V2 audit overlay.
 input bool InpVisualShowM15ConfirmationV2 = true; // Read-only M15 Confirmation V2 audit overlay.
@@ -186,11 +158,7 @@ struct E2Config
    int             adx_period;
    double          adx_minimum_threshold;
 
-   int             minimum_zone_touches;
    int             zone_lookback_bars;
-   double          zone_tolerance_pips;
-   double          zone_merge_tolerance_pips;
-   double          stop_loss_zone_buffer_pips;
    int             research_h1_atr_period;
    double          research_h1_zone_pivot_clustering_atr;
    int             research_h1_minimum_touch_separation_bars;
@@ -205,14 +173,6 @@ struct E2Config
    double          research_h1_breakout_invalidation_depth_atr;
    double          research_h1_zone_rearm_distance_atr;
 
-   bool            enable_engulfing_confirmation;
-   bool            enable_pin_bar_confirmation;
-   bool            enable_momentum_candle_confirmation;
-   bool            enable_break_previous_candle_confirmation;
-   double          pin_bar_minimum_wick_to_body_ratio;
-   double          pin_bar_maximum_opposite_wick_to_body_ratio;
-   int             momentum_body_lookback;
-   double          momentum_body_multiplier;
    int             research_m15_body_median_lookback;
    double          research_m15_momentum_body_multiplier;
    double          research_m15_momentum_body_range_minimum;
@@ -221,10 +181,7 @@ struct E2Config
    double          research_m15_rejection_wick_range_minimum;
 
    double          risk_percent;
-   double          reward_risk_target;
-   E2RiskBase      risk_base;
    double          max_entry_deviation_pips;
-   bool            execution_test_enabled;
    double          max_spread_pips;
    int             max_quote_age_seconds;
    int             minimum_seconds_between_executions;
@@ -236,23 +193,18 @@ struct E2Config
    int             london_session_end_hour;
    int             new_york_session_start_hour;
    int             new_york_session_end_hour;
-   bool            session_diagnostics_enabled;
 
    bool            news_filter_enabled;
    int             high_impact_buffer_before_minutes;
    int             high_impact_buffer_after_minutes;
    bool            news_high_impact_only;
    string          news_data_file;
-   bool            news_diagnostics_enabled;
 
    bool            logging_enabled;
    bool            csv_export_enabled;
    bool            visual_mode_enabled;
-   bool            visual_show_zones;
-   bool            visual_show_trend_panel;
    bool            visual_show_confirmations;
    bool            visual_show_trades;
-   bool            visual_show_rejected_candidates;
    bool            visual_show_h4_regime_v2;
    bool            visual_show_h1_zone_v2;
    bool            visual_show_m15_confirmation_v2;
@@ -295,11 +247,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.adx_enabled                            = InpAdxEnabled;
    configuration.adx_period                             = InpAdxPeriod;
    configuration.adx_minimum_threshold                  = InpAdxMinimumThreshold;
-   configuration.minimum_zone_touches                   = InpMinimumZoneTouches;
    configuration.zone_lookback_bars                     = InpZoneLookbackBars;
-   configuration.zone_tolerance_pips                    = InpZoneTolerancePips;
-   configuration.zone_merge_tolerance_pips              = InpZoneMergeTolerancePips;
-   configuration.stop_loss_zone_buffer_pips             = InpStopLossZoneBufferPips;
    configuration.research_h1_atr_period                 = InpResearchH1AtrPeriod;
    configuration.research_h1_zone_pivot_clustering_atr  = InpResearchH1ZonePivotClusteringAtr;
    configuration.research_h1_minimum_touch_separation_bars = InpResearchH1MinimumTouchSeparationBars;
@@ -313,14 +261,6 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.research_h1_breakout_retest_expiry_bars = InpResearchH1BreakoutRetestExpiryBars;
    configuration.research_h1_breakout_invalidation_depth_atr = InpResearchH1BreakoutInvalidationDepthAtr;
    configuration.research_h1_zone_rearm_distance_atr    = InpResearchH1ZoneRearmDistanceAtr;
-   configuration.enable_engulfing_confirmation          = InpEnableEngulfingConfirmation;
-   configuration.enable_pin_bar_confirmation            = InpEnablePinBarConfirmation;
-   configuration.enable_momentum_candle_confirmation    = InpEnableMomentumCandleConfirmation;
-   configuration.enable_break_previous_candle_confirmation = InpEnableBreakPreviousCandleConfirmation;
-   configuration.pin_bar_minimum_wick_to_body_ratio = InpPinBarMinimumWickToBodyRatio;
-   configuration.pin_bar_maximum_opposite_wick_to_body_ratio = InpPinBarMaximumOppositeWickToBodyRatio;
-   configuration.momentum_body_lookback = InpMomentumBodyLookback;
-   configuration.momentum_body_multiplier = InpMomentumBodyMultiplier;
    configuration.research_m15_body_median_lookback = InpResearchM15BodyMedianLookback;
    configuration.research_m15_momentum_body_multiplier = InpResearchM15MomentumBodyMultiplier;
    configuration.research_m15_momentum_body_range_minimum = InpResearchM15MomentumBodyRangeMinimum;
@@ -328,10 +268,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.research_m15_rejection_wick_body_minimum = InpResearchM15RejectionWickBodyMinimum;
    configuration.research_m15_rejection_wick_range_minimum = InpResearchM15RejectionWickRangeMinimum;
    configuration.risk_percent                           = InpRiskPercent;
-   configuration.reward_risk_target                     = InpRewardRiskTarget;
-   configuration.risk_base                              = InpRiskBase;
    configuration.max_entry_deviation_pips               = InpMaxEntryDeviationPips;
-   configuration.execution_test_enabled                 = InpExecutionTestEnabled;
    configuration.max_spread_pips                        = InpMaxSpreadPips;
    configuration.max_quote_age_seconds                  = InpMaxQuoteAgeSeconds;
    configuration.minimum_seconds_between_executions     = InpMinimumSecondsBetweenExecutions;
@@ -342,21 +279,16 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.london_session_end_hour                = InpLondonSessionEndHour;
    configuration.new_york_session_start_hour            = InpNewYorkSessionStartHour;
    configuration.new_york_session_end_hour              = InpNewYorkSessionEndHour;
-   configuration.session_diagnostics_enabled            = InpSessionDiagnosticsEnabled;
    configuration.news_filter_enabled                    = InpNewsFilterEnabled;
    configuration.high_impact_buffer_before_minutes      = InpHighImpactBufferBeforeMins;
    configuration.high_impact_buffer_after_minutes       = InpHighImpactBufferAfterMins;
    configuration.news_high_impact_only                  = InpNewsHighImpactOnly;
    configuration.news_data_file                         = InpNewsDataFile;
-   configuration.news_diagnostics_enabled               = InpNewsDiagnosticsEnabled;
    configuration.logging_enabled                        = InpLoggingEnabled;
    configuration.csv_export_enabled                     = InpCsvExportEnabled;
    configuration.visual_mode_enabled                    = InpVisualModeEnabled;
-   configuration.visual_show_zones                      = InpVisualShowZones;
-   configuration.visual_show_trend_panel                = InpVisualShowTrendPanel;
    configuration.visual_show_confirmations              = InpVisualShowConfirmations;
    configuration.visual_show_trades                     = InpVisualShowTrades;
-   configuration.visual_show_rejected_candidates        = InpVisualShowRejectedCandidates;
    configuration.visual_show_h4_regime_v2               = InpVisualShowH4RegimeV2;
    configuration.visual_show_h1_zone_v2                 = InpVisualShowH1ZoneV2;
    configuration.visual_show_m15_confirmation_v2        = InpVisualShowM15ConfirmationV2;
@@ -375,11 +307,6 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.risk_percent <= 0.0)
      {
       reason = "Risk percentage must be greater than zero.";
-      return(false);
-     }
-   if(configuration.reward_risk_target <= 0.0)
-     {
-      reason = "Reward-to-risk target must be greater than zero.";
       return(false);
      }
    if(configuration.adx_period <= 0)
@@ -407,20 +334,10 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
       reason = "Trend structure lookback must contain a complete pivot window.";
       return(false);
      }
-   if(configuration.minimum_zone_touches < 1)
-     {
-      reason = "Minimum zone touches must be at least one.";
-     return(false);
-     }
    if(configuration.zone_lookback_bars < (configuration.swing_sensitivity*2+1))
      {
       reason = "Zone lookback must contain a complete pivot window.";
       return(false);
-     }
-   if(configuration.zone_tolerance_pips < 0.0 || configuration.zone_merge_tolerance_pips < 0.0 || configuration.stop_loss_zone_buffer_pips < 0.0)
-     {
-      reason = "Zone tolerances and stop-loss zone buffer cannot be negative.";
-     return(false);
      }
    if(configuration.research_h1_atr_period < 1 || configuration.research_h1_minimum_touch_separation_bars < 1 || configuration.research_h1_zone_pivot_clustering_atr < 0.0 || configuration.research_h1_minimum_post_touch_departure_atr <= 0.0 || configuration.research_h1_zone_invalidation_atr < 0.0 || configuration.research_h1_zone_rearm_distance_atr < 0.0)
      {
@@ -430,11 +347,6 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.research_m15_body_median_lookback < 1 || configuration.research_m15_momentum_body_multiplier <= 0.0 || configuration.research_m15_momentum_body_range_minimum < 0.0 || configuration.research_m15_momentum_body_range_minimum > 1.0 || configuration.research_m15_momentum_closing_location_fraction < 0.0 || configuration.research_m15_momentum_closing_location_fraction > 1.0 || configuration.research_m15_rejection_wick_body_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum > 1.0)
      {
       reason = "M15 Confirmation V2 research values are invalid.";
-      return(false);
-     }
-   if(configuration.pin_bar_minimum_wick_to_body_ratio < 0.0 || configuration.pin_bar_maximum_opposite_wick_to_body_ratio < 0.0 || configuration.momentum_body_lookback < 1 || configuration.momentum_body_multiplier <= 0.0)
-     {
-      reason = "Confirmation thresholds are invalid.";
       return(false);
      }
    if(configuration.high_impact_buffer_before_minutes < 0 || configuration.high_impact_buffer_after_minutes < 0)

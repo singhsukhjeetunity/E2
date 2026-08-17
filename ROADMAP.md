@@ -1,5 +1,9 @@
 # E2 Roadmap
 
+## Current active branch
+
+The active v1.1.0-alpha source tree is V2-only. Trend Continuation V2 is implemented through planning, native execution, and branch-exclusive position management. The removed v1.0 strategy remains recoverable from tag `v1.0.0`; Range Mean Reversion, Range Breakout, and Sprint 1.9 have not started.
+
 ## Completed through Sprint 6.1
 
 - Foundation and modular MQL5 architecture

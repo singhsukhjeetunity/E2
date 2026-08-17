@@ -5,8 +5,8 @@
 
 struct E2ReportEntryData
   {
-   string symbol,direction,zone_role,session,trend,confirmation_engulfing,confirmation_pin,confirmation_momentum,confirmation_previous_break;
-   int zone_id,zone_visit;
+   string symbol,direction,strategy_type,candidate_id,plan_id,zone_id,target_zone_id,zone_role,management_branch,session;
+   int zone_visit;
    datetime signal_time,confirmation_time,entry_time;
    double adx,planned_entry,fill_price,stop_loss,take_profit,stop_pips,planned_rr,volume,equity,target_risk,planned_risk,planned_risk_pct;
    ulong order_ticket,entry_deal;
@@ -51,7 +51,7 @@ private:
       const double realized_r=(trade.entry.planned_risk>0.0 ? net/trade.entry.planned_risk : 0.0);
       const double exit_price=(trade.exit_volume>0.0 ? trade.exit_value/trade.exit_volume : 0.0);
       const long holding=(trade.exit_time>trade.entry.entry_time ? (long)((trade.exit_time-trade.entry.entry_time)/60) : 0);
-      string row[]={"E2-"+StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.direction,IntegerToString(trade.entry.zone_id),trade.entry.zone_role,IntegerToString(trade.entry.zone_visit),TimeText(trade.entry.signal_time),TimeText(trade.entry.confirmation_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),trade.entry.session,trade.entry.trend,Number(trade.entry.adx,2),trade.entry.confirmation_engulfing,trade.entry.confirmation_pin,trade.entry.confirmation_momentum,trade.entry.confirmation_previous_break,Number(trade.entry.planned_entry),Number(trade.entry.fill_price),Number(trade.entry.stop_loss),Number(trade.entry.take_profit),Number(trade.entry.stop_pips,2),Number(trade.entry.planned_rr,2),Number(trade.entry.volume,4),Number(trade.entry.equity,2),Number(trade.entry.target_risk,2),Number(trade.entry.planned_risk,2),Number(trade.entry.planned_risk_pct,4),Number(exit_price),trade.exit_reason,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),IntegerToString((int)holding)};
+      string row[]={"E2-"+StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.strategy_type,trade.entry.candidate_id,trade.entry.plan_id,trade.entry.direction,trade.entry.zone_id,trade.entry.target_zone_id,trade.entry.zone_role,IntegerToString(trade.entry.zone_visit),trade.entry.management_branch,TimeText(trade.entry.signal_time),TimeText(trade.entry.confirmation_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),trade.entry.session,Number(trade.entry.planned_entry),Number(trade.entry.fill_price),Number(trade.entry.stop_loss),Number(trade.entry.take_profit),Number(trade.entry.stop_pips,2),Number(trade.entry.planned_rr,2),Number(trade.entry.volume,4),Number(trade.entry.equity,2),Number(trade.entry.target_risk,2),Number(trade.entry.planned_risk,2),Number(trade.entry.planned_risk_pct,4),Number(exit_price),trade.exit_reason,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),IntegerToString((int)holding)};
       if(m_csv.IsInitialized()) m_csv.WriteRow(row);
       m_completed++; m_net_profit+=net; m_net_r+=realized_r;
       if(net>0.0)m_wins++; else if(net<0.0)m_losses++; else m_breakeven++;
@@ -74,7 +74,7 @@ public:
       m_run_id=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);StringReplace(m_run_id,".","");StringReplace(m_run_id,":","");StringReplace(m_run_id," ","_");
       if(!csv_enabled)return(true);
       if(!m_csv.Initialize("E2_trades_"+symbol+"_"+m_run_id+".csv",logger)) return(false);
-      string header[]={"trade_id","symbol","direction","zone_id","zone_role","zone_visit","signal_time","confirmation_time","entry_time","exit_time","session","trend","adx","confirmation_engulfing","confirmation_pin","confirmation_momentum","confirmation_previous_break","planned_entry","fill_price","stop_loss","take_profit","stop_pips","planned_rr","volume","equity_at_entry","target_risk","planned_actual_risk","planned_risk_pct","exit_price","exit_reason","gross_profit","commission","swap","fees","net_profit","realized_r","holding_minutes"};
+      string header[]={"trade_id","symbol","strategy_type","candidate_id","plan_id","direction","source_zone_id","target_zone_id","zone_role","zone_visit","management_branch","signal_time","confirmation_time","entry_time","exit_time","session","planned_entry","fill_price","stop_loss","take_profit","stop_pips","planned_rr","volume","equity_at_entry","target_risk","planned_actual_risk","planned_risk_pct","exit_price","exit_reason","gross_profit","commission","swap","fees","net_profit","realized_r","holding_minutes"};
       return(m_csv.WriteHeader(header));
      }
    void CaptureEntry(const E2ReportEntryData &entry)
@@ -117,6 +117,7 @@ public:
       return(count);
      }
    string RunId(void) const { return(m_run_id); }
+   int FinalizedCount(void) const { return(m_completed); }
    void FinalizedTrades(E2ReportedTrade &trades[]) const
      {
       ArrayResize(trades,0);

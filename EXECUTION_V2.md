@@ -14,7 +14,7 @@ Fixed-2R TP is recalculated from the refreshed entry and submitted stop, with ou
 
 ## Native submission and identity
 
-`E2OrderExecutor` remains the order authority for final position protection, quote/spread/session safety, margin preflight, filling mode, magic number, synchronous market submission, and retcode validation. A compact `E2V2|<confirmationKnownFrom>|<attempt>` comment accompanies the request. `OrderSend` success alone is insufficient; only accepted authoritative retcodes produce an execution success.
+`E2OrderExecutor` remains the order authority for final position protection, quote/spread/session safety, margin preflight, filling mode, magic number, synchronous market submission, and retcode validation. Compact `E2V2F|<confirmationKnownFrom>|<attempt>` and `E2V2Z|<confirmationKnownFrom>|<attempt>` comments identify fixed and zone-trailing branches for recovery. `OrderSend` success alone is insufficient; only accepted authoritative retcodes produce an execution success.
 
 After a successful deal, `E2V2PositionMetadata` records position/order/deal identity, strategy and setup identity, actual fill, structural/submitted stop, fixed and actual initial risk, management branch, target reference, TP, and `INITIAL` management state. The entry deal is also passed to the existing authoritative trade reporter. No trailing or later management behavior is implemented here.
 

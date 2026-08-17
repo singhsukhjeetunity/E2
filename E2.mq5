@@ -8,73 +8,59 @@
 #property version   "1.00"
 
 #include "include\\core\\E2Config.mqh"
-#include "include\\core\\Core.mqh"
+#include "include\\core\\E2SymbolInfo.mqh"
+#include "include\\core\\E2AccountInfo.mqh"
 #include "include\\core\\E2Environment.mqh"
-#include "include\\reporting\\Reporting.mqh"
-#include "include\\analysis\\Analysis.mqh"
-#include "include\\strategy\\Strategy.mqh"
-#include "include\\filters\\Filters.mqh"
-#include "include\\risk\\Risk.mqh"
-#include "include\\execution\\Execution.mqh"
-#include "include\\visualization\\Visualization.mqh"
+#include "include\\reporting\\E2TradeReporter.mqh"
+#include "include\\reporting\\E2BacktestSummary.mqh"
+#include "include\\analysis\\E2MarketData.mqh"
+#include "include\\analysis\\E2H4RegimeEngine.mqh"
+#include "include\\analysis\\E2H1ZoneEngine.mqh"
+#include "include\\analysis\\E2M15ConfirmationEngine.mqh"
+#include "include\\analysis\\E2TrendContinuationEngine.mqh"
+#include "include\\strategy\\E2V2TradePlanEngine.mqh"
+#include "include\\filters\\E2SessionFilter.mqh"
+#include "include\\filters\\E2NewsFilter.mqh"
+#include "include\\risk\\E2PositionSizer.mqh"
+#include "include\\execution\\E2OrderExecutor.mqh"
+#include "include\\execution\\E2PositionGuard.mqh"
+#include "include\\execution\\E2ExecutionSafety.mqh"
+#include "include\\execution\\E2V2ExecutionEngine.mqh"
+#include "include\\execution\\E2V2PositionManager.mqh"
+#include "include\\visualization\\E2Visualizer.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
 E2Logger g_logger;
-E2CsvExporter g_csv_exporter;
 E2TradeReporter g_trade_reporter;
 E2BacktestSummary g_backtest_summary;
 E2MarketData g_market_data;
-E2TrendAnalyzer g_trend_analyzer;
 E2H4RegimeEngine g_h4_regime_engine;
 E2H1ZoneEngine g_h1_zone_engine;
 E2M15ConfirmationEngine g_m15_confirmation_engine;
 E2TrendContinuationEngine g_trend_continuation_engine;
 E2V2TradePlanEngine g_v2_trade_plan_engine;
-E2ZoneAnalyzer g_zone_analyzer;
-E2ConfirmationAnalyzer g_confirmation_analyzer;
-E2StrategyAnalyzer g_strategy_analyzer;
-E2SetupTracker g_setup_tracker;
 E2SessionFilter g_session_filter;
 E2NewsFilter g_news_filter;
 E2SymbolInfo g_symbol_info;
 E2AccountInfo g_account_info;
 E2PositionSizer g_position_sizer;
-E2TradePlanner g_trade_planner;
 E2OrderExecutor g_order_executor;
 E2PositionGuard g_position_guard;
-E2PositionManager g_position_manager;
 E2ExecutionSafety g_execution_safety;
 E2V2ExecutionEngine g_v2_execution_engine;
+E2V2PositionManager g_v2_position_manager;
 E2Visualizer g_visualizer;
 ulong g_diagnostic_tick_count=0;
-bool g_execution_test_attempted=false;
-bool g_trend_diagnostic_completed=false;
-datetime g_last_trend_readiness_diagnostic_bar=0;
-datetime g_last_zone_diagnostic_day=0;
-datetime g_last_confirmation_diagnostic_candle=0;
-datetime g_last_strategy_evaluated_candle=0;
 datetime g_last_h1_zone_v2_visual_bar=0;
 datetime g_last_m15_confirmation_v2_bar=0;
 datetime g_last_h4_v2_bar=0,g_last_h1_v2_bar=0,g_last_tc_v2_bar=0;
 ulong g_v2_h4_calls=0,g_v2_h1_calls=0,g_v2_m15_calls=0,g_v2_m15_contexts=0;
 E2H1ZoneV2Record g_h1_v2_zones[];
 
-string E2TimeframeName(const ENUM_TIMEFRAMES timeframe)
-  {
-   string name=EnumToString(timeframe);
-   StringReplace(name,"PERIOD_","");
-   return(name);
-  }
-
 string E2YesNo(const bool value)
   {
    return(value ? "yes" : "no");
-  }
-
-string E2EnabledDisabled(const bool value)
-  {
-   return(value ? "enabled" : "disabled");
   }
 
 string E2H1DepartureSampleText(const E2H1ZoneV2DepartureSample &sample)
@@ -82,89 +68,7 @@ string E2H1DepartureSampleText(const E2H1ZoneV2DepartureSample &sample)
    return("pivot="+TimeToString(sample.pivot_time,TIME_DATE|TIME_MINUTES)+", price="+DoubleToString(sample.pivot_price,_Digits)+", knownFrom="+TimeToString(sample.known_from_time,TIME_DATE|TIME_MINUTES)+", frozenATR="+DoubleToString(sample.frozen_atr,_Digits)+", bestAway="+DoubleToString(sample.best_away_price,_Digits)+", distance="+DoubleToString(sample.distance,_Digits)+", departureATR="+DoubleToString(sample.departure_atr,3));
   }
 
-void E2LogSessionDiagnostic(const E2SessionResult &result,const E2StrategySignal signal)
-  {
-   g_logger.Debug("Evaluation="+TimeToString(result.source_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.utc_time>0 ? TimeToString(result.utc_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", londonLocal="+(result.london_local_time>0 ? TimeToString(result.london_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", newYorkLocal="+(result.new_york_local_time>0 ? TimeToString(result.new_york_local_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", london="+E2YesNo(result.in_london)+", newYork="+E2YesNo(result.in_new_york)+", reason="+E2SessionStatusName(result.status)+".","Session");
-  }
 
-void E2LogNewsDiagnostic(const E2NewsResult &result,const E2StrategySignal signal)
-  {
-   g_logger.Debug("Evaluation="+TimeToString(result.evaluation_time,TIME_DATE|TIME_MINUTES)+", utc="+(result.evaluation_utc>0 ? TimeToString(result.evaluation_utc,TIME_DATE|TIME_MINUTES) : "unresolved")+", signal="+E2StrategySignalName(signal)+", eligible="+E2YesNo(result.eligible)+", base="+result.base_currency+", quote="+result.quote_currency+", currency="+result.event_currency+", impact="+E2NewsImpactName(result.event_impact)+", event="+result.event_name+", eventUtc="+(result.event_time_utc>0 ? TimeToString(result.event_time_utc,TIME_DATE|TIME_MINUTES) : "n/a")+", blackout=["+(result.blackout_start_utc>0 ? TimeToString(result.blackout_start_utc,TIME_DATE|TIME_MINUTES) : "n/a")+","+(result.blackout_end_utc>0 ? TimeToString(result.blackout_end_utc,TIME_DATE|TIME_MINUTES) : "n/a")+"], reason="+E2NewsReasonName(result.reason)+".","News");
-  }
-
-void E2RunNewsStartupDiagnostics(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_configuration.news_diagnostics_enabled)
-      return;
-   g_logger.Debug("enabled="+E2YesNo(g_configuration.news_filter_enabled)+", file="+g_configuration.news_data_file+", events="+IntegerToString(g_news_filter.EventCount())+", coverage=["+(g_news_filter.CoverageStartUtc()>0 ? TimeToString(g_news_filter.CoverageStartUtc(),TIME_DATE|TIME_MINUTES) : "unresolved")+","+(g_news_filter.CoverageEndUtc()>0 ? TimeToString(g_news_filter.CoverageEndUtc(),TIME_DATE|TIME_MINUTES) : "unresolved")+"], loadReason="+E2NewsReasonName(g_news_filter.LoadReason())+".","News");
-  }
-
-void E2RunSessionStartupDiagnostics(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_configuration.session_diagnostics_enabled)
-      return;
-   const datetime utc_examples[]={D'2026.01.15 09:00',D'2026.07.15 08:00',D'2026.01.15 14:00',D'2026.07.15 13:00',D'2026.07.15 15:00'};
-   for(int i=0;i<ArraySize(utc_examples);i++)
-     {
-      const datetime source=utc_examples[i]+(datetime)(g_configuration.broker_utc_offset_hours*3600);
-      E2SessionResult result;
-      g_session_filter.Evaluate(source,result);
-      E2LogSessionDiagnostic(result,E2_SIGNAL_NONE);
-     }
-  }
-
-void E2LogStartupDiagnostics(void)
-  {
-   if(g_environment.IsOptimization())
-     {
-      g_logger.Info("Optimization environment detected; detailed startup diagnostics suppressed.","Lifecycle");
-      return;
-     }
-
-   g_logger.Info("Runtime: symbol="+_Symbol+", timeframe="+E2TimeframeName((ENUM_TIMEFRAMES)Period())+", environment="+g_environment.Name()+".","Lifecycle");
-   g_logger.Info("Timeframes: trend="+E2TimeframeName(g_configuration.trend_timeframe)+", zone="+E2TimeframeName(g_configuration.zone_timeframe)+", confirmation="+E2TimeframeName(g_configuration.confirmation_timeframe)+".","Lifecycle");
-   g_logger.Info("Flags: tester="+E2YesNo(g_environment.IsTester())+", optimization="+E2YesNo(g_environment.IsOptimization())+", trading="+E2YesNo(g_configuration.trading_enabled)+", logging="+E2YesNo(g_configuration.logging_enabled)+", csv="+E2YesNo(g_configuration.csv_export_enabled)+".","Lifecycle");
-   g_logger.Info("Research framework (inert): TrendContinuation="+E2EnabledDisabled(g_configuration.enable_trend_continuation)+", RangeMeanReversion="+E2EnabledDisabled(g_configuration.enable_range_mean_reversion)+", RangeBreakout="+E2EnabledDisabled(g_configuration.enable_range_breakout)+", Fixed2RManagement="+E2EnabledDisabled(g_configuration.enable_fixed_2r_management)+", ZoneTargetTrailingManagement="+E2EnabledDisabled(g_configuration.enable_zone_target_trailing_management)+".","Lifecycle");
-  }
-
-void E2LogClosedBarDiagnostic(const string label,const ENUM_TIMEFRAMES timeframe,const datetime evaluation_time)
-  {
-   MqlRates bar;
-   if(g_market_data.GetClosedBarAsOf(_Symbol,timeframe,evaluation_time,bar))
-      g_logger.Debug(label+" closed bar as of "+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+": opened "+TimeToString(bar.time,TIME_DATE|TIME_MINUTES)+".","MarketData");
-  }
-
-void E2RunMarketDataStartupDiagnostic(void)
-  {
-   if(g_environment.IsOptimization())
-      return;
-
-   const datetime evaluation_time=TimeCurrent();
-   E2LogClosedBarDiagnostic("Trend",g_market_data.TrendTimeframe(),evaluation_time);
-   E2LogClosedBarDiagnostic("Zone",g_market_data.ZoneTimeframe(),evaluation_time);
-   E2LogClosedBarDiagnostic("Confirmation",g_market_data.ConfirmationTimeframe(),evaluation_time);
-  }
-
-void E2RunTrendDiagnostic(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || g_trend_diagnostic_completed)
-      return;
-
-   const datetime throttle_bar=iTime(_Symbol,PERIOD_H1,0);
-   if(throttle_bar<=0 || throttle_bar==g_last_trend_readiness_diagnostic_bar)
-      return;
-   g_last_trend_readiness_diagnostic_bar=throttle_bar;
-
-   const datetime evaluation_time=TimeCurrent();
-   E2TrendResult result;
-   if(g_trend_analyzer.Evaluate(_Symbol,evaluation_time,result))
-     {
-      g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES)+", trend="+E2TrendStateName(result.state)+", ADX="+(result.adx_available ? DoubleToString(result.adx_value,2) : "disabled")+", threshold="+DoubleToString(g_configuration.adx_minimum_threshold,2)+", pass="+E2YesNo(result.adx_passed)+", high="+E2StructureLabelName(result.latest_high_label)+", low="+E2StructureLabelName(result.latest_low_label)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
-      g_trend_diagnostic_completed=true;
-     }
-   else
-      g_logger.Debug("Not ready: "+result.readiness_reason+" Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", closedH4="+(result.closed_bar_time>0 ? TimeToString(result.closed_bar_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", H4bars="+IntegerToString(result.h4_available_bars)+", ADXrequiredBars="+IntegerToString(result.adx_required_bars)+", pivots="+IntegerToString(result.confirmed_pivot_count)+".","Trend");
-  }
 
 void E2RunH4RegimeV2(void)
   {
@@ -215,254 +119,10 @@ void E2RunTrendContinuationV2(void)
    if(g_trend_continuation_engine.Evaluate(_Symbol,TimeCurrent(),h4,g_h1_v2_zones,candidates)){g_visualizer.UpdateTrendContinuationV2(candidates);for(int i=0;i<ArraySize(candidates);i++){E2V2TradePlan plan;if(g_v2_trade_plan_engine.RouteTrendContinuation(_Symbol,TimeCurrent(),candidates[i],h4,g_h1_v2_zones,plan)){E2V2ExecutionResult execution;g_v2_execution_engine.Execute(_Symbol,plan,execution);}if(g_configuration.research_verification_summary)g_logger.Info("#"+IntegerToString(i+1)+" "+E2TrendContinuationDirectionName(candidates[i].direction)+" regime="+E2RegimeTypeName(candidates[i].h4_regime_at_confirmation)+" eligible="+E2YesNo(candidates[i].trend_entry_eligible)+" overextended="+E2YesNo(candidates[i].overextended)+" zone="+candidates[i].source_zone_id+" attempt="+IntegerToString(candidates[i].attempt_number)+" breakoutCandle="+TimeToString(candidates[i].breakout_time,TIME_DATE|TIME_MINUTES)+" breakoutKnownFrom="+TimeToString(candidates[i].breakout_known_from_time,TIME_DATE|TIME_MINUTES)+" retest="+TimeToString(candidates[i].retest_time,TIME_DATE|TIME_MINUTES)+" retestKnownFrom="+TimeToString(candidates[i].retest_known_from_time,TIME_DATE|TIME_MINUTES)+" confirmationCandle="+TimeToString(candidates[i].candidate_time,TIME_DATE|TIME_MINUTES)+" confirmationKnownFrom="+TimeToString(candidates[i].candidate_known_from_time,TIME_DATE|TIME_MINUTES),"TCV2_CANDIDATE");}}
   }
 
-void E2RunZoneDiagnostic(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled()) return;
-   datetime bar=iTime(_Symbol,g_configuration.zone_timeframe,0);
-   MqlDateTime parts; TimeToStruct(bar,parts); parts.hour=0; parts.min=0; parts.sec=0;
-   const datetime day=StructToTime(parts);
-   if(bar<=0 || day==g_last_zone_diagnostic_day) return;
-   g_last_zone_diagnostic_day=day;
-   E2Zone zones[]; int candidates=0;
-   if(!g_zone_analyzer.Evaluate(_Symbol,TimeCurrent(),zones,candidates)){g_logger.Debug("Evaluation unavailable.","Zones");return;}
-   int raw_active=0,awaiting=0,reversed=0,invalid=0,actionable=0;
-   for(int i=0;i<ArraySize(zones);i++){if(zones[i].state==E2_ZONE_ACTIVE)raw_active++;else if(zones[i].state==E2_ZONE_BROKEN_AWAITING_RETEST)awaiting++;else if(zones[i].state==E2_ZONE_ROLE_REVERSED_ACTIVE)reversed++;else if(zones[i].state==E2_ZONE_INVALIDATED)invalid++;if(zones[i].actionable)actionable++;}
-   g_logger.Debug("Evaluation="+TimeToString(TimeCurrent(),TIME_DATE|TIME_MINUTES)+", candidates="+IntegerToString(candidates)+", rawActive="+IntegerToString(raw_active)+", awaitingRetest="+IntegerToString(awaiting)+", reversed="+IntegerToString(reversed)+", invalidated="+IntegerToString(invalid)+", actionable="+IntegerToString(actionable)+", duplicatesSuppressed="+IntegerToString(raw_active+reversed-actionable)+".","ZonesSnapshot");
-   E2SymbolSpecification spec=g_symbol_info.Specification();
-   for(int i=0;i<ArraySize(zones);i++) if(zones[i].actionable) g_logger.Debug("id="+IntegerToString(zones[i].id)+", role="+E2ZoneTypeName(zones[i].type)+", originRole="+E2ZoneTypeName(zones[i].origin_type)+", lower="+DoubleToString(zones[i].lower,spec.digits)+", upper="+DoubleToString(zones[i].upper,spec.digits)+", center="+DoubleToString(zones[i].center,spec.digits)+", touches="+IntegerToString(zones[i].touches)+", origin="+TimeToString(zones[i].origin_time,TIME_DATE|TIME_MINUTES)+", knownFrom="+TimeToString(zones[i].known_from_time,TIME_DATE|TIME_MINUTES)+", lastTouch="+TimeToString(zones[i].last_touch_time,TIME_DATE|TIME_MINUTES)+", state="+E2ZoneStateName(zones[i].state)+".","ZonesSnapshot");
-  }
 
-void E2RunConfirmationDiagnostic(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled()) return;
-   const datetime evaluation_time=TimeCurrent();
-   MqlRates closed;
-   if(!g_market_data.GetClosedBarAsOf(_Symbol,g_configuration.confirmation_timeframe,evaluation_time,closed)) return;
-   if(closed.time==g_last_confirmation_diagnostic_candle) return;
-   g_last_confirmation_diagnostic_candle=closed.time;
-   E2ConfirmationResult result;
-   if(!g_confirmation_analyzer.Evaluate(_Symbol,evaluation_time,result))
-     {
-      g_logger.Debug("Not ready: reason="+result.reason+", Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", candle="+(result.candle_time>0 ? TimeToString(result.candle_time,TIME_DATE|TIME_MINUTES) : "unresolved")+", required="+IntegerToString(result.required_bars)+", available="+IntegerToString(result.available_bars)+".","Confirmation");
-      return;
-     }
-   if(result.readiness==E2_CONFIRMATION_NO_CONFIRMATIONS_ENABLED)
-      return;
-   if(result.readiness!=E2_CONFIRMATION_VALID || result.direction!=E2_CONFIRMATION_NONE || result.directional_conflict)
-      g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", candle="+(result.candle_time>0 ? TimeToString(result.candle_time,TIME_DATE|TIME_MINUTES) : "n/a")+", direction="+E2ConfirmationDirectionName(result.direction)+", bullishPassed="+IntegerToString(result.bullish_passed)+", bearishPassed="+IntegerToString(result.bearish_passed)+", engulfing="+E2ConfirmationDirectionName(result.engulfing)+", pin="+E2ConfirmationDirectionName(result.pin_bar)+", momentum="+E2ConfirmationDirectionName(result.momentum)+", previousBreak="+E2ConfirmationDirectionName(result.previous_break)+", readiness="+E2ConfirmationReadinessName(result.readiness)+", conflict="+E2YesNo(result.directional_conflict)+".","Confirmation");
-  }
 
-void E2RunStrategySignalDiagnostic(void)
-  {
-   if(g_environment.IsOptimization()) return;
-   const datetime evaluation_time=TimeCurrent();
-   MqlRates closed;
-   if(!g_market_data.GetClosedBarAsOf(_Symbol,g_configuration.confirmation_timeframe,evaluation_time,closed)) return;
-   if(closed.time==g_last_strategy_evaluated_candle) return;
-   g_last_strategy_evaluated_candle=closed.time;
-   E2Zone zones[]; int candidates=0;
-   if(g_zone_analyzer.Evaluate(_Symbol,evaluation_time,zones,candidates))
-     {
-      E2SetupTransition transitions[];
-      g_setup_tracker.Update(_Symbol,closed,zones,transitions);
-      g_visualizer.UpdateZones(zones,evaluation_time);
-     }
-   E2StrategyResult result;
-   if(!g_strategy_analyzer.Evaluate(_Symbol,evaluation_time,result))
-     {
-      g_logger.Debug("Not ready: reason="+E2StrategyReasonName(result.reason)+", Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+".","Strategy");
-      return;
-     }
-   g_visualizer.UpdateTrend(result,g_configuration.adx_minimum_threshold);
-   if(result.signal==E2_SIGNAL_NONE) return;
-   if(!g_setup_tracker.IsEligible(_Symbol,result.selected_zone_id,result.selected_zone_role)) return;
-   g_visualizer.MarkCandidate(result,closed);
-   E2SessionResult session;
-   g_session_filter.Evaluate(evaluation_time,session);
-   if(!session.eligible)
-     {
-      g_visualizer.MarkCandidate(result,closed,"SESSION");
-      E2LogSessionDiagnostic(session,result.signal);
-      return;
-     }
-   E2NewsResult news;
-   g_news_filter.Evaluate(_Symbol,evaluation_time,news);
-   if(!news.eligible)
-     {
-      g_visualizer.MarkCandidate(result,closed,"NEWS");
-      E2LogNewsDiagnostic(news,result.signal);
-      return;
-     }
-   // PositionManager is refreshed each tick from MT5-owned position state.
-   // Avoid planning/executor log churn for a candidate that cannot open while
-   // an E2 position for this symbol is already open. The setup remains armed.
-   if(g_position_manager.HasPosition(_Symbol))
-     {
-      g_visualizer.MarkCandidate(result,closed,"POSITION_ALREADY_OPEN");
-      g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", reason=POSITION_ALREADY_OPEN.","Execution");
-      return;
-     }
-   E2SymbolSpecification spec=g_symbol_info.Specification();
-   g_logger.Debug("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", signal="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", zoneRole="+E2ZoneTypeName(result.selected_zone_role)+", confirmationCandle="+TimeToString(result.confirmation_candle_time,TIME_DATE|TIME_MINUTES)+".","StrategyCandidate");
-   E2StrategyPlanRequest plan_request;
-   plan_request.symbol=_Symbol;
-   plan_request.evaluation_time=evaluation_time;
-   plan_request.valid_strategy_signal=true;
-   plan_request.direction=(result.signal==E2_SIGNAL_LONG ? E2_DIRECTION_BUY : E2_DIRECTION_SELL);
-   plan_request.zone_id=result.selected_zone_id;
-   plan_request.zone_role=E2ZoneTypeName(result.selected_zone_role);
-   plan_request.zone_lower=result.selected_zone_lower;
-   plan_request.zone_upper=result.selected_zone_upper;
-   E2TradePlan trade_plan;
-   if(!g_trade_planner.CreateStrategyPlan(plan_request,trade_plan))
-     {
-      g_visualizer.MarkCandidate(result,closed,"INVALID_PLAN");
-      g_trade_planner.LogDiagnostic(trade_plan);
-      return;
-     }
-   g_trade_planner.LogDiagnostic(trade_plan);
-   if(!g_configuration.trading_enabled)
-      return;
-   const string comment="E2|Z"+IntegerToString(result.selected_zone_id)+"|"+E2StrategySignalName(result.signal);
-   E2ExecutionResult execution;
-   if(!g_order_executor.Execute(trade_plan,comment,execution))
-     {
-      g_visualizer.MarkCandidate(result,closed,E2ExecutionStatusName(execution.status));
-      return;
-     }
-   g_position_manager.Refresh();
-   E2SetupTransition consumed;
-   if(!g_setup_tracker.Consume(_Symbol,result.selected_zone_id,result.selected_zone_role,closed.time,consumed))
-     {
-      g_logger.Error("Execution succeeded but the selected setup could not be consumed.","Setup");
-      return;
-     }
-   g_logger.Info("Evaluation="+TimeToString(evaluation_time,TIME_DATE|TIME_MINUTES)+", direction="+E2StrategySignalName(result.signal)+", zoneId="+IntegerToString(result.selected_zone_id)+", entryPlan="+DoubleToString(trade_plan.entry_price,spec.digits)+", fill="+DoubleToString(execution.actual_execution_price,spec.digits)+", SL="+DoubleToString(trade_plan.stop_loss_price,spec.digits)+", TP="+DoubleToString(trade_plan.take_profit_price,spec.digits)+", volume="+DoubleToString(trade_plan.volume,4)+", riskTarget="+DoubleToString(trade_plan.target_risk_money,2)+", actualPlannedRisk="+DoubleToString(trade_plan.actual_risk_money,2)+", deal="+StringFormat("%I64u",execution.deal_ticket)+", order="+StringFormat("%I64u",execution.order_ticket)+", reason=EXECUTED.","Trade");
-   E2ReportEntryData report_entry;
-   ZeroMemory(report_entry);
-   report_entry.symbol=_Symbol;
-   report_entry.direction=E2StrategySignalName(result.signal);
-   report_entry.zone_id=result.selected_zone_id;
-   report_entry.zone_role=E2ZoneTypeName(result.selected_zone_role);
-   report_entry.zone_visit=consumed.visit;
-   report_entry.signal_time=evaluation_time;
-   report_entry.confirmation_time=result.confirmation_candle_time;
-   report_entry.session=(session.in_london && session.in_new_york ? "LONDON_NEW_YORK_OVERLAP" : (session.in_london ? "LONDON" : "NEW_YORK"));
-   report_entry.trend=E2TrendStateName(result.trend_state);
-   report_entry.adx=result.adx_value;
-   report_entry.confirmation_engulfing=E2ConfirmationDirectionName(result.engulfing);
-   report_entry.confirmation_pin=E2ConfirmationDirectionName(result.pin_bar);
-   report_entry.confirmation_momentum=E2ConfirmationDirectionName(result.momentum);
-   report_entry.confirmation_previous_break=E2ConfirmationDirectionName(result.previous_break);
-   report_entry.planned_entry=trade_plan.entry_price;
-   report_entry.fill_price=execution.actual_execution_price;
-   report_entry.stop_loss=trade_plan.stop_loss_price;
-   report_entry.take_profit=trade_plan.take_profit_price;
-   report_entry.stop_pips=trade_plan.stop_distance_pips;
-   report_entry.planned_rr=trade_plan.actual_reward_risk;
-   report_entry.volume=trade_plan.volume;
-   report_entry.equity=trade_plan.account_equity;
-   report_entry.target_risk=trade_plan.target_risk_money;
-   report_entry.planned_risk=trade_plan.actual_risk_money;
-   report_entry.planned_risk_pct=trade_plan.actual_risk_percent;
-   report_entry.order_ticket=execution.order_ticket;
-   report_entry.entry_deal=execution.deal_ticket;
-   g_trade_reporter.CaptureEntry(report_entry);
-   g_visualizer.DrawEntry(report_entry);
-   g_logger.Debug("zoneId="+IntegerToString(consumed.zone_id)+", role="+E2ZoneTypeName(consumed.role)+", event="+E2SetupEventName(consumed.event)+", candle="+TimeToString(consumed.candle,TIME_DATE|TIME_MINUTES)+", visit="+IntegerToString(consumed.visit)+".","Setup");
-  }
 
-void E2RunSpecificationStartupDiagnostic(void)
-  {
-   if(g_environment.IsOptimization())
-      return;
 
-   if(g_symbol_info.IsInitialized())
-     {
-      E2SymbolSpecification symbol=g_symbol_info.Specification();
-      g_logger.Debug("Symbol: "+symbol.symbol+", digits="+IntegerToString(symbol.digits)+", point="+DoubleToString(symbol.point,symbol.digits)+", pip="+DoubleToString(symbol.pip_size,symbol.digits)+", tick size="+DoubleToString(symbol.tick_size,symbol.digits)+", tick value="+DoubleToString(symbol.tick_value,2)+", volume min="+DoubleToString(symbol.volume_min,2)+", max="+DoubleToString(symbol.volume_max,2)+", step="+DoubleToString(symbol.volume_step,2)+".","Specifications");
-     }
-
-   if(g_account_info.IsInitialized())
-     {
-      E2AccountSpecification account=g_account_info.Specification();
-      g_logger.Debug("Account: currency="+account.currency+", balance="+DoubleToString(account.balance,2)+", equity="+DoubleToString(account.equity,2)+", free margin="+DoubleToString(account.free_margin,2)+", leverage="+IntegerToString((int)account.leverage)+".","Specifications");
-     }
-  }
-
-void E2RunTradePlanningStartupDiagnostic(void)
-  {
-   if(g_environment.IsOptimization() || !g_logger.IsDebugEnabled() || !g_symbol_info.IsInitialized() || !g_account_info.IsInitialized())
-      return;
-
-   MqlTick tick;
-   if(!SymbolInfoTick(_Symbol,tick) || tick.ask<=0.0)
-      return;
-
-   E2SymbolSpecification specification=g_symbol_info.Specification();
-   E2TradeIntent intent;
-   intent.symbol=_Symbol;
-   intent.direction=E2_DIRECTION_BUY;
-   intent.entry_price=tick.ask;
-   intent.stop_loss_price=g_symbol_info.NormalizePrice(intent.entry_price-specification.tick_size*100.0);
-   intent.reward_risk_target=g_configuration.reward_risk_target;
-   intent.strategy_id="diagnostic";
-   intent.setup_time=TimeCurrent();
-   intent.reason_tag="startup sample";
-
-   E2TradePlan plan;
-   g_trade_planner.CreatePlan(intent,plan);
-   g_trade_planner.LogDiagnostic(plan);
-  }
-
-void E2RunExecutionTestHarness(void)
-  {
-   if(!g_configuration.execution_test_enabled || g_execution_test_attempted)
-      return;
-
-   if(!g_symbol_info.IsInitialized() || !g_account_info.IsInitialized())
-     {
-      g_logger.Warning("Execution test cannot run because symbol/account data is unavailable.","Execution");
-      g_execution_test_attempted=true;
-      return;
-     }
-
-   E2AccountSpecification account=g_account_info.Specification();
-   if(!g_environment.IsTester() && account.trade_mode!=ACCOUNT_TRADE_MODE_DEMO)
-     {
-      g_logger.Warning("Execution test is restricted to Strategy Tester or demo accounts.","Execution");
-      g_execution_test_attempted=true;
-      return;
-     }
-
-   g_execution_test_attempted=true;
-   MqlTick tick;
-   if(!SymbolInfoTick(_Symbol,tick) || tick.ask<=0.0)
-      return;
-
-   E2SymbolSpecification specification=g_symbol_info.Specification();
-   E2TradeIntent intent;
-   intent.symbol=_Symbol;
-   intent.direction=E2_DIRECTION_BUY;
-   intent.entry_price=tick.ask;
-   intent.stop_loss_price=g_symbol_info.NormalizePrice(intent.entry_price-specification.tick_size*100.0);
-   intent.reward_risk_target=g_configuration.reward_risk_target;
-   intent.strategy_id="execution_test";
-   intent.setup_time=TimeCurrent();
-   intent.reason_tag="explicit test harness";
-   E2TradePlan plan;
-   if(!g_trade_planner.CreatePlan(intent,plan))
-     {
-      g_trade_planner.LogDiagnostic(plan);
-      return;
-     }
-   E2ExecutionResult result;
-   if(g_order_executor.Execute(plan,"E2 execution test",result))
-     {
-      E2ExecutionResult duplicate_result;
-      g_order_executor.Execute(plan,"E2 execution test duplicate",duplicate_result);
-     }
-  }
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
@@ -471,12 +131,6 @@ int OnInit()
    E2LoadConfiguration(g_configuration);
    g_environment.Initialize();
    g_diagnostic_tick_count=0;
-   g_execution_test_attempted=false;
-   g_trend_diagnostic_completed=false;
-   g_last_trend_readiness_diagnostic_bar=0;
-   g_last_zone_diagnostic_day=0;
-   g_last_confirmation_diagnostic_candle=0;
-   g_last_strategy_evaluated_candle=0;
    g_last_h1_zone_v2_visual_bar=0;
    g_last_m15_confirmation_v2_bar=0;
    g_last_h4_v2_bar=0;
@@ -486,7 +140,6 @@ int OnInit()
    g_v2_h1_calls=0;
    g_v2_m15_calls=0;
    g_v2_m15_contexts=0;
-   g_setup_tracker.Reset();
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -504,20 +157,14 @@ int OnInit()
    if(!g_account_info.Initialize(g_logger))
       g_logger.Warning("Account specification diagnostics are unavailable for this run.","Lifecycle");
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
-   g_trade_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_logger);
    g_position_guard.Initialize(g_configuration,g_logger);
-   g_position_manager.Initialize(g_configuration,g_logger);
    g_execution_safety.Initialize(g_configuration,g_logger);
-   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_position_manager,g_execution_safety,g_logger);
+   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_logger);
    g_market_data.Initialize(g_configuration,g_logger);
-   g_trend_analyzer.Initialize(g_configuration,g_market_data,g_logger);
    g_h4_regime_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_h1_zone_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_m15_confirmation_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_trend_continuation_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
-   g_zone_analyzer.Initialize(g_configuration,g_market_data,g_symbol_info);
-   g_confirmation_analyzer.Initialize(g_configuration,g_market_data);
-   g_strategy_analyzer.Initialize(g_trend_analyzer,g_zone_analyzer,g_confirmation_analyzer,g_market_data);
    g_session_filter.Initialize(g_configuration);
    g_news_filter.Initialize(g_configuration,g_logger);
    g_v2_trade_plan_engine.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_session_filter,g_news_filter,g_logger);
@@ -525,43 +172,13 @@ int OnInit()
    if(!g_trade_reporter.Initialize(g_configuration.csv_export_enabled,g_configuration.expert_magic_number,_Symbol,g_logger))
       g_logger.Warning("Trade CSV reporting disabled for this run because initialization failed.","Reporting");
    g_v2_execution_engine.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_order_executor,g_trade_reporter,g_logger);
+   g_v2_position_manager.Initialize(g_configuration,g_logger);
    if(g_environment.IsTester() && !g_backtest_summary.Initialize(g_configuration.csv_export_enabled,g_configuration,_Symbol,g_trade_reporter.RunId(),g_logger))
       g_logger.Warning("Backtest summary CSV reporting disabled for this run because initialization failed.","Reporting");
-   E2LogStartupDiagnostics();
-   E2RunMarketDataStartupDiagnostic();
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
    E2RunTrendContinuationV2();
-   E2RunSpecificationStartupDiagnostic();
-   E2RunSessionStartupDiagnostics();
-   E2RunNewsStartupDiagnostics();
-
-   if(g_configuration.csv_export_enabled)
-     {
-      if(g_csv_exporter.Initialize("E2_startup.csv",g_logger))
-        {
-         string header[] = {"event","time","symbol","message"};
-         if(!g_csv_exporter.WriteHeader(header))
-           {
-            g_logger.Warning("CSV export disabled for this run after header write failure.","Lifecycle");
-            g_csv_exporter.Close();
-           }
-         else
-           {
-            string startup_row[] = {"startup",TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS),_Symbol,"E2 reporting initialized"};
-            if(!g_csv_exporter.WriteRow(startup_row))
-              {
-               g_logger.Warning("CSV export disabled for this run after startup-row write failure.","Lifecycle");
-               g_csv_exporter.Close();
-              }
-           }
-        }
-      else
-        {
-         g_logger.Warning("CSV export disabled for this run because initialization failed.","Lifecycle");
-        }
-     }
 
    g_logger.Info("Reporting initialized.","Lifecycle");
    g_logger.Info("E2 initialized successfully.","Lifecycle");
@@ -585,6 +202,7 @@ void OnDeinit(const int reason)
       E2H1ZoneV2Workload pw=g_h1_zone_engine.Workload();
       E2V2PlanVerification pv=g_v2_trade_plan_engine.Verification();
       E2V2ExecutionVerification ev=g_v2_execution_engine.Verification();
+      E2V2ManagementDiagnostics mv=g_v2_position_manager.Diagnostics();
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", uptrend="+IntegerToString((int)g.uptrend)+", eligible="+IntegerToString((int)g.eligible)+", resistanceBars="+IntegerToString((int)g.resistance_bar)+", resistanceObs="+IntegerToString((int)g.resistance_observations)+", checks="+IntegerToString((int)g.resistance_checks)+", aboveEdge="+IntegerToString((int)g.above_edge)+", distancePass="+IntegerToString((int)g.distance_long)+", accepted="+IntegerToString(v.break_long),"TCV2_GATE_LONG");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", downtrend="+IntegerToString((int)g.downtrend)+", eligible="+IntegerToString((int)g.eligible)+", supportBars="+IntegerToString((int)g.support_bar)+", supportObs="+IntegerToString((int)g.support_observations)+", checks="+IntegerToString((int)g.support_checks)+", belowEdge="+IntegerToString((int)g.below_edge)+", distancePass="+IntegerToString((int)g.distance_short)+", accepted="+IntegerToString(v.break_short),"TCV2_GATE_SHORT");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", zero="+IntegerToString((int)g.zero_zone)+", nonzero="+IntegerToString((int)g.nonzero_zone)+", maxZones="+IntegerToString((int)g.max_zones)+", maxSupport="+IntegerToString((int)g.max_support)+", maxResistance="+IntegerToString((int)g.max_resistance),"TCV2_ZONE_SUPPLY");
@@ -601,9 +219,16 @@ void OnDeinit(const int reason)
       g_logger.Info("confirmations_long="+IntegerToString(v.confirm_long)+", confirmations_short="+IntegerToString(v.confirm_short)+", total_candidates="+IntegerToString(v.total)+", unique_zone_attempts="+IntegerToString(v.unique_attempts)+", invalid_h4_loss="+IntegerToString(v.h4_loss)+", invalid_h4_overextension="+IntegerToString(v.h4_overextended)+", invalid_flipped_zone="+IntegerToString(v.flipped_invalid)+", multiple_claimant_timestamps="+IntegerToString(v.confirmation_timestamps_with_multiple_claimants)+", max_claimants="+IntegerToString(v.maximum_claimants_one_confirmation)+", ownership_resolutions="+IntegerToString(v.ownership_resolutions)+", same_confirmation_multiple_candidates="+IntegerToString(v.same_confirmation_multiple_candidates)+", causal_order_violations="+IntegerToString(v.causal_order_violations),"TCV2_VERIFY");
       g_logger.Info("candidatesReceived="+IntegerToString(pv.candidates_received)+", entryWindowsReached="+IntegerToString(pv.entry_windows_reached)+", plansValid="+IntegerToString(pv.plans_valid)+", plansRejected="+IntegerToString(pv.plans_rejected)+", rejectedRegime="+IntegerToString(pv.rejected_regime)+", rejectedOverextension="+IntegerToString(pv.rejected_overextension)+", rejectedZone="+IntegerToString(pv.rejected_zone)+", rejectedSession="+IntegerToString(pv.rejected_session)+", rejectedNews="+IntegerToString(pv.rejected_news)+", rejectedPosition="+IntegerToString(pv.rejected_position)+", rejectedNoTarget="+IntegerToString(pv.rejected_no_target)+", rejectedBelow2R="+IntegerToString(pv.rejected_below_2r)+", rejectedStop="+IntegerToString(pv.rejected_stop)+", rejectedRisk="+IntegerToString(pv.rejected_risk)+", rejectedManagement="+IntegerToString(pv.rejected_management)+", rejectedOther="+IntegerToString(pv.rejected_other)+", fixed2RPlans="+IntegerToString(pv.fixed_2r_plans)+", zoneTrailingPlans="+IntegerToString(pv.zone_trailing_plans)+", longPlans="+IntegerToString(pv.long_plans)+", shortPlans="+IntegerToString(pv.short_plans)+", duplicatePlans="+IntegerToString(pv.duplicate_plans)+", planCausalityViolations="+IntegerToString(pv.plan_causality_violations)+", avgAvailableR="+DoubleToString(pv.average_available_r,3)+", medianAvailableR="+DoubleToString(pv.median_available_r,3)+", minAvailableR="+DoubleToString(pv.minimum_available_r,3)+", maxAvailableR="+DoubleToString(pv.maximum_available_r,3),"TCV2_PLAN_VERIFY");
       g_logger.Info("validPlansReceived="+IntegerToString(ev.valid_plans_received)+", executionDisabled="+IntegerToString(ev.execution_disabled)+", executionAttempts="+IntegerToString(ev.execution_attempts)+", executionSuccesses="+IntegerToString(ev.execution_successes)+", executionFailures="+IntegerToString(ev.execution_failures)+", longAttempts="+IntegerToString(ev.long_attempts)+", shortAttempts="+IntegerToString(ev.short_attempts)+", fixed2RAttempts="+IntegerToString(ev.fixed_2r_attempts)+", zoneTrailingAttempts="+IntegerToString(ev.zone_trailing_attempts)+", rejectedPositionOpen="+IntegerToString(ev.rejected_position_open)+", rejectedQuote="+IntegerToString(ev.rejected_quote)+", rejectedStops="+IntegerToString(ev.rejected_stops)+", rejectedVolume="+IntegerToString(ev.rejected_volume)+", rejectedRR="+IntegerToString(ev.rejected_rr)+", rejectedMargin="+IntegerToString(ev.rejected_margin)+", rejectedMarket="+IntegerToString(ev.rejected_market)+", rejectedOther="+IntegerToString(ev.rejected_other)+", duplicateExecutionAttempts="+IntegerToString(ev.duplicate_execution_attempts)+", successfulPositionsRegistered="+IntegerToString(ev.successful_positions_registered)+", metadataRegistrationFailures="+IntegerToString(ev.metadata_registration_failures)+", unaccountedValidPlans="+IntegerToString(ev.unaccounted_valid_plans)+", executionCausalityViolations="+IntegerToString(ev.execution_causality_violations)+", avgPlannedToQuoteDifference="+DoubleToString(ev.average_planned_to_quote_difference,_Digits)+", avgQuoteToFillSlippage="+DoubleToString(ev.average_quote_to_fill_slippage,_Digits)+", avgActualRiskCash="+DoubleToString(ev.average_actual_risk_cash,2)+", maxActualRiskDeviationPct="+DoubleToString(ev.max_actual_risk_deviation_percent,4),"V2_EXEC_VERIFY");
+      g_logger.Info("positionsManaged="+IntegerToString(mv.positions_managed)+", fixed2RPositionsObserved="+IntegerToString(mv.fixed_2r_positions_observed)+", trailingPositionsManaged="+IntegerToString(mv.trailing_positions_managed)+", managementChecks="+StringFormat("%I64u",mv.management_checks)+", milestone2Reached="+IntegerToString(mv.milestone_2_reached)+", higherMilestonesReached="+IntegerToString(mv.higher_milestones_reached)+", slModifyAttempts="+IntegerToString(mv.sl_modify_attempts)+", slModifySuccess="+IntegerToString(mv.sl_modify_success)+", slModifyFailures="+IntegerToString(mv.sl_modify_failures)+", brokerConstraintDeferrals="+IntegerToString(mv.broker_constraint_deferrals)+", duplicateModifySuppressed="+IntegerToString(mv.duplicate_modify_suppressed)+", stopRegressionViolations="+IntegerToString(mv.stop_regression_violations)+", invalidOriginalR="+IntegerToString(mv.invalid_original_r)+", recoveredPositions="+IntegerToString(mv.recovered_positions),"TCV2_MANAGE_VERIFY");
      }
-   g_trend_analyzer.Deinitialize();
    g_trade_reporter.Reconcile();
+   if(g_environment.IsTester() && g_configuration.research_verification_summary)
+     {
+      const E2TrendContinuationVerification v2_only_candidates=g_trend_continuation_engine.Verification();
+      const E2V2PlanVerification v2_only_plans=g_v2_trade_plan_engine.Verification();
+      const E2V2ExecutionVerification v2_only_execution=g_v2_execution_engine.Verification();
+      g_logger.Info("legacyStrategyCalls=0, legacySignals=0, legacyPlans=0, legacyExecutionAttempts=0, legacyFinalizedTrades=0, v2Candidates="+IntegerToString(v2_only_candidates.total)+", v2Plans="+IntegerToString(v2_only_plans.plans_valid)+", v2ExecutionAttempts="+IntegerToString(v2_only_execution.execution_attempts)+", v2ExecutionSuccesses="+IntegerToString(v2_only_execution.execution_successes)+", v2FinalizedTrades="+IntegerToString(g_trade_reporter.FinalizedCount())+", reportingForeignTrades=0","V2_ONLY");
+     }
    const int unresolved=g_trade_reporter.ReportUnresolved();
    E2ReportedTrade finalized_trades[];
    g_trade_reporter.FinalizedTrades(finalized_trades);
@@ -612,7 +237,6 @@ void OnDeinit(const int reason)
    g_backtest_summary.Finalize(g_environment.IsTester(),finalized_trades,unresolved);
    g_backtest_summary.Close();
    g_trade_reporter.Close();
-   g_csv_exporter.Close();
    g_visualizer.Cleanup();
    g_logger.Info("Run completed: symbol="+_Symbol+", environment="+g_environment.Name()+", ticks="+StringFormat("%I64u",g_diagnostic_tick_count)+", reason="+IntegerToString(reason)+".","Lifecycle");
    g_logger.Info("E2 deinitialized.","Lifecycle");
@@ -636,12 +260,10 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
 void OnTick()
   {
    g_diagnostic_tick_count++;
-   g_position_manager.Refresh();
+   g_v2_position_manager.Check();
    E2RunH4RegimeV2();
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
    E2RunTrendContinuationV2();
-   E2RunStrategySignalDiagnostic();
-   E2RunExecutionTestHarness();
   }
 //+------------------------------------------------------------------+

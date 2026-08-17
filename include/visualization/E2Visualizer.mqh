@@ -2,8 +2,6 @@
 #define E2_VISUALIZATION_E2VISUALIZER_MQH
 
 #include "..\\core\\E2Config.mqh"
-#include "..\\analysis\\E2ZoneAnalyzer.mqh"
-#include "..\\strategy\\E2StrategyAnalyzer.mqh"
 #include "..\\reporting\\E2TradeReporter.mqh"
 #include "..\\analysis\\E2H4RegimeEngine.mqh"
 #include "..\\analysis\\E2H1ZoneEngine.mqh"
@@ -14,16 +12,14 @@ class E2Visualizer
 private:
    E2Config m_config;
    E2Logger *m_logger;
-   bool m_active,m_has_trend,m_focus_missing_reported;
+   bool m_active,m_focus_missing_reported;
    long m_chart_id;
-   E2TrendState m_last_trend;
    bool m_h4rv2_has_state,m_h4rv2_last_eligible,m_h4rv2_last_overextended;
    E2RegimeType m_h4rv2_last_regime;
    datetime m_h4rv2_last_time;
    datetime m_h4rv2_active_h1,m_h4rv2_active_h2,m_h4rv2_active_l1,m_h4rv2_active_l2,m_h4rv2_active_break;
    E2H4BreakDirection m_h4rv2_active_break_direction;
    double m_h4rv2_last_ema20,m_h4rv2_last_ema50;
-   E2Zone m_latest_zones[];
    E2ReportEntryData m_entries[];
 
    string Id(const string value) const { return("E2VIS_"+value); }
@@ -110,37 +106,19 @@ private:
       if(Create(Id("H4RV2_EMA20_"+suffix),OBJ_TREND,H4(),m_h4rv2_last_time,m_h4rv2_last_ema20,r.closed_h4_time,r.ema20)){ObjectSetInteger(m_chart_id,Id("H4RV2_EMA20_"+suffix),OBJPROP_COLOR,clrGold);ObjectSetInteger(m_chart_id,Id("H4RV2_EMA20_"+suffix),OBJPROP_RAY_RIGHT,false);}
       if(Create(Id("H4RV2_EMA50_"+suffix),OBJ_TREND,H4(),m_h4rv2_last_time,m_h4rv2_last_ema50,r.closed_h4_time,r.ema50)){ObjectSetInteger(m_chart_id,Id("H4RV2_EMA50_"+suffix),OBJPROP_COLOR,clrDeepSkyBlue);ObjectSetInteger(m_chart_id,Id("H4RV2_EMA50_"+suffix),OBJPROP_RAY_RIGHT,false);}
      }
-   int FindZone(const int zone_id) const { for(int i=0;i<ArraySize(m_latest_zones);i++)if(m_latest_zones[i].id==zone_id)return(i);return(-1); }
-   string ConfirmationText(const E2ReportEntryData &entry) const
-     {
-      string text="";
-      if(entry.confirmation_engulfing!="NO")text="ENG";
-      if(entry.confirmation_pin!="NO")text+=(text=="" ? "PIN" : "+PIN");
-      if(entry.confirmation_momentum!="NO")text+=(text=="" ? "MOM" : "+MOM");
-      if(entry.confirmation_previous_break!="NO")text+=(text=="" ? "PREV" : "+PREV");
-      return(text=="" ? "CONF" : text);
-     }
    void DrawPanel(const E2ReportEntryData &entry,const ulong position_id,const string result="",const double realized_r=0.0)
      {
       const string name=Id(Key(position_id)+"_PANEL");
       if(ObjectFind(m_chart_id,name)<0)ObjectCreate(m_chart_id,name,OBJ_LABEL,0,0,0);
       ObjectSetInteger(m_chart_id,name,OBJPROP_TIMEFRAMES,OBJ_ALL_PERIODS);ObjectSetInteger(m_chart_id,name,OBJPROP_CORNER,CORNER_RIGHT_UPPER);ObjectSetInteger(m_chart_id,name,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,name,OBJPROP_YDISTANCE,20);ObjectSetInteger(m_chart_id,name,OBJPROP_COLOR,clrWhite);ObjectSetInteger(m_chart_id,name,OBJPROP_FONTSIZE,9);ObjectSetInteger(m_chart_id,name,OBJPROP_HIDDEN,false);
-      string text="E2-"+StringFormat("%I64u",position_id)+" "+entry.direction+"\nH4 "+entry.trend+"  ADX "+DoubleToString(entry.adx,2)+" / "+DoubleToString(m_config.adx_minimum_threshold,2)+"\nH1 Z"+IntegerToString(entry.zone_id)+" "+entry.zone_role+"  V"+IntegerToString(entry.zone_visit)+"\nM15 "+ConfirmationText(entry)+"\nFill "+DoubleToString(entry.fill_price,_Digits)+"  SL "+DoubleToString(entry.stop_loss,_Digits)+"  TP "+DoubleToString(entry.take_profit,_Digits);
+      string text="E2-"+StringFormat("%I64u",position_id)+" "+entry.strategy_type+" "+entry.direction+"\nPlan "+entry.plan_id+"\nH1 "+entry.zone_id+" "+entry.zone_role+" V"+IntegerToString(entry.zone_visit)+"\nManagement "+entry.management_branch+"\nFill "+DoubleToString(entry.fill_price,_Digits)+"  SL "+DoubleToString(entry.stop_loss,_Digits)+"  TP "+DoubleToString(entry.take_profit,_Digits);
       if(result!="")text+="\n"+result+" "+DoubleToString(realized_r,2)+"R";
       ObjectSetString(m_chart_id,name,OBJPROP_TEXT,text);
-     }
-   void DrawTradeZone(const E2ReportEntryData &entry,const ulong position_id,const datetime end_time)
-     {
-      const int index=FindZone(entry.zone_id);if(index<0)return;const E2Zone zone=m_latest_zones[index];const string key=Id(Key(position_id)+"_ZONE");const datetime start=(zone.state==E2_ZONE_ROLE_REVERSED_ACTIVE && zone.reversal_time>0 ? zone.reversal_time : (zone.activation_time>0 ? zone.activation_time : zone.known_from_time));
-      if(!Create(key,OBJ_RECTANGLE,H1(),start,zone.lower,end_time,zone.upper))return;
-      ObjectSetInteger(m_chart_id,key,OBJPROP_COLOR,(zone.type==E2_ZONE_SUPPORT ? clrLimeGreen : clrRed));ObjectSetInteger(m_chart_id,key,OBJPROP_FILL,true);ObjectSetInteger(m_chart_id,key,OBJPROP_BACK,true);ObjectSetInteger(m_chart_id,key,OBJPROP_WIDTH,2);
-      Label(Id(Key(position_id)+"_ZONE_LABEL"),H1(),start,zone.upper,"Z"+IntegerToString(zone.id)+" "+E2ZoneTypeName(zone.type)+"\n"+IntegerToString(zone.touches)+" touches",clrWhite);
      }
    void DrawTradeContext(const E2ReportEntryData &entry,const ulong position_id,const datetime end_time,const string result="",const double realized_r=0.0)
      {
       if(!m_config.visual_show_trades)return;const string key=Key(position_id);const bool up=(entry.direction=="LONG");
-      DrawTradeZone(entry,position_id,end_time);
-      if(m_config.visual_show_confirmations){Marker(Id(key+"_CONFIRM"),M15(),entry.confirmation_time,entry.fill_price,up,(up ? clrLimeGreen : clrRed));Label(Id(key+"_CONFIRM_LABEL"),M15(),entry.confirmation_time,entry.fill_price,"E2-"+StringFormat("%I64u",position_id)+"\n"+ConfirmationText(entry),clrWhite);}
+      if(m_config.visual_show_confirmations){Marker(Id(key+"_CONFIRM"),M15(),entry.confirmation_time,entry.fill_price,up,(up ? clrLimeGreen : clrRed));Label(Id(key+"_CONFIRM_LABEL"),M15(),entry.confirmation_time,entry.fill_price,"E2-"+StringFormat("%I64u",position_id)+"\nTCV2",clrWhite);}
       // A compact E2 context marker complements rather than duplicates MT5 deal arrows.
       Label(Id(key+"_ENTRY"),TradeFrames(),entry.entry_time,entry.fill_price,"E2-"+StringFormat("%I64u",position_id)+" "+entry.direction,clrDodgerBlue);
       if(Create(Id(key+"_SL"),OBJ_TREND,TradeFrames(),entry.entry_time,entry.stop_loss,end_time,entry.stop_loss)){ObjectSetInteger(m_chart_id,Id(key+"_SL"),OBJPROP_COLOR,clrRed);ObjectSetInteger(m_chart_id,Id(key+"_SL"),OBJPROP_WIDTH,2);ObjectSetInteger(m_chart_id,Id(key+"_SL"),OBJPROP_RAY_RIGHT,false);}
@@ -155,30 +133,13 @@ private:
       for(int i=0;i<ArraySize(suffix);i++)ObjectDelete(m_chart_id,key+suffix[i]);
      }
 public:
-   E2Visualizer(void):m_logger(NULL),m_active(false),m_has_trend(false),m_focus_missing_reported(false),m_chart_id(0),m_last_trend(E2_TREND_UNKNOWN),m_h4rv2_has_state(false),m_h4rv2_last_eligible(false),m_h4rv2_last_overextended(false),m_h4rv2_last_regime(E2_REGIME_UNKNOWN),m_h4rv2_last_time(0),m_h4rv2_active_h1(0),m_h4rv2_active_h2(0),m_h4rv2_active_l1(0),m_h4rv2_active_l2(0),m_h4rv2_active_break(0),m_h4rv2_active_break_direction(E2_H4_BREAK_NONE),m_h4rv2_last_ema20(0.0),m_h4rv2_last_ema50(0.0) {}
+   E2Visualizer(void):m_logger(NULL),m_active(false),m_focus_missing_reported(false),m_chart_id(0),m_h4rv2_has_state(false),m_h4rv2_last_eligible(false),m_h4rv2_last_overextended(false),m_h4rv2_last_regime(E2_REGIME_UNKNOWN),m_h4rv2_last_time(0),m_h4rv2_active_h1(0),m_h4rv2_active_h2(0),m_h4rv2_active_l1(0),m_h4rv2_active_l2(0),m_h4rv2_active_break(0),m_h4rv2_active_break_direction(E2_H4_BREAK_NONE),m_h4rv2_last_ema20(0.0),m_h4rv2_last_ema50(0.0) {}
    void Initialize(const E2Config &config,E2Logger &logger)
      {
-      m_config=config;m_logger=&logger;m_chart_id=ChartID();m_active=(m_config.visual_mode_enabled && MQLInfoInteger(MQL_TESTER)!=0 && m_chart_id>=0);m_has_trend=false;m_focus_missing_reported=false;ArrayResize(m_latest_zones,0);ArrayResize(m_entries,0);
+      m_config=config;m_logger=&logger;m_chart_id=ChartID();m_active=(m_config.visual_mode_enabled && MQLInfoInteger(MQL_TESTER)!=0 && m_chart_id>=0);m_focus_missing_reported=false;ArrayResize(m_entries,0);
       m_h4rv2_has_state=false;m_h4rv2_last_time=0;m_h4rv2_active_h1=0;m_h4rv2_active_h2=0;m_h4rv2_active_l1=0;m_h4rv2_active_l2=0;m_h4rv2_active_break=0;m_h4rv2_active_break_direction=E2_H4_BREAK_NONE;m_h4rv2_last_ema20=0.0;m_h4rv2_last_ema50=0.0;
       if(m_logger!=NULL)m_logger.Debug("auditMode="+IntegerToString((int)m_config.visual_audit_mode)+", focusTradeId="+StringFormat("%I64u",m_config.visual_focus_trade_id)+", chartId="+StringFormat("%I64d",m_chart_id)+", H4/H1/M15 visibility enabled. Native MT5 timeframe selector is the audit switching mechanism.","Visualization");
       DrawAuditInstruction();
-     }
-   void UpdateZones(const E2Zone &zones[],const datetime evaluation)
-     {
-      if(!m_active)return;ArrayResize(m_latest_zones,ArraySize(zones));for(int i=0;i<ArraySize(zones);i++)m_latest_zones[i]=zones[i];
-      if(!IsStrategyAudit() || !m_config.visual_show_zones)return;
-      for(int i=0;i<ArraySize(zones);i++)
-        {
-         if(!zones[i].actionable)continue;const string key=Id("AUDIT_ZONE_"+IntegerToString(zones[i].id)+"_"+IntegerToString((int)zones[i].known_from_time));const datetime start=(zones[i].state==E2_ZONE_ROLE_REVERSED_ACTIVE && zones[i].reversal_time>0 ? zones[i].reversal_time : (zones[i].activation_time>0 ? zones[i].activation_time : zones[i].known_from_time));
-         if(Create(key,OBJ_RECTANGLE,H1(),start,zones[i].lower,evaluation,zones[i].upper)){ObjectSetInteger(m_chart_id,key,OBJPROP_COLOR,(zones[i].type==E2_ZONE_SUPPORT ? clrSeaGreen : clrFireBrick));ObjectSetInteger(m_chart_id,key,OBJPROP_FILL,true);ObjectSetInteger(m_chart_id,key,OBJPROP_BACK,true);ObjectSetInteger(m_chart_id,key,OBJPROP_WIDTH,1);Label(Id("AUDIT_ZONE_LABEL_"+IntegerToString(zones[i].id)+"_"+IntegerToString((int)zones[i].known_from_time)),H1(),start,zones[i].upper,"Z"+IntegerToString(zones[i].id)+" "+E2ZoneTypeName(zones[i].type),clrSilver);}
-        }
-     }
-   void UpdateTrend(const E2StrategyResult &result,const double threshold)
-     {
-      if(!m_active || !m_config.visual_show_trend_panel)return;
-      if(IsSingleTrade())return;
-      const string panel=Id("TREND_PANEL");if(ObjectFind(m_chart_id,panel)<0)ObjectCreate(m_chart_id,panel,OBJ_LABEL,0,0,0);ObjectSetInteger(m_chart_id,panel,OBJPROP_TIMEFRAMES,H4());ObjectSetInteger(m_chart_id,panel,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,panel,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,panel,OBJPROP_YDISTANCE,20);ObjectSetInteger(m_chart_id,panel,OBJPROP_COLOR,clrYellow);ObjectSetInteger(m_chart_id,panel,OBJPROP_FONTSIZE,10);ObjectSetString(m_chart_id,panel,OBJPROP_TEXT,"E2 H4 "+E2TrendStateName(result.trend_state)+" | ADX "+DoubleToString(result.adx_value,2)+" / "+DoubleToString(threshold,2));
-     if(!m_has_trend || result.trend_state!=m_last_trend){const string marker=Id("REGIME_"+IntegerToString((int)result.trend_closed_h4_time));if(Create(marker,OBJ_VLINE,H4(),result.trend_closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,marker,OBJPROP_COLOR,clrDimGray);ObjectSetInteger(m_chart_id,marker,OBJPROP_STYLE,STYLE_DOT);}m_last_trend=result.trend_state;m_has_trend=true;}
      }
    void UpdateH4RegimeV2(const E2H4RegimeResult &r)
      {
@@ -218,13 +179,6 @@ public:
      {
       if(!m_active || !m_config.visual_show_trend_continuation_v2 || Period()!=PERIOD_M15)return;
       for(int i=0;i<ArraySize(candidates);i++){const E2TrendContinuationCandidate c=candidates[i];const bool up=(c.direction==E2_TC_LONG);const string key=Id("TCV2_"+c.candidate_id);Marker(key,M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),up,clrGold);Label(key+"_LABEL",M15(),c.candidate_time,(up?c.confirmation.low:c.confirmation.high),(up?"TC+":"TC-"),clrGold);ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,"Candidate: "+c.candidate_id+"\nZone: "+c.source_zone_id+"\nBreakout: "+TimeToString(c.breakout_known_from_time,TIME_DATE|TIME_MINUTES)+"\nRetest: "+TimeToString(c.retest_time,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(c.candidate_known_from_time,TIME_DATE|TIME_MINUTES)+"\nAttempt: "+IntegerToString(c.attempt_number));}
-     }
-   void MarkCandidate(const E2StrategyResult &result,const MqlRates &candle,const string rejection="")
-     {
-      if(!m_active || !IsStrategyAudit())return;
-      if(rejection!="" && !m_config.visual_show_rejected_candidates)return;
-      if(rejection!="")Label(Id("REJECT_"+IntegerToString((int)result.confirmation_candle_time)+"_"+rejection),M15(),result.confirmation_candle_time,(result.signal==E2_SIGNAL_LONG ? candle.low : candle.high),"REJ "+rejection,clrOrange);
-      else if(m_config.visual_show_confirmations)Marker(Id("AUDIT_CONFIRM_"+IntegerToString((int)result.confirmation_candle_time)),M15(),result.confirmation_candle_time,(result.signal==E2_SIGNAL_LONG ? candle.low : candle.high),result.signal==E2_SIGNAL_LONG,clrSilver);
      }
    void DrawEntry(const E2ReportEntryData &entry)
      {
