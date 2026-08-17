@@ -60,7 +60,7 @@ MT5 rates/ticks
 | H1 range boundaries | `E2H1RangeBoundaryEngine.mqh` | Read-only H4-RANGE/H1-zone pairing, frozen lifecycle, and verification |
 | Setup state | `E2TrendContinuationEngine.mqh` | Breakout, retest, attempt ownership, confirmation, deduplication |
 | Range mean-reversion state | `E2RangeMeanReversionEngine.mqh` | Outer-region approach, boundary visits, rearm, rejection routing, candidate deduplication |
-| M15 confirmation | `E2M15ConfirmationEngine.mqh` | Completed-candle momentum and rejection measurements |
+| M15 confirmation | `E2M15ConfirmationEngine.mqh` | Sole owner of completed-candle momentum/rejection measurement, ordered rejection failures, causality, and result reuse |
 | Planning | `include/strategy/E2V2TradePlanEngine.mqh` | Entry-window revalidation, filters, stop, target, risk, management route |
 | Risk | `include/risk/E2PositionSizer.mqh` | Fixed-initial-balance monetary risk and broker-normalized volume |
 | Native request | `include/risk/E2OrderRequest.mqh` | Minimal broker-facing order geometry |
@@ -119,3 +119,5 @@ A setup engine emits setup-specific candidate state carrying `E2StrategyType` an
 RANGE is not inferred from trend absence alone. After unchanged UPTREND/DOWNTREND predicates fail, the engine requires completed-candle ADX and normalized 20-H4 containment evidence; otherwise the regime remains transition/unclassified. H4 containment high/low remain classification measurements. A separate completed-H1 event layer selects frozen support/resistance midpoint references for future range research without adding strategy routing. See [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md) and [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md).
 
 Range Mean-Reversion consumes that frozen context once per completed M15 bar. Its outer-region approach, actual source-zone challenge, rearm, rejection, identity, collision, and causal contracts are defined in [RANGE_MEAN_REVERSION.md](RANGE_MEAN_REVERSION.md).
+
+Momentum and rejection are separate paths inside the shared confirmation owner. Trend Continuation consumes momentum; Range Mean-Reversion requests one directional rejection and carries the returned measurements unchanged. See [M15_CONFIRMATION.md](M15_CONFIRMATION.md).

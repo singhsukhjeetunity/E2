@@ -18,6 +18,8 @@ When H4 is affirmatively RANGE, a separate read-only H1 research layer may freez
 
 Range Mean-Reversion uses the frozen context's outer 20%, requires a completed-M15 approach from the interior followed by actual source-zone interaction, and reuses only the existing directional rejection formula. Candidate generation is the terminal behavior in the current sprint; target, session/news, risk, and management decisions are intentionally absent.
 
+The confirmation subsystem keeps momentum and rejection isolated: Trend Continuation uses its unchanged momentum contract, while Range Mean-Reversion uses strict directional recovery plus inclusive wick/body and wick/range thresholds. Invalid or noncausal candles cannot pass. See [M15_CONFIRMATION.md](M15_CONFIRMATION.md).
+
 The shared H4 engine can classify RANGE using affirmative completed-candle evidence: neither verified trend predicate may pass, ADX(14) must be at most 20, and the latest 20 completed H4 highs/lows must span no more than 6.0 ATR(14). Failure of both trend and range evidence remains neutral/unclassified. These H4 measurements are regime evidence only; they are not H1 trade boundaries.
 
 ## Trade construction
@@ -37,4 +39,4 @@ All strategy observations use completed bars and explicit known-from timestamps.
 
 Session/news filtering, quote/spread/deviation controls, position ownership, one-position protection, native broker validation, authoritative deal reporting, restart recovery, monotonic stop changes, and broker stop/freeze constraints remain shared infrastructure.
 
-Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md), [H1_ZONE_V2.md](H1_ZONE_V2.md), [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md), [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md), [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md), [RANGE_MEAN_REVERSION.md](RANGE_MEAN_REVERSION.md), [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md), [EXECUTION_V2.md](EXECUTION_V2.md), and [POSITION_MANAGEMENT_V2.md](POSITION_MANAGEMENT_V2.md).
+Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md), [H1_ZONE_V2.md](H1_ZONE_V2.md), [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md), [M15_CONFIRMATION.md](M15_CONFIRMATION.md), [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md), [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md), [RANGE_MEAN_REVERSION.md](RANGE_MEAN_REVERSION.md), [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md), [EXECUTION_V2.md](EXECUTION_V2.md), and [POSITION_MANAGEMENT_V2.md](POSITION_MANAGEMENT_V2.md).

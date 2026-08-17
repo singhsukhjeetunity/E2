@@ -8,6 +8,7 @@
 - Deterministic frozen H1 range-boundary selection from active zones while H4 is RANGE, with prospective invalidation and no trading route.
 - Candidate-only Range Mean-Reversion state with interior approach, source-zone challenge, independent side attempts, rearm, existing rejection routing, and deterministic deduplication.
 - Completed-M15 confirmation measurements.
+- Explicit deterministic M15 rejection results with strict recovery, ordered failures, causal enforcement, raw audit measurements, and bounded reuse.
 - Trend Continuation breakout, retest, attempt ownership, confirmation, candidate generation, and deduplication.
 - Next-M15-open planning with session, news, exposure, stop, opposing-zone target, available-R, management, and fixed-initial-balance risk checks.
 - One-shot native MT5 execution and registered V2 position metadata.
@@ -45,3 +46,5 @@ Sprint 2.1 H4 range-regime detection is implemented and compile-verified. Strate
 Sprint 2.2 H1 boundary selection is implemented and compile-verified. Tester verification must confirm deterministic widest-pair selection, frozen boundaries, strict beyond-0.25-ATR invalidation, next-H1-only replacement, zero duplicate IDs, zero mutation/causality violations, and the unchanged Trend Continuation fingerprint.
 
 Sprint 2.3 Range Mean-Reversion setup state is implemented and compile-verified. Tester verification must confirm a nonzero raw candidate stream when enabled, zero duplicates/causality violations, correct manual boundary examples, no RMR plans or trades, and the unchanged disabled-RMR Trend Continuation fingerprint.
+
+The M15 rejection audit/hardening is compile-verified. Runtime verification must preserve the verified 6 LONG / 4 SHORT RMR candidate baseline absent a genuine data-geometry defect, maintain the frozen Trend Continuation fingerprint, and satisfy both confirmation and RMR causality invariants.

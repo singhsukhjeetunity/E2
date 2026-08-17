@@ -28,7 +28,7 @@ H4 regime loss or H1 range loss terminates both sides immediately. State is neve
 
 ## Confirmation and candidate identity
 
-The lower side routes its immutable SUPPORT band through the existing bullish range-rejection formula. The upper side routes its RESISTANCE band through the existing bearish formula. Momentum confirmation is not used and rejection math is unchanged.
+The lower side routes its immutable SUPPORT band through the confirmation engine's directional bullish-rejection API. The upper side routes its RESISTANCE band through the symmetric bearish API. Momentum confirmation is not used. The authoritative formulas, strict recovery, inclusive wick thresholds, failure order, and input validation are documented in [M15_CONFIRMATION.md](M15_CONFIRMATION.md).
 
 Candidate known-from is the completed confirmation candle's open plus 15 minutes and cannot precede the H4 regime, H1 range, or boundary-visit known-from timestamps. Identity is deterministic:
 
@@ -38,7 +38,8 @@ RMR_<symbol>_<rangeId>_<direction>_<attempt>_<confirmationKnownFrom>
 
 If both sides qualify at one timestamp, one winner is chosen by stronger wick/range ratio, then smaller confirmation-close distance to the challenged reference, then lexical source-zone ID. At most one RMR candidate is emitted per timestamp.
 
+The emitted candidate embeds the authoritative confirmation result, including candle OHLC, zone geometry, body, full range, lower/upper/relevant wick, ratios, individual gates, failure classification, and known-from time. RMR does not recompute these measurements.
+
 ## Separation from trading
 
 `InpEnableRangeMeanReversion` controls only this raw candidate stream. Candidates are sent only to optional visualization. No planner route exists. Range Breakout remains inert.
-
