@@ -3,6 +3,7 @@
 ## Implemented
 
 - Causal H4 regime analysis with structural trend/range state and anti-extension eligibility.
+- Affirmative H4 RANGE classification using completed-candle ADX and ATR-normalized containment, with a distinct neutral/unclassified outcome.
 - Persistent H1 support/resistance zones with stable IDs, prospective invalidation, indexed active iteration, and anti-resurrection behavior.
 - Completed-M15 confirmation measurements.
 - Trend Continuation breakout, retest, attempt ownership, confirmation, candidate generation, and deduplication.
@@ -14,7 +15,7 @@
 - Complete Trend Continuation lifecycle reporting with setup-filtered funnel/results, immutable-original-R accounting, management-branch breakdowns, and conservative exit classification.
 - Bounded semantic-regression/invariant counters.
 
-Trend Continuation is the only implemented setup. Range Mean Reversion and Range Breakout have shared identities and selection fields but no setup engines, planner routes, or trading behavior.
+Trend Continuation remains the only implemented setup. RANGE is now a first-class H4 regime, but Range Mean Reversion and Range Breakout still have no setup engines, H1 boundary selection, planner routes, or trading behavior.
 
 ## Mechanically verified
 
@@ -37,4 +38,4 @@ Sprint 1.8 position management remains compile-verified with manual Tester verif
 - Runtime-validate historical news data coverage for the chosen test dataset when the news filter is enabled.
 - Perform broader robustness, out-of-sample, multi-symbol/regime, and forward validation before any edge or live-readiness conclusion.
 
-Sprint 1.9 has not started. No Range Mean Reversion or Range Breakout behavior is implemented.
+Sprint 2.1 H4 range-regime detection is implemented and compile-verified. Strategy Tester verification must confirm nonzero RANGE and NEUTRAL observations, zero causality violations, exclusive context totals, and the unchanged frozen Trend Continuation fingerprint. Range Mean Reversion and Range Breakout behavior are not implemented.

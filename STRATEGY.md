@@ -14,6 +14,8 @@ E2 v1.1.0-alpha executes the Trend Continuation V2 research strategy only. The v
 
 Range Mean Reversion and Range Breakout remain unimplemented and cannot produce candidates, plans, orders, or reports.
 
+The shared H4 engine can classify RANGE using affirmative completed-candle evidence: neither verified trend predicate may pass, ADX(14) must be at most 20, and the latest 20 completed H4 highs/lows must span no more than 6.0 ATR(14). Failure of both trend and range evidence remains neutral/unclassified. These H4 measurements are regime evidence only; they are not H1 trade boundaries.
+
 ## Trade construction
 
 The structural stop and opposing-zone target are selected by the V2 planner without look-ahead. Risk is sized from the fixed initial Tester balance using the configured risk percentage.

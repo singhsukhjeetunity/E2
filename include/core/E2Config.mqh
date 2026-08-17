@@ -36,12 +36,11 @@ input int InpResearchH4EmaSlopeLookback = 5;
 input int InpResearchH4AtrPeriod = 14;
 input double InpResearchH4StructuralBreakoutDistanceAtr = 0.10;
 input double InpResearchH4TrendExtensionLimitAtr = 1.50;
+input double InpH4RangeAdxMaximum = 20.0;
+input int InpH4RangeContainmentLookback = 20;
+input double InpH4RangeMaximumWidthAtr = 6.0;
 
 input group "RANGE CLASSIFICATION"
-input double InpResearchRangeClusterVariationMaximumAtr = 0.50;
-input double InpResearchRangeMinimumHeightAtr = 3.00;
-input double InpResearchRangeEma50FlatnessMaximumAtr = 0.10;
-input double InpResearchRangeBoundaryInvalidationAtr = 0.25;
 input double InpResearchRangeOuterEntryRegionFraction = 0.20;
 
 input group "TIMEFRAMES"
@@ -142,10 +141,9 @@ struct E2Config
    int             research_h4_atr_period;
    double          research_h4_structural_breakout_distance_atr;
    double          research_h4_trend_extension_limit_atr;
-   double          research_range_cluster_variation_maximum_atr;
-   double          research_range_minimum_height_atr;
-   double          research_range_ema50_flatness_maximum_atr;
-   double          research_range_boundary_invalidation_atr;
+   double          h4_range_adx_maximum;
+   int             h4_range_containment_lookback;
+   double          h4_range_maximum_width_atr;
    double          research_range_outer_entry_region_fraction;
 
    ENUM_TIMEFRAMES trend_timeframe;
@@ -234,10 +232,9 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.research_h4_atr_period                 = InpResearchH4AtrPeriod;
    configuration.research_h4_structural_breakout_distance_atr = InpResearchH4StructuralBreakoutDistanceAtr;
    configuration.research_h4_trend_extension_limit_atr  = InpResearchH4TrendExtensionLimitAtr;
-   configuration.research_range_cluster_variation_maximum_atr = InpResearchRangeClusterVariationMaximumAtr;
-   configuration.research_range_minimum_height_atr      = InpResearchRangeMinimumHeightAtr;
-   configuration.research_range_ema50_flatness_maximum_atr = InpResearchRangeEma50FlatnessMaximumAtr;
-   configuration.research_range_boundary_invalidation_atr = InpResearchRangeBoundaryInvalidationAtr;
+   configuration.h4_range_adx_maximum                   = InpH4RangeAdxMaximum;
+   configuration.h4_range_containment_lookback          = InpH4RangeContainmentLookback;
+   configuration.h4_range_maximum_width_atr             = InpH4RangeMaximumWidthAtr;
    configuration.research_range_outer_entry_region_fraction = InpResearchRangeOuterEntryRegionFraction;
    configuration.trend_timeframe                        = InpTrendTimeframe;
    configuration.zone_timeframe                         = InpZoneTimeframe;
@@ -343,6 +340,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
      {
       reason = "H1 Zone V2 research values are invalid.";
      return(false);
+     }
+   if(configuration.h4_range_adx_maximum < 0.0 || configuration.h4_range_containment_lookback < 1 || configuration.h4_range_maximum_width_atr <= 0.0)
+     {
+      reason = "H4 range-regime values are invalid.";
+      return(false);
      }
    if(configuration.research_m15_body_median_lookback < 1 || configuration.research_m15_momentum_body_multiplier <= 0.0 || configuration.research_m15_momentum_body_range_minimum < 0.0 || configuration.research_m15_momentum_body_range_minimum > 1.0 || configuration.research_m15_momentum_closing_location_fraction < 0.0 || configuration.research_m15_momentum_closing_location_fraction > 1.0 || configuration.research_m15_rejection_wick_body_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum > 1.0)
      {

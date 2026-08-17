@@ -18,7 +18,7 @@ A future setup becomes active by implementing a setup engine that emits the cano
 
 ## 3. Timeframe hierarchy
 
-- H4 owns structural regime, EMA/ADX/ATR context, ranges, and anti-extension eligibility.
+- H4 owns structural regime, EMA/ADX/ATR context, affirmative containment-based RANGE classification, and anti-extension eligibility.
 - H1 owns persistent support/resistance zones and their lifecycle.
 - M15 owns Trend Continuation retest/confirmation progression and the designated next-candle entry window.
 
@@ -55,7 +55,7 @@ MT5 rates/ticks
 |---|---|---|
 | Configuration | `include/core/E2Config.mqh` | Single input definition, load, and validation |
 | Market data | `include/analysis/E2MarketData.mqh` | Synchronized causal closed-bar access |
-| H4 regime | `E2H4RegimeEngine.mqh` | Structure, EMA/ATR/ADX, ranges, trend eligibility |
+| H4 regime | `E2H4RegimeEngine.mqh` | Structure, EMA/ATR/ADX, trend eligibility, and affirmative H4 range evidence |
 | H1 zones | `E2H1ZoneEngine.mqh` | Persistent IDs, creation, invalidation, indexes, anti-resurrection |
 | Setup state | `E2TrendContinuationEngine.mqh` | Breakout, retest, attempt ownership, confirmation, deduplication |
 | M15 confirmation | `E2M15ConfirmationEngine.mqh` | Completed-candle momentum and rejection measurements |
@@ -113,3 +113,5 @@ H4, H1, and M15 orchestration advances only when the corresponding completed sou
 ## 12. Extension point
 
 A future setup engine must emit setup-specific candidate state carrying `E2StrategyType`, receive an explicit planner route, and reuse shared filters, sizing, execution, management, and reporting. It must not mutate H4 regime or H1 zone state and cannot fall through the Trend Continuation route.
+
+RANGE is not inferred from trend absence alone. After unchanged UPTREND/DOWNTREND predicates fail, the engine requires completed-candle ADX and normalized 20-H4 containment evidence; otherwise the regime remains transition/unclassified. H4 containment high/low are classification measurements, never executable H1 boundaries. See [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md).

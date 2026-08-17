@@ -77,7 +77,7 @@ private:
       ObjectSetInteger(m_chart_id,name,OBJPROP_TIMEFRAMES,H4());ObjectSetInteger(m_chart_id,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);ObjectSetInteger(m_chart_id,name,OBJPROP_XDISTANCE,12);ObjectSetInteger(m_chart_id,name,OBJPROP_YDISTANCE,76);ObjectSetInteger(m_chart_id,name,OBJPROP_COLOR,clrLightSteelBlue);ObjectSetInteger(m_chart_id,name,OBJPROP_FONTSIZE,8);ObjectSetInteger(m_chart_id,name,OBJPROP_HIDDEN,false);
       const string highs=H4Structure(r.latest_swing_high,r.previous_swing_high,true),lows=H4Structure(r.latest_swing_low,r.previous_swing_low,false);const bool bull=(r.active_break_direction==E2_H4_BREAK_BULLISH),bear=(r.active_break_direction==E2_H4_BREAK_BEARISH);
       string text="E2 H4 REGIME V2\nREGIME: "+E2RegimeTypeName(r.regime)+"\nENTRY: "+(r.trend_overextended?"BLOCKED - OVEREXTENDED":(r.trend_entry_eligible?"ELIGIBLE":"N/A"))+"\nSTRUCTURE\nHighs: "+highs+" "+((highs=="HH"||highs=="LH")?"OK":"X")+"\nLows:  "+lows+" "+((lows=="HL"||lows=="LL")?"OK":"X")+"\nBreak: "+(bull?"BULL OK":(bear?"BEAR OK":"NONE"))+"\nTREND FILTERS\nEMA20 "+(r.ema20>r.ema50?">":"<=")+" EMA50\nEMA50 d5: "+DoubleToString(r.ema50-r.ema50_five_bars_ago,_Digits)+"\nADX: "+DoubleToString(r.adx,2)+" / 20\nExtension: "+DoubleToString(r.distance_close_to_ema20_atr,3)+" / 1.500 ATR\nATR: "+DoubleToString(r.atr,_Digits);
-      if(r.range_valid)text+="\nR"+IntegerToString(r.active_range_id)+" U="+DoubleToString(r.range_upper_centre,_Digits)+" L="+DoubleToString(r.range_lower_centre,_Digits)+" H="+DoubleToString((r.range_upper_centre-r.range_lower_centre)/r.atr,2)+" ATR";ObjectSetString(m_chart_id,name,OBJPROP_TEXT,text);
+      if(r.range_measurements_valid)text+="\nRANGE EVIDENCE H="+DoubleToString(r.range_high,_Digits)+" L="+DoubleToString(r.range_low,_Digits)+" W="+DoubleToString(r.normalized_range_width,2)+" ATR"+(r.range_valid?" PASS":" FAIL");ObjectSetString(m_chart_id,name,OBJPROP_TEXT,text);
      }
    void DrawH4RegimeSwing(const E2H4RegimeSwing &s,const string role)
      {
@@ -92,13 +92,6 @@ private:
       if(r.active_break_direction==E2_H4_BREAK_NONE || r.breakout_time<=0)return;const bool bull=(r.active_break_direction==E2_H4_BREAK_BULLISH);const string key="H4RV2_BREAK_"+(bull?"B_":"S_")+IntegerToString((int)r.breakout_time);const color shade=(bull?clrDodgerBlue:clrOrangeRed);
       if(Create(Id(key+"_LEVEL"),OBJ_TREND,H4(),r.breakout_time,r.broken_swing_price,r.closed_h4_time,r.broken_swing_price)){ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_COLOR,shade);ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_STYLE,STYLE_DASH);ObjectSetInteger(m_chart_id,Id(key+"_LEVEL"),OBJPROP_RAY_RIGHT,false);}
       Marker(Id(key+"_MARK"),H4(),r.breakout_time,r.breakout_close,bull,shade);ObjectSetInteger(m_chart_id,Id(key+"_MARK"),OBJPROP_WIDTH,3);H4RegimeLabel(key+"_LABEL",r.breakout_time,r.breakout_close,(bull?"BULL BREAK ":"BEAR BREAK ")+"+"+DoubleToString(r.breakout_distance_atr,2)+" ATR",shade);
-     }
-   void DrawH4RegimeRange(const E2H4RegimeResult &r)
-     {
-      if(r.range_confirmation_time<=0 || (r.range_upper_boundary<=r.range_lower_boundary))return;const datetime end=(r.range_invalidation_time>0?r.range_invalidation_time:r.closed_h4_time);const string key="H4RV2_RANGE_"+IntegerToString((int)r.range_confirmation_time);
-      const double levels[]={r.range_upper_boundary,r.range_lower_boundary,r.range_upper_centre,r.range_lower_centre};const string names[]={"UPPER","LOWER","UC","LC"};
-      for(int i=0;i<ArraySize(levels);i++)if(Create(Id(key+"_"+names[i]),OBJ_TREND,H4(),r.range_confirmation_time,levels[i],end,levels[i])){ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_COLOR,(i<2?clrMediumPurple:clrSlateGray));ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_STYLE,(i<2?STYLE_SOLID:STYLE_DOT));ObjectSetInteger(m_chart_id,Id(key+"_"+names[i]),OBJPROP_RAY_RIGHT,false);}
-      if(r.range_valid)H4RegimeLabel(key+"_LABEL",r.range_confirmation_time,r.range_upper_boundary,"R"+IntegerToString(r.active_range_id),clrMediumPurple);
      }
    void DrawH4RegimeEma(const E2H4RegimeResult &r)
      {
@@ -145,7 +138,7 @@ public:
      {
       if(!m_active || !m_config.visual_show_h4_regime_v2 || Period()!=PERIOD_H4 || !r.ready)return;
       DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h1);DeemphasizeH4RegimeSwing(true,m_h4rv2_active_h2);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l1);DeemphasizeH4RegimeSwing(false,m_h4rv2_active_l2);if(r.active_break_direction!=m_h4rv2_active_break_direction || r.breakout_time!=m_h4rv2_active_break)DeemphasizeH4RegimeBreak();
-      DrawH4RegimePanel(r);DrawH4RegimeSwing(r.latest_swing_high,"H1");DrawH4RegimeSwing(r.previous_swing_high,"H2");DrawH4RegimeSwing(r.latest_swing_low,"L1");DrawH4RegimeSwing(r.previous_swing_low,"L2");DrawH4RegimeBreak(r);DrawH4RegimeRange(r);DrawH4RegimeEma(r);
+      DrawH4RegimePanel(r);DrawH4RegimeSwing(r.latest_swing_high,"H1");DrawH4RegimeSwing(r.previous_swing_high,"H2");DrawH4RegimeSwing(r.latest_swing_low,"L1");DrawH4RegimeSwing(r.previous_swing_low,"L2");DrawH4RegimeBreak(r);DrawH4RegimeEma(r);
       if(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime || r.trend_entry_eligible!=m_h4rv2_last_eligible || r.trend_overextended!=m_h4rv2_last_overextended){const string key="H4RV2_REGIME_"+IntegerToString((int)r.closed_h4_time);if(Create(Id(key),OBJ_VLINE,H4(),r.closed_h4_time,0.0)){ObjectSetInteger(m_chart_id,Id(key),OBJPROP_COLOR,clrDarkSlateGray);ObjectSetInteger(m_chart_id,Id(key),OBJPROP_STYLE,STYLE_DOT);}const string marker=(!m_h4rv2_has_state || r.regime!=m_h4rv2_last_regime ? H4RegimeMarkerText(r.regime) : (r.trend_overextended?"EXT":"ELIG"));H4RegimeLabel(key+"_LABEL",r.closed_h4_time,r.latest_close,marker,clrSilver);}
      m_h4rv2_has_state=true;m_h4rv2_last_regime=r.regime;m_h4rv2_last_eligible=r.trend_entry_eligible;m_h4rv2_last_overextended=r.trend_overextended;m_h4rv2_last_time=r.closed_h4_time;m_h4rv2_last_ema20=r.ema20;m_h4rv2_last_ema50=r.ema50;m_h4rv2_active_h1=r.latest_swing_high.pivot_time;m_h4rv2_active_h2=r.previous_swing_high.pivot_time;m_h4rv2_active_l1=r.latest_swing_low.pivot_time;m_h4rv2_active_l2=r.previous_swing_low.pivot_time;m_h4rv2_active_break=r.breakout_time;m_h4rv2_active_break_direction=r.active_break_direction;Refresh();
      }
