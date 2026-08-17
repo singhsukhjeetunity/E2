@@ -5,6 +5,7 @@
 #include "..\\reporting\\E2TradeReporter.mqh"
 #include "..\\analysis\\E2H4RegimeEngine.mqh"
 #include "..\\analysis\\E2H1ZoneEngine.mqh"
+#include "..\\analysis\\E2H1RangeBoundaryEngine.mqh"
 
 // Read-only visual audit. It consumes existing runtime metadata only.
 class E2Visualizer
@@ -154,6 +155,17 @@ public:
          Marker(Id("H1ZV2_P1_"+zone.zone_id),H1(),zone.source_pivot_1_time,zone.source_pivot_1_price,zone.type==E2_H1_ZONE_V2_SUPPORT,clrSilver);Marker(Id("H1ZV2_P2_"+zone.zone_id),H1(),zone.source_pivot_2_time,zone.source_pivot_2_price,zone.type==E2_H1_ZONE_V2_SUPPORT,clrSilver);
          if(zone.invalidation_time>0)Marker(Id("H1ZV2_INVALID_"+zone.zone_id),H1(),zone.invalidation_time,zone.invalidation_close,zone.type==E2_H1_ZONE_V2_SUPPORT,clrOrange);
         }
+      Refresh();
+     }
+   void UpdateH1RangeBoundary(const E2H1RangeBoundaryContext &range,const datetime evaluation)
+     {
+      if(!m_active || !m_config.visual_show_h1_range_boundaries || Period()!=PERIOD_H1 || range.range_id=="")return;
+      const string key=Id("H1RANGE_"+range.range_id);const datetime end=(range.invalidation_time>0 ? range.invalidation_time : evaluation);const color shade=(range.valid ? clrDeepSkyBlue : clrDimGray);
+      if(Create(key+"_LOWER",OBJ_TREND,H1(),range.known_from_time,range.lower_reference_price,end,range.lower_reference_price)){ObjectSetInteger(m_chart_id,key+"_LOWER",OBJPROP_COLOR,shade);ObjectSetInteger(m_chart_id,key+"_LOWER",OBJPROP_WIDTH,2);ObjectSetInteger(m_chart_id,key+"_LOWER",OBJPROP_RAY_RIGHT,false);}
+      if(Create(key+"_UPPER",OBJ_TREND,H1(),range.known_from_time,range.upper_reference_price,end,range.upper_reference_price)){ObjectSetInteger(m_chart_id,key+"_UPPER",OBJPROP_COLOR,shade);ObjectSetInteger(m_chart_id,key+"_UPPER",OBJPROP_WIDTH,2);ObjectSetInteger(m_chart_id,key+"_UPPER",OBJPROP_RAY_RIGHT,false);}
+      if(Create(key+"_CENTER",OBJ_TREND,H1(),range.known_from_time,range.range_center,end,range.range_center)){ObjectSetInteger(m_chart_id,key+"_CENTER",OBJPROP_COLOR,clrSlateGray);ObjectSetInteger(m_chart_id,key+"_CENTER",OBJPROP_STYLE,STYLE_DOT);ObjectSetInteger(m_chart_id,key+"_CENTER",OBJPROP_RAY_RIGHT,false);}
+      const string state=(range.valid ? "ACTIVE" : "INVALID "+range.invalidation_reason);const string details="Range: "+range.range_id+"\nLower zone: "+range.lower_zone_id+"\nUpper zone: "+range.upper_zone_id+"\nKnown From: "+TimeToString(range.known_from_time,TIME_DATE|TIME_MINUTES)+"\nHeight: "+DoubleToString(range.range_height_atr,3)+" ATR\nState: "+state;
+      ObjectSetString(m_chart_id,key+"_LOWER",OBJPROP_TOOLTIP,details);ObjectSetString(m_chart_id,key+"_UPPER",OBJPROP_TOOLTIP,details);ObjectSetString(m_chart_id,key+"_CENTER",OBJPROP_TOOLTIP,details);Label(key+"_LABEL",H1(),range.known_from_time,range.upper_reference_price,"H1 RANGE "+DoubleToString(range.range_height_atr,2)+" ATR",shade);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,details);
       Refresh();
      }
    void UpdateM15ConfirmationV2(const E2M15ConfirmationResult &results[])

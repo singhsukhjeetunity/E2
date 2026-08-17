@@ -96,7 +96,8 @@ private:
    E2Logger *m_logger;
    int m_strength,m_lookback,m_atr_period,m_min_separation;
    double m_cluster_atr,m_departure_atr,m_invalidation_atr,m_rearm_atr;
-   datetime m_last_closed;
+   datetime m_last_closed,m_last_known_from;
+   double m_last_atr,m_last_close;
    bool m_has_cached,m_verbose;
    E2H1ZoneV2Record m_cached[];
    E2H1ZoneV2Verification m_verification;
@@ -292,10 +293,13 @@ private:
         }
      }
 public:
-   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_has_cached(false),m_verbose(false),m_persistent_initialized(false) {ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
+   E2H1ZoneEngine(void):m_market(NULL),m_logger(NULL),m_strength(3),m_lookback(240),m_atr_period(14),m_min_separation(3),m_cluster_atr(0.50),m_departure_atr(1.00),m_invalidation_atr(0.10),m_rearm_atr(0.50),m_last_closed(0),m_last_known_from(0),m_last_atr(0.0),m_last_close(0.0),m_has_cached(false),m_verbose(false),m_persistent_initialized(false) {ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
    void Initialize(const E2Config &config,E2MarketData &market,E2Logger &logger)
-     {m_market=&market;m_logger=&logger;m_verbose=config.research_verbose_diagnostics;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_has_cached=false;m_persistent_initialized=false;ArrayResize(m_cached,0);ArrayResize(m_persistent,0);ArrayResize(m_persistent_ids,0);ArrayResize(m_persistent_id_records,0);ArrayResize(m_active_support,0);ArrayResize(m_active_resistance,0);ArrayResize(m_seen_created,0);ArrayResize(m_seen_invalidated,0);ArrayResize(m_seen_expiry_survival,0);ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
+     {m_market=&market;m_logger=&logger;m_verbose=config.research_verbose_diagnostics;m_strength=3;m_lookback=config.zone_lookback_bars;m_atr_period=config.research_h1_atr_period;m_min_separation=config.research_h1_minimum_touch_separation_bars;m_cluster_atr=config.research_h1_zone_pivot_clustering_atr;m_departure_atr=config.research_h1_minimum_post_touch_departure_atr;m_invalidation_atr=config.research_h1_zone_invalidation_atr;m_rearm_atr=config.research_h1_zone_rearm_distance_atr;m_last_closed=0;m_last_known_from=0;m_last_atr=0.0;m_last_close=0.0;m_has_cached=false;m_persistent_initialized=false;ArrayResize(m_cached,0);ArrayResize(m_persistent,0);ArrayResize(m_persistent_ids,0);ArrayResize(m_persistent_id_records,0);ArrayResize(m_active_support,0);ArrayResize(m_active_resistance,0);ArrayResize(m_seen_created,0);ArrayResize(m_seen_invalidated,0);ArrayResize(m_seen_expiry_survival,0);ZeroMemory(m_verification);ZeroMemory(m_role_gate);ZeroMemory(m_departure_window);ZeroMemory(m_departure_magnitude);ZeroMemory(m_lifetime);ZeroMemory(m_persistent_diagnostics);ZeroMemory(m_workload);}
    datetime LastClosedTime(void) const { return(m_last_closed); }
+   datetime LastKnownFrom(void) const { return(m_last_known_from); }
+   double LastAtr(void) const { return(m_last_atr); }
+   double LastClose(void) const { return(m_last_close); }
    E2H1ZoneV2Verification Verification(void) const { return(m_verification); }
    E2H1ZoneV2RoleGate RoleGate(void) const { return(m_role_gate); }
    E2H1ZoneV2DepartureWindow DepartureWindow(void) const { return(m_departure_window); }
@@ -338,7 +342,7 @@ public:
       CopyRecords(result,m_persistent);
       RecountVerification(result);
       RecordLifetime(result,bars);
-      CopyRecords(m_cached,result);m_last_closed=latest.time;m_has_cached=true;LogNewEvents(result,latest.time+seconds);return(true);
+      CopyRecords(m_cached,result);m_last_closed=latest.time;m_last_known_from=latest.time+seconds;m_last_atr=atr[count-1];m_last_close=bars[count-1].close;m_has_cached=true;LogNewEvents(result,latest.time+seconds);return(true);
      }
   };
 

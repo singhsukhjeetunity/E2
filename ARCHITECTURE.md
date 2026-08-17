@@ -57,6 +57,7 @@ MT5 rates/ticks
 | Market data | `include/analysis/E2MarketData.mqh` | Synchronized causal closed-bar access |
 | H4 regime | `E2H4RegimeEngine.mqh` | Structure, EMA/ATR/ADX, trend eligibility, and affirmative H4 range evidence |
 | H1 zones | `E2H1ZoneEngine.mqh` | Persistent IDs, creation, invalidation, indexes, anti-resurrection |
+| H1 range boundaries | `E2H1RangeBoundaryEngine.mqh` | Read-only H4-RANGE/H1-zone pairing, frozen lifecycle, and verification |
 | Setup state | `E2TrendContinuationEngine.mqh` | Breakout, retest, attempt ownership, confirmation, deduplication |
 | M15 confirmation | `E2M15ConfirmationEngine.mqh` | Completed-candle momentum and rejection measurements |
 | Planning | `include/strategy/E2V2TradePlanEngine.mqh` | Entry-window revalidation, filters, stop, target, risk, management route |
@@ -70,7 +71,7 @@ MT5 rates/ticks
 
 ## 6. State ownership
 
-The H1 zone engine is the sole writer of zone lifecycle state. The Trend Continuation engine is the sole writer of breakout/retest/attempt/candidate state. The planner owns plan acceptance or rejection and does not mutate setup state. The execution engine owns one-shot submission identity and initial executed-position metadata. The position manager alone modifies post-entry stops. Reporting consumes registered entries and MT5 deals but cannot affect decisions.
+The H1 zone engine is the sole writer of zone lifecycle state. The H1 range-boundary engine is a read-only consumer that owns only its frozen selected-pair lifecycle. The Trend Continuation engine is the sole writer of breakout/retest/attempt/candidate state. The planner owns plan acceptance or rejection and does not mutate setup state. The execution engine owns one-shot submission identity and initial executed-position metadata. The position manager alone modifies post-entry stops. Reporting consumes registered entries and MT5 deals but cannot affect decisions.
 
 Read-only snapshots cross module boundaries. No reporting or visualization state is read by strategy code.
 
@@ -114,4 +115,4 @@ H4, H1, and M15 orchestration advances only when the corresponding completed sou
 
 A future setup engine must emit setup-specific candidate state carrying `E2StrategyType`, receive an explicit planner route, and reuse shared filters, sizing, execution, management, and reporting. It must not mutate H4 regime or H1 zone state and cannot fall through the Trend Continuation route.
 
-RANGE is not inferred from trend absence alone. After unchanged UPTREND/DOWNTREND predicates fail, the engine requires completed-candle ADX and normalized 20-H4 containment evidence; otherwise the regime remains transition/unclassified. H4 containment high/low are classification measurements, never executable H1 boundaries. See [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md).
+RANGE is not inferred from trend absence alone. After unchanged UPTREND/DOWNTREND predicates fail, the engine requires completed-candle ADX and normalized 20-H4 containment evidence; otherwise the regime remains transition/unclassified. H4 containment high/low remain classification measurements. A separate completed-H1 event layer selects frozen support/resistance midpoint references for future range research without adding strategy routing. See [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md) and [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md).

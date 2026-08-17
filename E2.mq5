@@ -16,6 +16,7 @@
 #include "include\\analysis\\E2MarketData.mqh"
 #include "include\\analysis\\E2H4RegimeEngine.mqh"
 #include "include\\analysis\\E2H1ZoneEngine.mqh"
+#include "include\\analysis\\E2H1RangeBoundaryEngine.mqh"
 #include "include\\analysis\\E2M15ConfirmationEngine.mqh"
 #include "include\\analysis\\E2TrendContinuationEngine.mqh"
 #include "include\\strategy\\E2V2TradePlanEngine.mqh"
@@ -37,6 +38,7 @@ E2BacktestSummary g_backtest_summary;
 E2MarketData g_market_data;
 E2H4RegimeEngine g_h4_regime_engine;
 E2H1ZoneEngine g_h1_zone_engine;
+E2H1RangeBoundaryEngine g_h1_range_boundary_engine;
 E2M15ConfirmationEngine g_m15_confirmation_engine;
 E2TrendContinuationEngine g_trend_continuation_engine;
 E2V2TradePlanEngine g_v2_trade_plan_engine;
@@ -57,6 +59,9 @@ datetime g_last_m15_confirmation_v2_bar=0;
 datetime g_last_h4_v2_bar=0,g_last_h1_v2_bar=0,g_last_tc_v2_bar=0;
 ulong g_v2_h4_calls=0,g_v2_h1_calls=0,g_v2_m15_calls=0,g_v2_m15_contexts=0;
 E2H1ZoneV2Record g_h1_v2_zones[];
+E2H4RegimeResult g_current_h4_regime;
+bool g_has_current_h4_regime=false;
+E2H1RangeBoundaryContext g_current_h1_range;
 
 string E2YesNo(const bool value)
   {
@@ -76,7 +81,7 @@ void E2RunH4RegimeV2(void)
    g_v2_h4_calls++;
    E2H4RegimeResult result;
    if(g_h4_regime_engine.Evaluate(_Symbol,TimeCurrent(),result))
-      g_visualizer.UpdateH4RegimeV2(result);
+     {g_current_h4_regime=result;g_has_current_h4_regime=true;g_visualizer.UpdateH4RegimeV2(result);}
   }
 
 void E2RunH1ZoneV2(void)
@@ -90,6 +95,8 @@ void E2RunH1ZoneV2(void)
       const datetime closed_h1=g_h1_zone_engine.LastClosedTime();
       if(closed_h1!=g_last_h1_zone_v2_visual_bar)
         {g_last_h1_zone_v2_visual_bar=closed_h1;g_visualizer.UpdateH1ZoneV2(zones,TimeCurrent());}
+      if(g_has_current_h4_regime)
+        {g_h1_range_boundary_engine.Evaluate(_Symbol,TimeCurrent(),g_current_h4_regime,zones,g_h1_zone_engine.LastKnownFrom(),g_h1_zone_engine.LastClose(),g_h1_zone_engine.LastAtr(),g_current_h1_range);g_visualizer.UpdateH1RangeBoundary(g_current_h1_range,TimeCurrent());}
      }
   }
 
@@ -140,6 +147,9 @@ int OnInit()
    g_v2_h1_calls=0;
    g_v2_m15_calls=0;
    g_v2_m15_contexts=0;
+   g_has_current_h4_regime=false;
+   ZeroMemory(g_current_h4_regime);
+   ZeroMemory(g_current_h1_range);
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
    g_logger.Info("E2 initialization started.","Lifecycle");
 
@@ -163,6 +173,7 @@ int OnInit()
    g_market_data.Initialize(g_configuration,g_logger);
    g_h4_regime_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_h1_zone_engine.Initialize(g_configuration,g_market_data,g_logger);
+   g_h1_range_boundary_engine.Initialize(g_configuration,g_logger);
    g_m15_confirmation_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_trend_continuation_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
    g_session_filter.Initialize(g_configuration);
@@ -204,7 +215,10 @@ void OnDeinit(const int reason)
       E2V2ExecutionVerification ev=g_v2_execution_engine.Verification();
       E2V2ManagementDiagnostics mv=g_v2_position_manager.Diagnostics();
       E2H4RangeVerification hv=g_h4_regime_engine.RangeVerification();
+      E2H1RangeVerification h1rv=g_h1_range_boundary_engine.Verification();
       g_logger.Info("h4Contexts="+IntegerToString((int)hv.h4_contexts)+", uptrendContexts="+IntegerToString((int)hv.uptrend_contexts)+", downtrendContexts="+IntegerToString((int)hv.downtrend_contexts)+", rangeContexts="+IntegerToString((int)hv.range_contexts)+", neutralContexts="+IntegerToString((int)hv.neutral_contexts)+", insufficientData="+IntegerToString((int)hv.insufficient_data)+", rangeAdxPass="+IntegerToString((int)hv.range_adx_pass)+", rangeContainmentChecks="+IntegerToString((int)hv.range_containment_checks)+", rangeWidthPass="+IntegerToString((int)hv.range_width_pass)+", rangeClassifications="+IntegerToString((int)hv.range_classifications)+", causalityViolations="+IntegerToString((int)hv.causality_violations)+", avgRangeWidthATR="+DoubleToString(hv.average_range_width_atr,3)+", minRangeWidthATR="+DoubleToString(hv.minimum_range_width_atr,3)+", maxRangeWidthATR="+DoubleToString(hv.maximum_range_width_atr,3),"H4_RANGE_VERIFY");
+      g_logger.Info("h1Contexts="+IntegerToString((int)h1rv.h1_contexts)+", h4RangeContextsObserved="+IntegerToString((int)h1rv.h4_range_contexts_observed)+", contextsWithSupport="+IntegerToString((int)h1rv.contexts_with_support)+", contextsWithResistance="+IntegerToString((int)h1rv.contexts_with_resistance)+", pairChecks="+IntegerToString((int)h1rv.pair_checks)+", pairsOrderValid="+IntegerToString((int)h1rv.pairs_order_valid)+", pairsContainmentPass="+IntegerToString((int)h1rv.pairs_containment_pass)+", pairsHeightPass="+IntegerToString((int)h1rv.pairs_height_pass)+", rangesCreated="+IntegerToString((int)h1rv.ranges_created)+", rangesInvalidatedH4Loss="+IntegerToString((int)h1rv.ranges_invalidated_h4_loss)+", rangesInvalidatedLowerZone="+IntegerToString((int)h1rv.ranges_invalidated_lower_zone)+", rangesInvalidatedUpperZone="+IntegerToString((int)h1rv.ranges_invalidated_upper_zone)+", rangesInvalidatedLowerBreak="+IntegerToString((int)h1rv.ranges_invalidated_lower_break)+", rangesInvalidatedUpperBreak="+IntegerToString((int)h1rv.ranges_invalidated_upper_break)+", activeRangeAtEnd="+E2YesNo(h1rv.active_range_at_end),"H1_RANGE_VERIFY");
+      g_logger.Info("duplicateRangeIds="+IntegerToString((int)h1rv.duplicate_range_ids)+", boundaryMutationViolations="+IntegerToString((int)h1rv.boundary_mutation_violations)+", causalityViolations="+IntegerToString((int)h1rv.causality_violations)+", avgRangeHeightATR="+DoubleToString(h1rv.average_range_height_atr,3)+", minRangeHeightATR="+DoubleToString(h1rv.minimum_range_height_atr,3)+", maxRangeHeightATR="+DoubleToString(h1rv.maximum_range_height_atr,3)+", maxCandidatePairs="+IntegerToString((int)h1rv.max_candidate_pairs),"H1_RANGE_VERIFY_2");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", uptrend="+IntegerToString((int)g.uptrend)+", eligible="+IntegerToString((int)g.eligible)+", resistanceBars="+IntegerToString((int)g.resistance_bar)+", resistanceObs="+IntegerToString((int)g.resistance_observations)+", checks="+IntegerToString((int)g.resistance_checks)+", aboveEdge="+IntegerToString((int)g.above_edge)+", distancePass="+IntegerToString((int)g.distance_long)+", accepted="+IntegerToString(v.break_long),"TCV2_GATE_LONG");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", downtrend="+IntegerToString((int)g.downtrend)+", eligible="+IntegerToString((int)g.eligible)+", supportBars="+IntegerToString((int)g.support_bar)+", supportObs="+IntegerToString((int)g.support_observations)+", checks="+IntegerToString((int)g.support_checks)+", belowEdge="+IntegerToString((int)g.below_edge)+", distancePass="+IntegerToString((int)g.distance_short)+", accepted="+IntegerToString(v.break_short),"TCV2_GATE_SHORT");
       g_logger.Info("h1Bars="+IntegerToString((int)g.h1_bars)+", zero="+IntegerToString((int)g.zero_zone)+", nonzero="+IntegerToString((int)g.nonzero_zone)+", maxZones="+IntegerToString((int)g.max_zones)+", maxSupport="+IntegerToString((int)g.max_support)+", maxResistance="+IntegerToString((int)g.max_resistance),"TCV2_ZONE_SUPPLY");

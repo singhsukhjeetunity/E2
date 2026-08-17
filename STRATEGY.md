@@ -14,6 +14,8 @@ E2 v1.1.0-alpha executes the Trend Continuation V2 research strategy only. The v
 
 Range Mean Reversion and Range Breakout remain unimplemented and cannot produce candidates, plans, orders, or reports.
 
+When H4 is affirmatively RANGE, a separate read-only H1 research layer may freeze the widest valid active SUPPORT/RESISTANCE midpoint pair contained by the H4 evidence envelope. This context is not a setup and has no planner or execution route. Its deterministic selection and prospective invalidation contract is documented in [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md).
+
 The shared H4 engine can classify RANGE using affirmative completed-candle evidence: neither verified trend predicate may pass, ADX(14) must be at most 20, and the latest 20 completed H4 highs/lows must span no more than 6.0 ATR(14). Failure of both trend and range evidence remains neutral/unclassified. These H4 measurements are regime evidence only; they are not H1 trade boundaries.
 
 ## Trade construction
@@ -33,4 +35,4 @@ All strategy observations use completed bars and explicit known-from timestamps.
 
 Session/news filtering, quote/spread/deviation controls, position ownership, one-position protection, native broker validation, authoritative deal reporting, restart recovery, monotonic stop changes, and broker stop/freeze constraints remain shared infrastructure.
 
-Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H1_ZONE_V2.md](H1_ZONE_V2.md), [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md), [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md), [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md), [EXECUTION_V2.md](EXECUTION_V2.md), and [POSITION_MANAGEMENT_V2.md](POSITION_MANAGEMENT_V2.md).
+Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md), [H1_ZONE_V2.md](H1_ZONE_V2.md), [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md), [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md), [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md), [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md), [EXECUTION_V2.md](EXECUTION_V2.md), and [POSITION_MANAGEMENT_V2.md](POSITION_MANAGEMENT_V2.md).

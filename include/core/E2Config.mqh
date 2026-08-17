@@ -42,6 +42,9 @@ input double InpH4RangeMaximumWidthAtr = 6.0;
 
 input group "RANGE CLASSIFICATION"
 input double InpResearchRangeOuterEntryRegionFraction = 0.20;
+input double InpRangeBoundaryContainmentToleranceAtr = 0.25;
+input double InpRangeBoundaryMinimumHeightAtr = 3.0;
+input double InpResearchRangeBoundaryInvalidationAtr = 0.25;
 
 input group "TIMEFRAMES"
 input ENUM_TIMEFRAMES InpTrendTimeframe        = PERIOD_H4;  // H4 market structure timeframe.
@@ -116,6 +119,7 @@ input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
 input bool InpVisualShowH4RegimeV2 = true; // Read-only H4 Regime V2 audit overlay.
 input bool InpVisualShowH1ZoneV2 = true; // Read-only H1 Zone V2 audit overlay.
+input bool InpVisualShowH1RangeBoundaries = true; // Read-only frozen range-boundary audit overlay.
 input bool InpVisualShowM15ConfirmationV2 = true; // Read-only M15 Confirmation V2 audit overlay.
 input bool InpVisualShowTrendContinuationV2 = true; // Read-only Trend Continuation V2 audit overlay.
 input E2VisualAuditMode InpVisualAuditMode = E2_VISUAL_ALL_TRADES;
@@ -145,6 +149,9 @@ struct E2Config
    int             h4_range_containment_lookback;
    double          h4_range_maximum_width_atr;
    double          research_range_outer_entry_region_fraction;
+   double          range_boundary_containment_tolerance_atr;
+   double          range_boundary_minimum_height_atr;
+   double          research_range_boundary_invalidation_atr;
 
    ENUM_TIMEFRAMES trend_timeframe;
    ENUM_TIMEFRAMES zone_timeframe;
@@ -205,6 +212,7 @@ struct E2Config
    bool            visual_show_trades;
    bool            visual_show_h4_regime_v2;
    bool            visual_show_h1_zone_v2;
+   bool            visual_show_h1_range_boundaries;
    bool            visual_show_m15_confirmation_v2;
    bool            visual_show_trend_continuation_v2;
    E2VisualAuditMode visual_audit_mode;
@@ -236,6 +244,9 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.h4_range_containment_lookback          = InpH4RangeContainmentLookback;
    configuration.h4_range_maximum_width_atr             = InpH4RangeMaximumWidthAtr;
    configuration.research_range_outer_entry_region_fraction = InpResearchRangeOuterEntryRegionFraction;
+   configuration.range_boundary_containment_tolerance_atr = InpRangeBoundaryContainmentToleranceAtr;
+   configuration.range_boundary_minimum_height_atr = InpRangeBoundaryMinimumHeightAtr;
+   configuration.research_range_boundary_invalidation_atr = InpResearchRangeBoundaryInvalidationAtr;
    configuration.trend_timeframe                        = InpTrendTimeframe;
    configuration.zone_timeframe                         = InpZoneTimeframe;
    configuration.confirmation_timeframe                 = InpConfirmationTimeframe;
@@ -288,6 +299,7 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.visual_show_trades                     = InpVisualShowTrades;
    configuration.visual_show_h4_regime_v2               = InpVisualShowH4RegimeV2;
    configuration.visual_show_h1_zone_v2                 = InpVisualShowH1ZoneV2;
+   configuration.visual_show_h1_range_boundaries         = InpVisualShowH1RangeBoundaries;
    configuration.visual_show_m15_confirmation_v2        = InpVisualShowM15ConfirmationV2;
    configuration.visual_show_trend_continuation_v2      = InpVisualShowTrendContinuationV2;
    configuration.visual_audit_mode                      = InpVisualAuditMode;
@@ -344,6 +356,11 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
    if(configuration.h4_range_adx_maximum < 0.0 || configuration.h4_range_containment_lookback < 1 || configuration.h4_range_maximum_width_atr <= 0.0)
      {
       reason = "H4 range-regime values are invalid.";
+     return(false);
+     }
+   if(configuration.range_boundary_containment_tolerance_atr < 0.0 || configuration.range_boundary_minimum_height_atr <= 0.0 || configuration.research_range_boundary_invalidation_atr < 0.0)
+     {
+      reason = "H1 range-boundary values are invalid.";
       return(false);
      }
    if(configuration.research_m15_body_median_lookback < 1 || configuration.research_m15_momentum_body_multiplier <= 0.0 || configuration.research_m15_momentum_body_range_minimum < 0.0 || configuration.research_m15_momentum_body_range_minimum > 1.0 || configuration.research_m15_momentum_closing_location_fraction < 0.0 || configuration.research_m15_momentum_closing_location_fraction > 1.0 || configuration.research_m15_rejection_wick_body_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum < 0.0 || configuration.research_m15_rejection_wick_range_minimum > 1.0)
