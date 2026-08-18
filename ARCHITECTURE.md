@@ -72,7 +72,7 @@ MT5 rates/ticks
 
 ## 6. State ownership
 
-The H1 zone engine is the sole writer of zone lifecycle state. The H1 range-boundary engine is a read-only consumer that owns only its frozen selected-pair lifecycle. The Trend Continuation and Range Mean-Reversion engines independently own their setup-specific attempt and candidate state. The planner owns plan acceptance or rejection and does not mutate setup state; it has no Range Mean-Reversion route yet. The execution engine owns one-shot submission identity and initial executed-position metadata. The position manager alone modifies post-entry stops. Reporting consumes registered entries and MT5 deals but cannot affect decisions.
+The H1 zone engine is the sole writer of zone lifecycle state. The H1 range-boundary engine is a read-only consumer that owns only its frozen selected-pair lifecycle. The Trend Continuation and Range Mean-Reversion engines independently own their setup-specific attempt and candidate state. The shared planner owns plan acceptance or rejection and applies explicit setup geometry before common filters/risk. The execution engine owns one-shot submission identity and initial executed-position metadata. The position manager alone modifies post-entry stops. Reporting consumes registered entries and MT5 deals but cannot affect decisions.
 
 Read-only snapshots cross module boundaries. No reporting or visualization state is read by strategy code.
 
@@ -114,10 +114,12 @@ H4, H1, and M15 orchestration advances only when the corresponding completed sou
 
 ## 12. Extension point
 
-A setup engine emits setup-specific candidate state carrying `E2StrategyType` and must receive an explicit planner route before it can trade. Range Mean-Reversion currently stops at candidate visualization and diagnostics. It does not mutate H4 regime, H1 range, or H1 zone state and cannot fall through the Trend Continuation route.
+A setup engine emits setup-specific candidate state carrying `E2StrategyType` and must receive an explicit planner route before it can trade. Range Mean-Reversion has its own route into the shared filters, sizing, execution, zone-target management, persistence, reporting, and setup-filtered summary. It does not mutate H4 regime, H1 range, or H1 zone state and cannot fall through the Trend Continuation geometry route.
 
 RANGE is not inferred from trend absence alone. After unchanged UPTREND/DOWNTREND predicates fail, the engine requires completed-candle ADX and normalized 20-H4 containment evidence; otherwise the regime remains transition/unclassified. H4 containment high/low remain classification measurements. A separate completed-H1 event layer selects frozen support/resistance midpoint references for future range research without adding strategy routing. See [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md) and [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md).
 
 Range Mean-Reversion consumes that frozen context once per completed M15 bar. Its outer-region approach, actual source-zone challenge, rearm, rejection, identity, collision, and causal contracts are defined in [RANGE_MEAN_REVERSION.md](RANGE_MEAN_REVERSION.md).
 
 Momentum and rejection are separate paths inside the shared confirmation owner. Trend Continuation consumes momentum; Range Mean-Reversion requests one directional rejection and carries the returned measurements unchanged. See [M15_CONFIRMATION.md](M15_CONFIRMATION.md).
+
+RMR execution revalidates the same frozen range at the next M15 open, uses its challenged far edge plus the existing H1 structural buffer for SL, the opposing frozen zone near edge for TP, minimum 2R, and the existing zone-target milestone manager. See [RANGE_MEAN_REVERSION_EXECUTION.md](RANGE_MEAN_REVERSION_EXECUTION.md).

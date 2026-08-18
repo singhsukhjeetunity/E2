@@ -7,6 +7,7 @@
 - Persistent H1 support/resistance zones with stable IDs, prospective invalidation, indexed active iteration, and anti-resurrection behavior.
 - Deterministic frozen H1 range-boundary selection from active zones while H4 is RANGE, with prospective invalidation and no trading route.
 - Candidate-only Range Mean-Reversion state with interior approach, source-zone challenge, independent side attempts, rearm, existing rejection routing, and deterministic deduplication.
+- Executable Range Mean-Reversion planning with frozen structural SL/TP geometry, shared filters/risk/native execution, zone-target trailing, persisted setup identity, and separate reporting/summary diagnostics.
 - Completed-M15 confirmation measurements.
 - Explicit deterministic M15 rejection results with strict recovery, ordered failures, causal enforcement, raw audit measurements, and bounded reuse.
 - Trend Continuation breakout, retest, attempt ownership, confirmation, candidate generation, and deduplication.
@@ -18,7 +19,7 @@
 - Complete Trend Continuation lifecycle reporting with setup-filtered funnel/results, immutable-original-R accounting, management-branch breakdowns, and conservative exit classification.
 - Bounded semantic-regression/invariant counters.
 
-Trend Continuation remains the only executable setup. Range Mean-Reversion now has a candidate-producing setup engine but no planner or trading route. Range Breakout remains inert.
+Trend Continuation and Range Mean-Reversion are independently selectable executable setups sharing exposure, sizing, native execution, management, and reporting infrastructure. Range Breakout remains inert.
 
 ## Mechanically verified
 
@@ -48,3 +49,5 @@ Sprint 2.2 H1 boundary selection is implemented and compile-verified. Tester ver
 Sprint 2.3 Range Mean-Reversion setup state is implemented and compile-verified. Tester verification must confirm a nonzero raw candidate stream when enabled, zero duplicates/causality violations, correct manual boundary examples, no RMR plans or trades, and the unchanged disabled-RMR Trend Continuation fingerprint.
 
 The M15 rejection audit/hardening is compile-verified. Runtime verification must preserve the verified 6 LONG / 4 SHORT RMR candidate baseline absent a genuine data-geometry defect, maintain the frozen Trend Continuation fingerprint, and satisfy both confirmation and RMR causality invariants.
+
+Range Mean-Reversion planning/execution integration is compile-verified. TC-only, RMR-only, and combined Tester runs remain required to validate frozen raw fingerprints, positive RMR plan supply, shared position arbitration, setup-specific management/reporting invariants, and independent summary rows.

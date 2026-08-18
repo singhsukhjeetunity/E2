@@ -5,9 +5,9 @@
 
 struct E2ReportEntryData
   {
-   string symbol,direction,strategy_type,candidate_id,plan_id,zone_id,target_zone_id,zone_role,management_branch,session;
+   string symbol,direction,strategy_type,candidate_id,plan_id,range_id,zone_id,target_zone_id,zone_role,management_branch,session;
    int zone_visit;
-   datetime breakout_candle_time,breakout_known_from,retest_time,retest_known_from,signal_time,confirmation_time,entry_time;
+   datetime breakout_candle_time,breakout_known_from,retest_time,retest_known_from,boundary_visit_time,boundary_visit_known_from,signal_time,confirmation_time,entry_time;
    double adx,planned_entry,fill_price,stop_loss,take_profit,zone_target,original_r_price,stop_pips,planned_rr,volume,equity,target_risk,planned_risk,planned_risk_pct;
    ulong order_ticket,entry_deal;
   };
@@ -67,7 +67,7 @@ private:
       const string outcome=Outcome(net),classification=ExitClassification(trade,exit_price);
       if(trade.entry.original_r_price<=0.0 || trade.entry.planned_risk<=0.0)m_invalid_original_r++;
       if(!MathIsValidNumber(realized_r))m_impossible_realized_r++;
-      string row[]={"E2-"+StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.strategy_type,trade.entry.candidate_id,trade.entry.plan_id,trade.entry.direction,trade.entry.zone_id,trade.entry.target_zone_id,trade.entry.zone_role,IntegerToString(trade.entry.zone_visit),TimeText(trade.entry.breakout_candle_time),TimeText(trade.entry.breakout_known_from),TimeText(trade.entry.retest_time),TimeText(trade.entry.retest_known_from),TimeText(trade.entry.confirmation_time),TimeText(trade.entry.signal_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),trade.entry.session,Number(trade.entry.adx,2),trade.entry.management_branch,Number(trade.entry.planned_entry),Number(trade.entry.fill_price),Number(trade.entry.stop_loss),Number(trade.entry.original_r_price),Number(trade.entry.take_profit),Number(trade.entry.zone_target),Number(trade.entry.stop_pips,2),Number(trade.entry.planned_rr,2),Number(trade.entry.volume,4),Number(trade.entry.equity,2),Number(trade.entry.target_risk,2),Number(trade.entry.planned_risk,2),Number(trade.entry.planned_risk_pct,4),StringFormat("%I64u",trade.position_id),StringFormat("%I64u",trade.entry.order_ticket),StringFormat("%I64u",trade.entry.entry_deal),Number(exit_price),trade.exit_reason,classification,outcome,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),IntegerToString((int)holding)};
+      string row[]={"E2-"+StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.strategy_type,trade.entry.candidate_id,trade.entry.plan_id,trade.entry.range_id,trade.entry.direction,trade.entry.zone_id,trade.entry.target_zone_id,trade.entry.zone_role,IntegerToString(trade.entry.zone_visit),TimeText(trade.entry.breakout_candle_time),TimeText(trade.entry.breakout_known_from),TimeText(trade.entry.retest_time),TimeText(trade.entry.retest_known_from),TimeText(trade.entry.boundary_visit_time),TimeText(trade.entry.boundary_visit_known_from),TimeText(trade.entry.confirmation_time),TimeText(trade.entry.signal_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),trade.entry.session,Number(trade.entry.adx,2),trade.entry.management_branch,Number(trade.entry.planned_entry),Number(trade.entry.fill_price),Number(trade.entry.stop_loss),Number(trade.entry.original_r_price),Number(trade.entry.take_profit),Number(trade.entry.zone_target),Number(trade.entry.stop_pips,2),Number(trade.entry.planned_rr,2),Number(trade.entry.volume,4),Number(trade.entry.equity,2),Number(trade.entry.target_risk,2),Number(trade.entry.planned_risk,2),Number(trade.entry.planned_risk_pct,4),StringFormat("%I64u",trade.position_id),StringFormat("%I64u",trade.entry.order_ticket),StringFormat("%I64u",trade.entry.entry_deal),Number(exit_price),trade.exit_reason,classification,outcome,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),IntegerToString((int)holding)};
       if(m_csv.IsInitialized()) m_csv.WriteRow(row);
       m_completed++; m_net_profit+=net; m_net_r+=realized_r;
       if(net>0.0)m_wins++; else if(net<0.0)m_losses++; else m_breakeven++;
@@ -90,7 +90,7 @@ public:
       m_run_id=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);StringReplace(m_run_id,".","");StringReplace(m_run_id,":","");StringReplace(m_run_id," ","_");
       if(!csv_enabled)return(true);
       if(!m_csv.Initialize("E2_trades_"+symbol+"_"+m_run_id+".csv",logger)) return(false);
-      string header[]={"trade_id","symbol","setup_type","candidate_id","plan_id","direction","source_zone_id","target_zone_id","zone_role","attempt_number","breakout_candle","breakout_known_from","retest_time","retest_known_from","confirmation_candle","confirmation_known_from","entry_time","close_time","session","entry_h4_adx","management_branch","planned_entry","actual_entry","original_sl","original_r_price","planned_tp","zone_target","stop_pips","planned_rr","volume","equity_at_entry","target_risk_cash","original_risk_cash","original_risk_pct","position_id","order_ticket","entry_deal_ticket","close_price","mt5_exit_reason","exit_classification","outcome","gross_profit","commission","swap","fees","realized_profit","realized_r","holding_minutes"};
+      string header[]={"trade_id","symbol","setup_type","candidate_id","plan_id","range_id","direction","source_zone_id","target_zone_id","zone_role","attempt_number","breakout_candle","breakout_known_from","retest_time","retest_known_from","boundary_visit_time","boundary_visit_known_from","confirmation_candle","confirmation_known_from","entry_time","close_time","session","entry_h4_adx","management_branch","planned_entry","actual_entry","original_sl","original_r_price","planned_tp","zone_target","stop_pips","planned_rr","volume","equity_at_entry","target_risk_cash","original_risk_cash","original_risk_pct","position_id","order_ticket","entry_deal_ticket","close_price","mt5_exit_reason","exit_classification","outcome","gross_profit","commission","swap","fees","realized_profit","realized_r","holding_minutes"};
       return(m_csv.WriteHeader(header));
      }
    void CaptureEntry(const E2ReportEntryData &entry)
@@ -134,6 +134,10 @@ public:
      }
    string RunId(void) const { return(m_run_id); }
    int FinalizedCount(void) const { return(m_completed); }
+   int DuplicateEntriesSuppressed(void)const{return(m_duplicate_entries_suppressed);}
+   int InvalidOriginalR(void)const{return(m_invalid_original_r);}
+   int ImpossibleRealizedR(void)const{return(m_impossible_realized_r);}
+   int UnresolvedForSetup(const string setup)const{int count=0;for(int i=0;i<ArraySize(m_open);i++)if(!m_open[i].finalized&&m_open[i].entry.strategy_type==setup)count++;return(count);}
    string InvariantSummary(void) const { return("duplicateEntriesSuppressed="+IntegerToString(m_duplicate_entries_suppressed)+", duplicateFinalizedRows=0, foreignDealsIgnored="+IntegerToString(m_foreign_deals_ignored)+", unregisteredE2ExitsIgnored="+IntegerToString(m_unregistered_e2_exits_ignored)+", invalidOriginalR="+IntegerToString(m_invalid_original_r)+", impossibleRealizedR="+IntegerToString(m_impossible_realized_r)); }
    void FinalizedTrades(E2ReportedTrade &trades[]) const
      {

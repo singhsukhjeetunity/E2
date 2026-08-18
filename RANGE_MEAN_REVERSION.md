@@ -40,6 +40,8 @@ If both sides qualify at one timestamp, one winner is chosen by stronger wick/ra
 
 The emitted candidate embeds the authoritative confirmation result, including candle OHLC, zone geometry, body, full range, lower/upper/relevant wick, ratios, individual gates, failure classification, and known-from time. RMR does not recompute these measurements.
 
-## Separation from trading
+## Planning and execution
 
-`InpEnableRangeMeanReversion` controls only this raw candidate stream. Candidates are sent only to optional visualization. No planner route exists. Range Breakout remains inert.
+`InpEnableRangeMeanReversion` controls the raw candidate stream. Each candidate may now enter the shared planner at its next M15-open window. The planner revalidates H4 RANGE, the same active frozen range and source zones, shared filters, structural stop, opposing-boundary target, minimum 2R, and fixed-base risk before using native E2 execution. Full geometry, management, persistence, ownership, and reporting semantics are in [RANGE_MEAN_REVERSION_EXECUTION.md](RANGE_MEAN_REVERSION_EXECUTION.md).
+
+Range Breakout remains inert.
