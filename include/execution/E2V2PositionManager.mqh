@@ -57,6 +57,25 @@ public:
    void Initialize(const E2Config &config,E2Logger &logger){m_magic=config.expert_magic_number;m_initialized_at=TimeCurrent();m_logger=&logger;m_trade.SetAsyncMode(false);m_trade.SetExpertMagicNumber(m_magic);ArrayResize(m_states,0);ZeroMemory(m_diagnostics);ZeroMemory(m_rmr_diagnostics);CleanupOrphanedGlobals();Check();}
    void Check(){for(int i=0;i<PositionsTotal();i++){const ulong ticket=PositionGetTicket(i);if(ticket>0)ObserveSelected();}CleanupClosed();}
    E2V2ManagementDiagnostics Diagnostics()const{return(m_diagnostics);}
+   // The manager remains shared; this view isolates TC diagnostics from the
+   // separately accumulated RMR bucket without duplicating management logic.
+   E2V2ManagementDiagnostics TCDiagnostics()const
+     {
+      E2V2ManagementDiagnostics value=m_diagnostics;
+      value.positions_managed-=m_rmr_diagnostics.positions_managed;
+      value.trailing_positions_managed-=m_rmr_diagnostics.positions_managed;
+      value.management_checks-=m_rmr_diagnostics.management_checks;
+      value.milestone_2_reached-=m_rmr_diagnostics.milestone_2_reached;
+      value.higher_milestones_reached-=m_rmr_diagnostics.higher_milestones_reached;
+      value.sl_modify_attempts-=m_rmr_diagnostics.sl_modify_attempts;
+      value.sl_modify_success-=m_rmr_diagnostics.sl_modify_success;
+      value.sl_modify_failures-=m_rmr_diagnostics.sl_modify_failures;
+      value.broker_constraint_deferrals-=m_rmr_diagnostics.broker_constraint_deferrals;
+      value.stop_regression_violations-=m_rmr_diagnostics.stop_regression_violations;
+      value.invalid_original_r-=m_rmr_diagnostics.invalid_original_r;
+      value.recovered_positions-=m_rmr_diagnostics.recovered_positions;
+      return(value);
+     }
    E2RMRManagementDiagnostics RMRDiagnostics()const{return(m_rmr_diagnostics);}
   };
 

@@ -123,3 +123,6 @@ Range Mean-Reversion consumes that frozen context once per completed M15 bar. It
 Momentum and rejection are separate paths inside the shared confirmation owner. Trend Continuation consumes momentum; Range Mean-Reversion requests one directional rejection and carries the returned measurements unchanged. See [M15_CONFIRMATION.md](M15_CONFIRMATION.md).
 
 RMR execution revalidates the same frozen range at the next M15 open, uses its challenged far edge plus the existing H1 structural buffer for SL, the opposing frozen zone near edge for TP, minimum 2R, and the existing zone-target milestone manager. See [RANGE_MEAN_REVERSION_EXECUTION.md](RANGE_MEAN_REVERSION_EXECUTION.md).
+# Sprint 2.6 reporting
+
+Range Mean-Reversion reporting is transaction-driven and setup-isolated. See `RANGE_MEAN_REVERSION_REPORTING.md` for the candidate-to-deal identity chain, immutable original-R accounting, and TC/RMR/global management diagnostic ownership.

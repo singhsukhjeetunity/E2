@@ -51,3 +51,6 @@ Sprint 2.3 Range Mean-Reversion setup state is implemented and compile-verified.
 The M15 rejection audit/hardening is compile-verified. Runtime verification must preserve the verified 6 LONG / 4 SHORT RMR candidate baseline absent a genuine data-geometry defect, maintain the frozen Trend Continuation fingerprint, and satisfy both confirmation and RMR causality invariants.
 
 Range Mean-Reversion planning/execution integration is compile-verified. TC-only, RMR-only, and combined Tester runs remain required to validate frozen raw fingerprints, positive RMR plan supply, shared position arbitration, setup-specific management/reporting invariants, and independent summary rows.
+# Sprint 2.6
+
+Range Mean-Reversion reporting and setup-specific management diagnostics are implemented. Exact TC-only, RMR-only, and combined 2024 Strategy Tester validation remains the release gate.
