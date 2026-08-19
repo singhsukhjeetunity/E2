@@ -20,6 +20,7 @@
 #include "include\\analysis\\E2M15ConfirmationEngine.mqh"
 #include "include\\analysis\\E2TrendContinuationEngine.mqh"
 #include "include\\analysis\\E2RangeMeanReversionEngine.mqh"
+#include "include\\analysis\\E2RangeBreakoutEngine.mqh"
 #include "include\\strategy\\E2V2TradePlanEngine.mqh"
 #include "include\\filters\\E2SessionFilter.mqh"
 #include "include\\filters\\E2NewsFilter.mqh"
@@ -43,6 +44,7 @@ E2H1RangeBoundaryEngine g_h1_range_boundary_engine;
 E2M15ConfirmationEngine g_m15_confirmation_engine;
 E2TrendContinuationEngine g_trend_continuation_engine;
 E2RangeMeanReversionEngine g_range_mean_reversion_engine;
+E2RangeBreakoutEngine g_range_breakout_engine;
 E2V2TradePlanEngine g_v2_trade_plan_engine;
 E2SessionFilter g_session_filter;
 E2NewsFilter g_news_filter;
@@ -60,6 +62,7 @@ datetime g_last_h1_zone_v2_visual_bar=0;
 datetime g_last_m15_confirmation_v2_bar=0;
 datetime g_last_h4_v2_bar=0,g_last_h1_v2_bar=0,g_last_tc_v2_bar=0;
 datetime g_last_rmr_bar=0;
+datetime g_last_rb_bar=0;
 ulong g_v2_h4_calls=0,g_v2_h1_calls=0,g_v2_m15_calls=0,g_v2_m15_contexts=0;
 E2H1ZoneV2Record g_h1_v2_zones[];
 E2H4RegimeResult g_current_h4_regime;
@@ -91,6 +94,7 @@ void E2RunH1ZoneV2(void)
   {
    const datetime closed=iTime(_Symbol,PERIOD_H1,1);if(closed<=0 || closed==g_last_h1_v2_bar)return;g_last_h1_v2_bar=closed;
    g_v2_h1_calls++;
+   const E2H1RangeBoundaryContext pre_update_range=g_current_h1_range;
    E2H1ZoneV2Record zones[];
    if(g_h1_zone_engine.Evaluate(_Symbol,TimeCurrent(),zones))
      {
@@ -99,7 +103,7 @@ void E2RunH1ZoneV2(void)
       if(closed_h1!=g_last_h1_zone_v2_visual_bar)
         {g_last_h1_zone_v2_visual_bar=closed_h1;g_visualizer.UpdateH1ZoneV2(zones,TimeCurrent());}
       if(g_has_current_h4_regime)
-        {g_h1_range_boundary_engine.Evaluate(_Symbol,TimeCurrent(),g_current_h4_regime,zones,g_h1_zone_engine.LastKnownFrom(),g_h1_zone_engine.LastClose(),g_h1_zone_engine.LastAtr(),g_current_h1_range);g_visualizer.UpdateH1RangeBoundary(g_current_h1_range,TimeCurrent());}
+        {g_range_breakout_engine.ProcessPreEventH1(_Symbol,TimeCurrent(),g_current_h4_regime,pre_update_range,g_h1_zone_engine.LastAtr());g_h1_range_boundary_engine.Evaluate(_Symbol,TimeCurrent(),g_current_h4_regime,zones,g_h1_zone_engine.LastKnownFrom(),g_h1_zone_engine.LastClose(),g_h1_zone_engine.LastAtr(),g_current_h1_range);g_range_breakout_engine.ObservePostEventRange(g_current_h1_range);g_visualizer.UpdateH1RangeBoundary(g_current_h1_range,TimeCurrent());}
      }
   }
 
@@ -137,6 +141,14 @@ void E2RunRangeMeanReversion(void)
      {g_visualizer.UpdateRangeMeanReversion(candidates);for(int i=0;i<ArraySize(candidates);i++){E2V2TradePlan plan;if(g_v2_trade_plan_engine.RouteRangeMeanReversion(_Symbol,TimeCurrent(),candidates[i],g_current_h4_regime,g_current_h1_range,g_h1_v2_zones,plan)){E2V2ExecutionResult execution;g_v2_execution_engine.Execute(_Symbol,plan,execution);}}}
   }
 
+void E2RunRangeBreakout(void)
+  {
+   const datetime closed=iTime(_Symbol,PERIOD_M15,1);if(closed<=0||closed==g_last_rb_bar)return;g_last_rb_bar=closed;
+   if(!g_has_current_h4_regime)return;E2RangeBreakoutCandidate candidates[];
+   if(g_range_breakout_engine.EvaluateM15(_Symbol,TimeCurrent(),g_current_h4_regime,candidates))
+     {g_visualizer.UpdateRangeBreakout(candidates);for(int i=0;i<ArraySize(candidates);i++)if(g_configuration.research_verification_summary)g_logger.Info("id="+candidates[i].candidate_id+", range="+candidates[i].range_id+", direction="+(candidates[i].direction==E2_RB_LONG?"LONG":"SHORT")+", attempt="+IntegerToString(candidates[i].attempt_number)+", breakout="+TimeToString(candidates[i].breakout_candle,TIME_DATE|TIME_MINUTES)+", breakoutKnownFrom="+TimeToString(candidates[i].breakout_known_from,TIME_DATE|TIME_MINUTES)+", retest="+TimeToString(candidates[i].retest_time,TIME_DATE|TIME_MINUTES)+", retestKnownFrom="+TimeToString(candidates[i].retest_known_from,TIME_DATE|TIME_MINUTES)+", confirmation="+TimeToString(candidates[i].confirmation_candle,TIME_DATE|TIME_MINUTES)+", confirmationKnownFrom="+TimeToString(candidates[i].confirmation_known_from,TIME_DATE|TIME_MINUTES),"RB_CANDIDATE");}
+  }
+
 
 
 
@@ -155,6 +167,7 @@ int OnInit()
    g_last_h1_v2_bar=0;
    g_last_tc_v2_bar=0;
    g_last_rmr_bar=0;
+   g_last_rb_bar=0;
    g_v2_h4_calls=0;
    g_v2_h1_calls=0;
    g_v2_m15_calls=0;
@@ -189,6 +202,7 @@ int OnInit()
    g_m15_confirmation_engine.Initialize(g_configuration,g_market_data,g_logger);
    g_trend_continuation_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
    g_range_mean_reversion_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
+   g_range_breakout_engine.Initialize(g_configuration,g_market_data,g_m15_confirmation_engine,g_logger);
    g_session_filter.Initialize(g_configuration);
    g_news_filter.Initialize(g_configuration,g_logger);
    g_v2_trade_plan_engine.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_session_filter,g_news_filter,g_logger);
@@ -203,6 +217,7 @@ int OnInit()
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
    E2RunRangeMeanReversion();
+   E2RunRangeBreakout();
    E2RunTrendContinuationV2();
 
    g_logger.Info("Reporting initialized.","Lifecycle");
@@ -232,6 +247,8 @@ void OnDeinit(const int reason)
       E2H4RangeVerification hv=g_h4_regime_engine.RangeVerification();
       E2H1RangeVerification h1rv=g_h1_range_boundary_engine.Verification();
       E2RangeMeanReversionVerification rmrv=g_range_mean_reversion_engine.Verification();
+      E2RangeBreakoutVerification rbv=g_range_breakout_engine.Verification();
+      E2RBH1Verification rbh1=g_range_breakout_engine.H1Verification();
       E2M15RejectionVerification rejectionv=g_m15_confirmation_engine.RejectionVerification();
       E2RMRPlanVerification rmrpv=g_v2_trade_plan_engine.RMRVerification();
       E2RMRExecutionVerification rmrev=g_v2_execution_engine.RMRVerification();
@@ -240,6 +257,10 @@ void OnDeinit(const int reason)
       g_logger.Info("h1Contexts="+IntegerToString((int)h1rv.h1_contexts)+", h4RangeContextsObserved="+IntegerToString((int)h1rv.h4_range_contexts_observed)+", contextsWithSupport="+IntegerToString((int)h1rv.contexts_with_support)+", contextsWithResistance="+IntegerToString((int)h1rv.contexts_with_resistance)+", pairChecks="+IntegerToString((int)h1rv.pair_checks)+", pairsOrderValid="+IntegerToString((int)h1rv.pairs_order_valid)+", pairsContainmentPass="+IntegerToString((int)h1rv.pairs_containment_pass)+", pairsHeightPass="+IntegerToString((int)h1rv.pairs_height_pass)+", rangesCreated="+IntegerToString((int)h1rv.ranges_created)+", rangesInvalidatedH4Loss="+IntegerToString((int)h1rv.ranges_invalidated_h4_loss)+", rangesInvalidatedLowerZone="+IntegerToString((int)h1rv.ranges_invalidated_lower_zone)+", rangesInvalidatedUpperZone="+IntegerToString((int)h1rv.ranges_invalidated_upper_zone)+", rangesInvalidatedLowerBreak="+IntegerToString((int)h1rv.ranges_invalidated_lower_break)+", rangesInvalidatedUpperBreak="+IntegerToString((int)h1rv.ranges_invalidated_upper_break)+", activeRangeAtEnd="+E2YesNo(h1rv.active_range_at_end),"H1_RANGE_VERIFY");
       g_logger.Info("duplicateRangeIds="+IntegerToString((int)h1rv.duplicate_range_ids)+", boundaryMutationViolations="+IntegerToString((int)h1rv.boundary_mutation_violations)+", causalityViolations="+IntegerToString((int)h1rv.causality_violations)+", avgRangeHeightATR="+DoubleToString(h1rv.average_range_height_atr,3)+", minRangeHeightATR="+DoubleToString(h1rv.minimum_range_height_atr,3)+", maxRangeHeightATR="+DoubleToString(h1rv.maximum_range_height_atr,3)+", maxCandidatePairs="+IntegerToString((int)h1rv.max_candidate_pairs),"H1_RANGE_VERIFY_2");
       g_logger.Info("m15Contexts="+IntegerToString((int)rmrv.m15_contexts)+", h4RangeEligible="+IntegerToString((int)rmrv.h4_range_eligible)+", activeRangeContexts="+IntegerToString((int)rmrv.active_range_contexts)+", longInteriorArms="+IntegerToString((int)rmrv.long_interior_arms)+", shortInteriorArms="+IntegerToString((int)rmrv.short_interior_arms)+", longBoundaryVisits="+IntegerToString((int)rmrv.long_boundary_visits)+", shortBoundaryVisits="+IntegerToString((int)rmrv.short_boundary_visits)+", bullishRejectionPasses="+IntegerToString((int)rmrv.bullish_rejection_passes)+", bearishRejectionPasses="+IntegerToString((int)rmrv.bearish_rejection_passes)+", longCandidates="+IntegerToString((int)rmrv.long_candidates)+", shortCandidates="+IntegerToString((int)rmrv.short_candidates)+", totalCandidates="+IntegerToString((int)rmrv.total_candidates)+", rearmsLong="+IntegerToString((int)rmrv.rearms_long)+", rearmsShort="+IntegerToString((int)rmrv.rearms_short)+", duplicateCandidates="+IntegerToString((int)rmrv.duplicate_candidates)+", sameConfirmationCollisions="+IntegerToString((int)rmrv.same_confirmation_collisions)+", collisionResolutions="+IntegerToString((int)rmrv.collision_resolutions)+", causalityViolations="+IntegerToString((int)rmrv.causality_violations)+", invalidatedH4Loss="+IntegerToString((int)rmrv.invalidated_h4_loss)+", invalidatedRangeLoss="+IntegerToString((int)rmrv.invalidated_range_loss)+", maxAttemptsPerRangeLong="+IntegerToString((int)rmrv.max_attempts_per_range_long)+", maxAttemptsPerRangeShort="+IntegerToString((int)rmrv.max_attempts_per_range_short),"RMR_VERIFY");
+      g_logger.Info("m15Contexts="+IntegerToString((int)rbv.m15_contexts)+", h1Contexts="+IntegerToString((int)rbv.h1_contexts)+", h4RangeEligible="+IntegerToString((int)rbv.h4_range_eligible)+", activeRangeContexts="+IntegerToString((int)rbv.active_range_contexts)+", longBreakoutChecks="+IntegerToString((int)rbv.long_breakout_checks)+", shortBreakoutChecks="+IntegerToString((int)rbv.short_breakout_checks)+", longDistancePass="+IntegerToString((int)rbv.long_distance_pass)+", shortDistancePass="+IntegerToString((int)rbv.short_distance_pass)+", longStrongBodyPass="+IntegerToString((int)rbv.long_strong_body_pass)+", shortStrongBodyPass="+IntegerToString((int)rbv.short_strong_body_pass)+", longBreakoutsAccepted="+IntegerToString((int)rbv.long_breakouts_accepted)+", shortBreakoutsAccepted="+IntegerToString((int)rbv.short_breakouts_accepted)+", longRetests="+IntegerToString((int)rbv.long_retests)+", shortRetests="+IntegerToString((int)rbv.short_retests)+", bullishMomentumPasses="+IntegerToString((int)rbv.bullish_momentum_passes)+", bearishMomentumPasses="+IntegerToString((int)rbv.bearish_momentum_passes)+", longCandidates="+IntegerToString((int)rbv.long_candidates)+", shortCandidates="+IntegerToString((int)rbv.short_candidates)+", totalCandidates="+IntegerToString((int)rbv.total_candidates)+", expiredLong="+IntegerToString((int)rbv.expired_long)+", expiredShort="+IntegerToString((int)rbv.expired_short)+", invalidatedH4Loss="+IntegerToString((int)rbv.invalidated_h4_loss)+", invalidatedRangeLoss="+IntegerToString((int)rbv.invalidated_range_loss)+", invalidatedDepthLong="+IntegerToString((int)rbv.invalidated_depth_long)+", invalidatedDepthShort="+IntegerToString((int)rbv.invalidated_depth_short)+", rearmsLong="+IntegerToString((int)rbv.rearms_long)+", rearmsShort="+IntegerToString((int)rbv.rearms_short)+", duplicateCandidates="+IntegerToString((int)rbv.duplicate_candidates)+", multipleClaimantTimestamps="+IntegerToString((int)rbv.multiple_claimant_timestamps)+", maxClaimants="+IntegerToString((int)rbv.max_claimants)+", ownershipResolutions="+IntegerToString((int)rbv.ownership_resolutions)+", sameConfirmationMultipleCandidates="+IntegerToString((int)rbv.same_confirmation_multiple_candidates)+", causalityViolations="+IntegerToString((int)rbv.causality_violations)+", maxAttemptsPerRangeLong="+IntegerToString((int)rbv.max_attempts_per_range_long)+", maxAttemptsPerRangeShort="+IntegerToString((int)rbv.max_attempts_per_range_short)+", maxLongDistanceATR="+DoubleToString(rbv.max_long_distance_atr,3)+", maxShortDistanceATR="+DoubleToString(rbv.max_short_distance_atr,3)+", avgLongDistanceATR="+DoubleToString(rbv.average_long_distance_atr,3)+", avgShortDistanceATR="+DoubleToString(rbv.average_short_distance_atr,3),"RB_VERIFY");
+      g_range_breakout_engine.ReportAudit();
+      g_logger.Info("evaluations="+IntegerToString((int)rbh1.evaluations)+", distancePass="+IntegerToString((int)rbh1.distance_pass)+", directionPass="+IntegerToString((int)rbh1.direction_pass)+", bodyMedianPass="+IntegerToString((int)rbh1.body_median_pass)+", bodyRangePass="+IntegerToString((int)rbh1.body_range_pass)+", closingLocationPass="+IntegerToString((int)rbh1.closing_location_pass)+", totalPass="+IntegerToString((int)rbh1.total_pass)+", zeroRangeCandles="+IntegerToString((int)rbh1.zero_range_candles)+", insufficientBodyHistory="+IntegerToString((int)rbh1.insufficient_body_history)+", causalityViolations="+IntegerToString((int)rbh1.causality_violations),"RB_H1_BREAKOUT_VERIFY");
+      g_logger.Info("preEventLongChecks="+IntegerToString((int)rbv.pre_event_long_checks)+", preEventShortChecks="+IntegerToString((int)rbv.pre_event_short_checks)+", preEventLongDistancePass="+IntegerToString((int)rbv.pre_event_long_distance_pass)+", preEventShortDistancePass="+IntegerToString((int)rbv.pre_event_short_distance_pass)+", sourceRangeInvalidatedOnBreakoutLong="+IntegerToString((int)rbv.source_range_invalidated_on_breakout_long)+", sourceRangeInvalidatedOnBreakoutShort="+IntegerToString((int)rbv.source_range_invalidated_on_breakout_short)+", breakoutsSurvivedExpectedRangeInvalidation="+IntegerToString((int)rbv.breakouts_survived_expected_range_invalidation),"RB_VERIFY_2");
       g_logger.Info("evaluations="+IntegerToString((int)rejectionv.evaluations)+", bullishEvaluations="+IntegerToString((int)rejectionv.bullish_evaluations)+", bearishEvaluations="+IntegerToString((int)rejectionv.bearish_evaluations)+", invalidCandles="+IntegerToString((int)rejectionv.invalid_candles)+", zoneIntersectionPass="+IntegerToString((int)rejectionv.zone_intersection_pass)+", directionPass="+IntegerToString((int)rejectionv.direction_pass)+", recoveryPass="+IntegerToString((int)rejectionv.recovery_pass)+", wickBodyPass="+IntegerToString((int)rejectionv.wick_body_pass)+", wickRangePass="+IntegerToString((int)rejectionv.wick_range_pass)+", bullishPasses="+IntegerToString((int)rejectionv.bullish_passes)+", bearishPasses="+IntegerToString((int)rejectionv.bearish_passes)+", totalPasses="+IntegerToString((int)rejectionv.total_passes)+", zeroBodyCandles="+IntegerToString((int)rejectionv.zero_body_candles)+", zeroRangeCandles="+IntegerToString((int)rejectionv.zero_range_candles)+", causalityViolations="+IntegerToString((int)rejectionv.causality_violations)+", duplicateEvaluationSuppressions="+IntegerToString((int)rejectionv.duplicate_evaluation_suppressions)+", avgBullishWickBodyRatio="+DoubleToString(rejectionv.average_bullish_wick_body_ratio,3)+", avgBearishWickBodyRatio="+DoubleToString(rejectionv.average_bearish_wick_body_ratio,3)+", avgBullishWickRangeRatio="+DoubleToString(rejectionv.average_bullish_wick_range_ratio,3)+", avgBearishWickRangeRatio="+DoubleToString(rejectionv.average_bearish_wick_range_ratio,3)+", maxBullishWickBodyRatio="+DoubleToString(rejectionv.maximum_bullish_wick_body_ratio,3)+", maxBearishWickBodyRatio="+DoubleToString(rejectionv.maximum_bearish_wick_body_ratio,3),"M15_REJECTION_VERIFY");
       g_logger.Info("candidatesReceived="+IntegerToString(rmrpv.candidates_received)+", entryWindowsReached="+IntegerToString(rmrpv.entry_windows_reached)+", plansValid="+IntegerToString(rmrpv.plans_valid)+", plansRejected="+IntegerToString(rmrpv.plans_rejected)+", rejectedRegime="+IntegerToString(rmrpv.rejected_regime)+", rejectedRangeInvalid="+IntegerToString(rmrpv.rejected_range_invalid)+", rejectedSourceZone="+IntegerToString(rmrpv.rejected_source_zone)+", rejectedSession="+IntegerToString(rmrpv.rejected_session)+", rejectedNews="+IntegerToString(rmrpv.rejected_news)+", rejectedPosition="+IntegerToString(rmrpv.rejected_position)+", rejectedBelow2R="+IntegerToString(rmrpv.rejected_below_2r)+", rejectedStop="+IntegerToString(rmrpv.rejected_stop)+", rejectedRisk="+IntegerToString(rmrpv.rejected_risk)+", rejectedManagement="+IntegerToString(rmrpv.rejected_management)+", rejectedOther="+IntegerToString(rmrpv.rejected_other)+", longPlans="+IntegerToString(rmrpv.long_plans)+", shortPlans="+IntegerToString(rmrpv.short_plans)+", duplicatePlans="+IntegerToString(rmrpv.duplicate_plans)+", planCausalityViolations="+IntegerToString(rmrpv.plan_causality_violations)+", avgAvailableR="+DoubleToString(rmrpv.average_available_r,3)+", minAvailableR="+DoubleToString(rmrpv.minimum_available_r,3)+", maxAvailableR="+DoubleToString(rmrpv.maximum_available_r,3),"RMR_PLAN_VERIFY");
       g_logger.Info("validPlansReceived="+IntegerToString(rmrev.valid_plans_received)+", executionAttempts="+IntegerToString(rmrev.execution_attempts)+", executionSuccesses="+IntegerToString(rmrev.execution_successes)+", executionFailures="+IntegerToString(rmrev.execution_failures)+", longAttempts="+IntegerToString(rmrev.long_attempts)+", shortAttempts="+IntegerToString(rmrev.short_attempts)+", rejectedPositionOpen="+IntegerToString(rmrev.rejected_position_open)+", rejectedQuote="+IntegerToString(rmrev.rejected_quote)+", rejectedStops="+IntegerToString(rmrev.rejected_stops)+", rejectedVolume="+IntegerToString(rmrev.rejected_volume)+", rejectedMargin="+IntegerToString(rmrev.rejected_margin)+", rejectedMarket="+IntegerToString(rmrev.rejected_market)+", rejectedOther="+IntegerToString(rmrev.rejected_other)+", duplicateExecutionAttempts="+IntegerToString(rmrev.duplicate_execution_attempts)+", successfulPositionsRegistered="+IntegerToString(rmrev.successful_positions_registered)+", metadataRegistrationFailures="+IntegerToString(rmrev.metadata_registration_failures),"RMR_EXEC_VERIFY");
@@ -326,6 +347,7 @@ void OnTick()
    E2RunH1ZoneV2();
    E2RunM15ConfirmationV2();
    E2RunRangeMeanReversion();
+   E2RunRangeBreakout();
    E2RunTrendContinuationV2();
   }
 //+------------------------------------------------------------------+

@@ -7,6 +7,7 @@
 #include "..\\analysis\\E2H1ZoneEngine.mqh"
 #include "..\\analysis\\E2H1RangeBoundaryEngine.mqh"
 #include "..\\analysis\\E2RangeMeanReversionEngine.mqh"
+#include "..\\analysis\\E2RangeBreakoutEngine.mqh"
 
 // Read-only visual audit. It consumes existing runtime metadata only.
 class E2Visualizer
@@ -194,6 +195,18 @@ public:
          const E2RangeMeanReversionCandidate candidate=candidates[i];const bool up=(candidate.direction==E2_RMR_LONG);const string key=Id("RMR_"+candidate.candidate_id);const double price=(up?candidate.confirmation.low:candidate.confirmation.high);const color shade=(up?clrMediumSeaGreen:clrIndianRed);
          Marker(key,M15(),candidate.confirmation_candle,price,up,shade);Label(key+"_LABEL",M15(),candidate.confirmation_candle,price,(up?"RMR+":"RMR-"),shade);
          const string tooltip="Range: "+candidate.range_id+"\nDirection: "+E2RangeMeanReversionDirectionName(candidate.direction)+"\nAttempt: "+IntegerToString(candidate.attempt_number)+"\nBoundary visit: "+TimeToString(candidate.boundary_visit_time,TIME_DATE|TIME_MINUTES)+"\nVisit known: "+TimeToString(candidate.boundary_visit_known_from,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(candidate.confirmation_candle,TIME_DATE|TIME_MINUTES)+"\nKnown From: "+TimeToString(candidate.confirmation_known_from,TIME_DATE|TIME_MINUTES)+"\nSource zone: "+candidate.source_zone_id+" ["+DoubleToString(candidate.confirmation.zone_lower,_Digits)+", "+DoubleToString(candidate.confirmation.zone_upper,_Digits)+"]\nOHLC: "+DoubleToString(candidate.confirmation.open,_Digits)+" / "+DoubleToString(candidate.confirmation.high,_Digits)+" / "+DoubleToString(candidate.confirmation.low,_Digits)+" / "+DoubleToString(candidate.confirmation.close,_Digits)+"\nRelevant wick: "+DoubleToString(candidate.confirmation.relevant_wick,_Digits)+" Body: "+DoubleToString(candidate.confirmation.body,_Digits)+"\nWick/body: "+DoubleToString(candidate.confirmation.wick_body_ratio,2)+"\nWick/range: "+DoubleToString(candidate.confirmation.wick_range_ratio,2)+"\nRecovery: "+(candidate.confirmation.recovery_pass?"PASS":"FAIL");
+         ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,tooltip);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,tooltip);
+        }
+      Refresh();
+     }
+   void UpdateRangeBreakout(const E2RangeBreakoutCandidate &candidates[])
+     {
+      if(!m_active||Period()!=PERIOD_M15)return;
+      for(int i=0;i<ArraySize(candidates);i++)
+        {
+         const E2RangeBreakoutCandidate c=candidates[i];const bool up=(c.direction==E2_RB_LONG);const string key=Id("RB_"+c.candidate_id);const double price=(up?c.confirmation.low:c.confirmation.high);const color shade=(up?clrDeepSkyBlue:clrOrangeRed);
+         Marker(key,M15(),c.confirmation_candle,price,up,shade);Label(key+"_LABEL",M15(),c.confirmation_candle,price,(up?"RB+":"RB-"),shade);
+         const string tooltip="Range: "+c.range_id+"\nDirection: "+(up?"LONG":"SHORT")+"\nAttempt: "+IntegerToString(c.attempt_number)+"\nBreakout: "+TimeToString(c.breakout_candle,TIME_DATE|TIME_MINUTES)+"\nBreakout known: "+TimeToString(c.breakout_known_from,TIME_DATE|TIME_MINUTES)+"\nRetest: "+TimeToString(c.retest_time,TIME_DATE|TIME_MINUTES)+"\nRetest known: "+TimeToString(c.retest_known_from,TIME_DATE|TIME_MINUTES)+"\nConfirmation: "+TimeToString(c.confirmation_candle,TIME_DATE|TIME_MINUTES)+"\nConfirmation known: "+TimeToString(c.confirmation_known_from,TIME_DATE|TIME_MINUTES)+"\nChallenged zone: "+c.challenged_zone_id+"\nBreakout distance ATR: "+DoubleToString(c.breakout_distance_atr,3)+"\nH1 body multiple: "+DoubleToString(c.h1_body_multiplier_ratio,3)+"\nH1 body/range: "+DoubleToString(c.h1_body_range,3)+"\nH1 close location: "+DoubleToString(c.h1_closing_location,3)+"\nM15 body multiple: "+DoubleToString(c.confirmation.body_multiplier,3)+"\nM15 body/range: "+DoubleToString(c.confirmation.body_range_ratio,3)+"\nM15 close location: "+DoubleToString(c.confirmation.close_location,3);
          ObjectSetString(m_chart_id,key,OBJPROP_TOOLTIP,tooltip);ObjectSetString(m_chart_id,key+"_LABEL",OBJPROP_TOOLTIP,tooltip);
         }
       Refresh();

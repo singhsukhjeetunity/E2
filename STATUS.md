@@ -54,3 +54,6 @@ Range Mean-Reversion planning/execution integration is compile-verified. TC-only
 # Sprint 2.6
 
 Range Mean-Reversion reporting and setup-specific management diagnostics are implemented. Exact TC-only, RMR-only, and combined 2024 Strategy Tester validation remains the release gate.
+# Sprint 3.1
+
+Range Breakout H1 acceptance, M15 retest/momentum state, deterministic candidates, diagnostics, and optional visualization are implemented. Planner, execution, and reporting remain intentionally absent.

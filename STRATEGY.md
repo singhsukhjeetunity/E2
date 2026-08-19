@@ -43,3 +43,6 @@ Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H4_RANGE_REG
 # Sprint 2.6 reporting boundary
 
 Sprint 2.6 changes reporting and diagnostics only. Range Mean-Reversion entry, rejection, stop, opposing-boundary target, minimum 2R, sizing, and zone-target trailing semantics remain frozen.
+# Range Breakout
+
+Sprint 3.1 adds the candidate-only Range Breakout pipeline documented in `RANGE_BREAKOUT.md`. It trades acceptance conceptually, but no orders are implemented in this sprint.

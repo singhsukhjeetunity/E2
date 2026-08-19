@@ -126,3 +126,8 @@ RMR execution revalidates the same frozen range at the next M15 open, uses its c
 # Sprint 2.6 reporting
 
 Range Mean-Reversion reporting is transaction-driven and setup-isolated. See `RANGE_MEAN_REVERSION_REPORTING.md` for the candidate-to-deal identity chain, immutable original-R accounting, and TC/RMR/global management diagnostic ownership.
+# Sprint 3.1 Range Breakout
+
+`E2RangeBreakoutEngine` consumes cached H4 regime, the authoritative frozen H1 range, and the shared M15 momentum engine. It owns independent long/short acceptance state and emits research candidates only; no planner or execution dependency exists.
+
+The H1 handoff supplies the pre-update range snapshot for acceptance before the post-event range result is observed. Accepted state owns frozen source geometry and survives expected source-range invalidation without mutating or resurrecting upstream state.

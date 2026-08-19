@@ -127,6 +127,11 @@ public:
    ulong MeasurementCount(void) const { return(m_measurement_count); }
    E2M15RejectionVerification RejectionVerification(void)const
      {E2M15RejectionVerification value=m_rejection_verify;if(m_bullish_ratio_count>0){value.average_bullish_wick_body_ratio=m_bullish_wick_body_sum/m_bullish_ratio_count;value.average_bullish_wick_range_ratio=m_bullish_wick_range_sum/m_bullish_ratio_count;}if(m_bearish_ratio_count>0){value.average_bearish_wick_body_ratio=m_bearish_wick_body_sum/m_bearish_ratio_count;value.average_bearish_wick_range_ratio=m_bearish_wick_range_sum/m_bearish_ratio_count;}return(value);}
+   bool EvaluateDirectionalMomentum(const string symbol,const datetime evaluation,const E2M15ZoneContext &zone,const bool bullish,E2M15ConfirmationResult &result)
+     {
+      Reset(result,(bullish?E2_RESEARCH_CONFIRMATION_BULLISH_MOMENTUM:E2_RESEARCH_CONFIRMATION_BEARISH_MOMENTUM),zone,evaluation);if(m_market==NULL||!PrepareCandleMeasurement(symbol,evaluation))return(false);
+      result.history_available=m_cached_history;FillMeasurements(result,m_cached_candle,m_cached_previous,m_cached_median);result.zone_validity_pass=ZoneValidAt(zone,result.known_from_time);EvaluateMomentum(result,zone,m_cached_candle,m_cached_previous,bullish);result.reason=(result.passed?"PASS":(!m_cached_history?"INSUFFICIENT_HISTORY":result.zero_range?"ZERO_RANGE":"CONDITIONS_FAILED"));LogPassed(result);LogBoundaryFailure(result);return(true);
+     }
    bool EvaluateDirectionalRejection(const string symbol,const datetime evaluation,const E2M15ZoneContext &zone,const bool bullish,E2M15ConfirmationResult &result)
      {
       const E2ResearchConfirmationType type=(bullish?E2_RESEARCH_CONFIRMATION_BULLISH_RANGE_REJECTION:E2_RESEARCH_CONFIRMATION_BEARISH_RANGE_REJECTION);Reset(result,type,zone,evaluation);if(m_market==NULL)return(false);
