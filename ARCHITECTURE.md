@@ -131,3 +131,6 @@ Range Mean-Reversion reporting is transaction-driven and setup-isolated. See `RA
 `E2RangeBreakoutEngine` consumes cached H4 regime, the authoritative frozen H1 range, and the shared M15 momentum engine. It owns independent long/short acceptance state and emits research candidates only; no planner or execution dependency exists.
 
 The H1 handoff supplies the pre-update range snapshot for acceptance before the post-event range result is observed. Accepted state owns frozen source geometry and survives expected source-range invalidation without mutating or resurrecting upstream state.
+## Sprint 3.2 Range Breakout integration
+
+Range Breakout now has an explicit strategy route from its frozen candidate into the shared planner and execution engine. The route reuses active persistent H1 zones, shared filters, sizing, native order validation, position metadata, and the tick-driven position manager. RB identity remains separate through `RBP_` plan/execution IDs and per-strategy diagnostics. Current exact-time ownership order is RMR, then RB, then TC under the shared one-position-per-symbol guard. RB final reporting remains outside Sprint 3.2.

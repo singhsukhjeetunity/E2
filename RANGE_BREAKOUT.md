@@ -4,7 +4,7 @@ Sprint 3.1 implements candidate generation only:
 
 `H4 RANGE -> frozen H1 range -> strong H1 breakout -> acceptance -> M15 retest -> M15 momentum -> RB candidate`
 
-There is no Range Breakout planner, execution route, risk calculation, position management, or trade reporting.
+Sprint 3.1 stopped at candidate generation; Sprint 3.2 adds the planner, execution route, risk calculation, metadata registration, and shared position management while final RB reporting remains deferred.
 
 ## H1 acceptance
 
@@ -31,3 +31,6 @@ After consumption, long rearms only after a completed H1 close at or below the f
 Candidate identity is `RB_<symbol>_<rangeId>_<direction>_<attempt>_<confirmationKnownFrom>` and never uses an array index. At most one candidate is emitted per confirmation timestamp. Ownership is resolved by closest challenged edge, then earlier breakout known-from, earlier retest known-from, lexical range ID, and lexical candidate/source identity. Non-winning valid state remains available for a later confirmation.
 
 `[RB_VERIFY]` and `[RB_H1_BREAKOUT_VERIFY]` provide bounded lifecycle, threshold, collision, and causality counters. Passed candidates optionally render as `RB+` or `RB-` with frozen H1 and M15 measurements.
+## Sprint 3.2 planning and execution
+
+Sprint 3.2 adds planning and native execution for the mechanically frozen Range Breakout candidates. See `RANGE_BREAKOUT_EXECUTION.md` for entry timing, structural-stop construction, causal target selection, 2R eligibility, strategy-aware identity, persistence, and shared management. Candidate detection, retest, momentum confirmation, and the 2024 raw fingerprint of 24 accepted breakouts, 15 retests, and 8 candidates (6 LONG / 2 SHORT) remain unchanged. Final RB reporting is reserved for Sprint 3.3.

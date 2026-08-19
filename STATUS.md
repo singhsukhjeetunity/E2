@@ -57,3 +57,6 @@ Range Mean-Reversion reporting and setup-specific management diagnostics are imp
 # Sprint 3.1
 
 Range Breakout H1 acceptance, M15 retest/momentum state, deterministic candidates, diagnostics, and optional visualization are implemented. Planner, execution, and reporting remain intentionally absent.
+## Sprint 3.2 status
+
+Sprint 3.2 Range Breakout planning and execution integration is implemented. RB plans, native execution, persistence, shared management classification, and tester diagnostics are present. TC and RMR routes remain isolated. Final RB CSV and summary reporting are intentionally pending Sprint 3.3.
