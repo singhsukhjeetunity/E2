@@ -40,7 +40,9 @@ struct E2V2TradePlan
    double breakout_atr,breakout_distance_atr,breakout_body,breakout_range,breakout_prior_body_median,breakout_body_multiplier_ratio,breakout_body_range_ratio,breakout_closing_location;
    double stop_zone_edge,stop_buffer_atr_multiple,structural_stop,normalized_stop,risk_distance;
    double target_near_edge,available_reward,available_r,planned_target;
-   double initial_test_balance,risk_percent,fixed_risk_cash,raw_volume,normalized_volume,planned_monetary_risk;
+double initial_test_balance,risk_percent,fixed_risk_cash,balance_used_for_sizing,requested_risk_cash,raw_volume,normalized_volume,planned_monetary_risk;
+E2RiskMode risk_mode;
+double configured_fixed_cash_risk,configured_balance_risk_percent;
    E2SessionResult session_result;E2NewsResult news_result;
   };
 

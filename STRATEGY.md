@@ -57,3 +57,6 @@ RB results use explicit setup identity, immutable execution-time original R, aut
 ## Sprint 4.1 combined ownership
 
 TC, RMR, and RB strategy semantics remain independent and frozen. When valid plans share an executable window, ownership is resolved explicitly by earlier known-from, then RB/RMR/TC setup precedence, then lexical plan ID. This integration policy changes orchestration only; it does not rank strategy quality or alter entry eligibility.
+# Risk mode
+
+Risk is either a configured fixed cash amount or a percentage of current account balance at execution. This setting does not alter setup, stop, target, or management semantics.

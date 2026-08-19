@@ -70,3 +70,6 @@ Range Breakout reporting is integrated through the common authoritative deal rep
 Three-strategy integration hardening is implemented: explicit same-window ownership, namespace and metadata verification, shared-manager reconciliation, setup-separated reporting, global economics and causality reconciliation, execution/report reconciliation, concurrency observation, and deterministic fingerprints. Strategy Tester matrix, three-run repeatability, and controlled restart recovery remain runtime validation steps.
 
 Sprint 4.1.1 corrected only the global RB causality aggregation: expected pre-breakout M15 guard suppressions are now audited separately rather than reported as causal violations. RB lifecycle and strategy semantics are unchanged.
+# Sprint 4.2
+
+Production risk-mode inputs and tester-end risk diagnostics are available; fixed cash defaults to the validated $1,000 baseline.

@@ -142,3 +142,6 @@ The common reporter now finalizes RB positions from persisted entry metadata and
 ## Sprint 4.1 integration hardening
 
 All valid same-window plans now meet at a shared deterministic ownership queue before native execution. Causal known-from, explicit setup precedence, and plan ID determine order; the common position guard determines the single owner. Integrated diagnostics reconcile namespaces, metadata, the shared manager, reporting, economics, causality, and execution-to-report lifecycle without changing any setup formula.
+# Sprint 4.2 risk routing
+
+E2 resolves position risk centrally: fixed cash is non-compounding, while balance-percent mode reads current account balance immediately before sizing. Strategy planners may estimate volume, but native execution re-resolves the same request.

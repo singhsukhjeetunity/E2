@@ -12,18 +12,28 @@ enum E2VisualAuditMode
    E2_VISUAL_ALL_TRADES=1,
    E2_VISUAL_SINGLE_TRADE=2
   };
+enum E2RiskMode
+  {E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1};
+string E2RiskModeName(const E2RiskMode mode)
+  {
+   if(mode==E2_RISK_FIXED_CASH)return("FIXED_CASH");
+   if(mode==E2_RISK_BALANCE_PERCENT)return("BALANCE_PERCENT");
+   return("INVALID");
+  }
 
-input group "GENERAL"
+input group "E2 GENERAL"
 input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders.
 input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
-input bool  InpDebugMode        = false;   // Enables future diagnostic output.
 
-input group "SETUP SELECTION"
-input bool InpEnableTrendContinuation = true;
-input bool InpResearchVerificationSummary = true; // Bounded semantic-regression and invariant summary.
-input bool InpResearchVerboseDiagnostics = false;
+input group "STRATEGIES"
+input bool InpEnableTrendContinuation = true; // Enable Trend Continuation.
 input bool InpEnableRangeMeanReversion = false;
 input bool InpEnableRangeBreakout = false;
+
+input group "RISK MANAGEMENT"
+input E2RiskMode InpRiskMode = E2_RISK_FIXED_CASH; // FIXED_CASH is non-compounding; BALANCE_PERCENT uses current balance.
+input double InpFixedCashRisk = 1000.0; // Frozen validated baseline: 1% of the $100,000 test balance.
+input double InpBalanceRiskPercent = 1.0; // Current account BALANCE percentage when BALANCE_PERCENT is selected.
 
 input group "MANAGEMENT"
 input bool InpEnableFixed2RManagement = true;
@@ -84,16 +94,13 @@ input double InpResearchM15MomentumClosingLocationFraction = 0.20;
 input double InpResearchM15RejectionWickBodyMinimum = 1.50;
 input double InpResearchM15RejectionWickRangeMinimum = 0.40;
 
-input group "RISK"
-input double InpRiskPercent         = 1.0; // Risk per trade as a percentage of the final selected risk base.
-
-input group "EXECUTION"
+input group "EXECUTION / BROKER SAFETY"
 input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
 input double InpMaxSpreadPips          = 3.0;  // Provisional broker-generic spread ceiling; set to zero to disable this filter.
 input int    InpMaxQuoteAgeSeconds     = 10;   // Reject quotes older than this; set to zero to disable the age check.
 input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldown after a successful execution.
 
-input group "SESSIONS"
+input group "TRADING SESSIONS"
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
 input bool InpEnableNewYorkSession  = true; // Allow future entries during the New York session.
 input int  InpBrokerUtcOffsetHours  = 999;  // Required server/source UTC offset (-14..14); 999 disables session eligibility until configured.
@@ -102,14 +109,17 @@ input int  InpLondonSessionEndHour   = 17;  // London local session end, exclusi
 input int  InpNewYorkSessionStartHour = 8;  // New York local session start, inclusive.
 input int  InpNewYorkSessionEndHour   = 17; // New York local session end, exclusive.
 
-input group "NEWS"
+input group "NEWS FILTER"
 input bool InpNewsFilterEnabled          = true; // Enable deterministic historical-news entry exclusion.
 input int  InpHighImpactBufferBeforeMins = 30;   // Minutes to exclude before a scheduled event, inclusive.
 input int  InpHighImpactBufferAfterMins  = 30;   // Minutes to exclude after a scheduled event, inclusive.
 input bool InpNewsHighImpactOnly          = true; // When false, all recognized event impacts are blocking.
 input string InpNewsDataFile              = "E2_news_events.csv"; // FILE_COMMON CSV; schema is documented in E2NewsFilter.mqh.
 
-input group "REPORTING"
+input group "VISUALIZATION / DIAGNOSTICS"
+input bool  InpDebugMode        = false;   // Enables diagnostic output.
+input bool InpResearchVerificationSummary = true; // Bounded semantic-regression and invariant summary.
+input bool InpResearchVerboseDiagnostics = false;
 input bool InpLoggingEnabled   = true;  // Enable future strategy-independent logging.
 input bool InpCsvExportEnabled = false; // Enable future CSV export.
 
@@ -186,7 +196,10 @@ struct E2Config
    double          research_m15_rejection_wick_body_minimum;
    double          research_m15_rejection_wick_range_minimum;
 
-   double          risk_percent;
+   E2RiskMode      risk_mode;
+   double          fixed_cash_risk;
+   double          balance_risk_percent;
+   double          risk_percent; // Compatibility metadata only; sizing uses risk_mode.
    double          max_entry_deviation_pips;
    double          max_spread_pips;
    int             max_quote_age_seconds;
@@ -277,7 +290,10 @@ void E2LoadConfiguration(E2Config &configuration)
    configuration.research_m15_momentum_closing_location_fraction = InpResearchM15MomentumClosingLocationFraction;
    configuration.research_m15_rejection_wick_body_minimum = InpResearchM15RejectionWickBodyMinimum;
    configuration.research_m15_rejection_wick_range_minimum = InpResearchM15RejectionWickRangeMinimum;
-   configuration.risk_percent                           = InpRiskPercent;
+   configuration.risk_mode                              = InpRiskMode;
+   configuration.fixed_cash_risk                        = InpFixedCashRisk;
+   configuration.balance_risk_percent                   = InpBalanceRiskPercent;
+   configuration.risk_percent                           = InpBalanceRiskPercent;
    configuration.max_entry_deviation_pips               = InpMaxEntryDeviationPips;
    configuration.max_spread_pips                        = InpMaxSpreadPips;
    configuration.max_quote_age_seconds                  = InpMaxQuoteAgeSeconds;
@@ -316,11 +332,8 @@ bool E2ValidateConfiguration(const E2Config &configuration,string &reason)
   {
    reason = "";
 
-   if(configuration.risk_percent <= 0.0)
-     {
-      reason = "Risk percentage must be greater than zero.";
-      return(false);
-     }
+   if(configuration.risk_mode!=E2_RISK_FIXED_CASH&&configuration.risk_mode!=E2_RISK_BALANCE_PERCENT){reason="Risk mode is invalid.";return(false);}
+   if((configuration.risk_mode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(configuration.fixed_cash_risk)||configuration.fixed_cash_risk<=0.0))||(configuration.risk_mode==E2_RISK_BALANCE_PERCENT&&(!MathIsValidNumber(configuration.balance_risk_percent)||configuration.balance_risk_percent<=0.0))){reason="Selected risk-mode value must be finite and greater than zero.";return(false);}
    if(configuration.adx_period <= 0)
      {
       reason = "ADX period must be greater than zero.";
