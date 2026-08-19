@@ -33,4 +33,8 @@ Candidate identity is `RB_<symbol>_<rangeId>_<direction>_<attempt>_<confirmation
 `[RB_VERIFY]` and `[RB_H1_BREAKOUT_VERIFY]` provide bounded lifecycle, threshold, collision, and causality counters. Passed candidates optionally render as `RB+` or `RB-` with frozen H1 and M15 measurements.
 ## Sprint 3.2 planning and execution
 
-Sprint 3.2 adds planning and native execution for the mechanically frozen Range Breakout candidates. See `RANGE_BREAKOUT_EXECUTION.md` for entry timing, structural-stop construction, causal target selection, 2R eligibility, strategy-aware identity, persistence, and shared management. Candidate detection, retest, momentum confirmation, and the 2024 raw fingerprint of 24 accepted breakouts, 15 retests, and 8 candidates (6 LONG / 2 SHORT) remain unchanged. Final RB reporting is reserved for Sprint 3.3.
+Sprint 3.2 adds planning and native execution for the mechanically frozen Range Breakout candidates. See `RANGE_BREAKOUT_EXECUTION.md` for entry timing, structural-stop construction, causal target selection, 2R eligibility, strategy-aware identity, persistence, and shared management. Candidate detection, retest, momentum confirmation, and the 2024 raw fingerprint of 24 accepted breakouts, 15 retests, and 8 candidates (6 LONG / 2 SHORT) remain unchanged.
+
+## Sprint 3.3 reporting
+
+Range Breakout now completes the authoritative deal-driven reporting lifecycle and emits setup-filtered CSV trades, `RB_REPORT_VERIFY`, `RB_REPORT_VERIFY_2`, and an independent `Setup=RANGE_BREAKOUT` summary. See `RANGE_BREAKOUT_REPORTING.md`. Candidate, planning, execution, risk, and management semantics remain unchanged.

@@ -49,3 +49,7 @@ Sprint 3.1 adds the candidate-only Range Breakout pipeline documented in `RANGE_
 ## Sprint 3.2 Range Breakout execution
 
 Range Breakout execution enters at the next M15 open after confirmation using the executable quote. It retains frozen challenged-zone geometry and ATR, places structural invalidation beyond the broken boundary, targets first contact with the nearest causal active H1 zone in the breakout direction, requires at least 2R, and routes exclusively to zone-target trailing. No Range Breakout thresholds or upstream candidate semantics are changed by Sprint 3.2.
+
+## Sprint 3.3 Range Breakout reporting
+
+RB results use explicit setup identity, immutable execution-time original R, authoritative MT5 deal economics, conservative exit classification, an independently filterable trade row, and a setup-specific summary. Reporting adds no strategy decisions.

@@ -134,3 +134,7 @@ The H1 handoff supplies the pre-update range snapshot for acceptance before the 
 ## Sprint 3.2 Range Breakout integration
 
 Range Breakout now has an explicit strategy route from its frozen candidate into the shared planner and execution engine. The route reuses active persistent H1 zones, shared filters, sizing, native order validation, position metadata, and the tick-driven position manager. RB identity remains separate through `RBP_` plan/execution IDs and per-strategy diagnostics. Current exact-time ownership order is RMR, then RB, then TC under the shared one-position-per-symbol guard. RB final reporting remains outside Sprint 3.2.
+
+## Sprint 3.3 reporting integration
+
+The common reporter now finalizes RB positions from persisted entry metadata and authoritative MT5 deals. Its physical CSV remains shared, while explicit setup identity and setup-filtered summaries keep TC, RMR, and RB analytically independent. Reporting remains transaction-driven and does not reconstruct historical strategy state.
