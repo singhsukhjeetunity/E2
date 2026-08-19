@@ -64,3 +64,9 @@ Sprint 3.2 Range Breakout planning and execution integration is implemented. RB 
 ## Sprint 3.3 status
 
 Range Breakout reporting is integrated through the common authoritative deal reporter, including RB breakout metadata, validation diagnostics, CSV separation by setup type, and an independent summary row. No candidate, planning, execution, risk, or management semantics changed.
+
+## Sprint 4.1 status
+
+Three-strategy integration hardening is implemented: explicit same-window ownership, namespace and metadata verification, shared-manager reconciliation, setup-separated reporting, global economics and causality reconciliation, execution/report reconciliation, concurrency observation, and deterministic fingerprints. Strategy Tester matrix, three-run repeatability, and controlled restart recovery remain runtime validation steps.
+
+Sprint 4.1.1 corrected only the global RB causality aggregation: expected pre-breakout M15 guard suppressions are now audited separately rather than reported as causal violations. RB lifecycle and strategy semantics are unchanged.

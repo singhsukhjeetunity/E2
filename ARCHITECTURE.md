@@ -138,3 +138,7 @@ Range Breakout now has an explicit strategy route from its frozen candidate into
 ## Sprint 3.3 reporting integration
 
 The common reporter now finalizes RB positions from persisted entry metadata and authoritative MT5 deals. Its physical CSV remains shared, while explicit setup identity and setup-filtered summaries keep TC, RMR, and RB analytically independent. Reporting remains transaction-driven and does not reconstruct historical strategy state.
+
+## Sprint 4.1 integration hardening
+
+All valid same-window plans now meet at a shared deterministic ownership queue before native execution. Causal known-from, explicit setup precedence, and plan ID determine order; the common position guard determines the single owner. Integrated diagnostics reconcile namespaces, metadata, the shared manager, reporting, economics, causality, and execution-to-report lifecycle without changing any setup formula.
