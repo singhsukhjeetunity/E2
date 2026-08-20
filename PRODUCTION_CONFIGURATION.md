@@ -14,6 +14,12 @@ The Expert Properties input panel is ordered for one-strategy-at-a-time research
 
 Known frozen baseline mappings are visible rather than silently repaired: the zone and confirmation timeframe inputs do not replace the H1/M15 constants in strategy modules, `InpAdxEnabled` is reporting-only, and the H4 structure lookback has an existing 300-bar minimum.
 
+## Historical news data
+
+E2 reads `InpNewsDataFile` from the terminal common-files directory. Use the standalone native-calendar exporter and procedure in [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md) to create the deterministic CSV before a news-enabled Strategy Tester run. The file contains UTC minutes; configure `InpBrokerUtcOffsetHours` for the tested broker/source clock and do not apply a second offset to the CSV.
+
+The exporter is offline tooling and does not change the EA's session/news exclusion formulas, buffers, impact policy, or trade semantics.
+
 ## Release checklist
 
 1. Select exactly the intended strategy and its valid management branch.

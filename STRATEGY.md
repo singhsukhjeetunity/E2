@@ -43,6 +43,8 @@ All strategy observations use completed bars and explicit known-from timestamps.
 
 Session/news filtering, quote/spread/deviation controls, position ownership, one-position protection, native broker validation, authoritative deal reporting, restart recovery, monotonic stop changes, and broker stop/freeze constraints remain shared infrastructure.
 
+Historical Strategy Tester news events are supplied through the frozen `FILE_COMMON` CSV interface. [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md) documents the separate native-MT5 exporter, UTC conversion, and validation procedure. The exporter is not part of the strategy decision pipeline and adds no live calendar access.
+
 Detailed specifications are in [H4_REGIME_V2.md](H4_REGIME_V2.md), [H4_RANGE_REGIME.md](H4_RANGE_REGIME.md), [H1_ZONE_V2.md](H1_ZONE_V2.md), [H1_RANGE_BOUNDARIES.md](H1_RANGE_BOUNDARIES.md), [M15_CONFIRMATION.md](M15_CONFIRMATION.md), [M15_CONFIRMATION_V2.md](M15_CONFIRMATION_V2.md), [TREND_CONTINUATION_V2.md](TREND_CONTINUATION_V2.md), [RANGE_MEAN_REVERSION.md](RANGE_MEAN_REVERSION.md), [RANGE_MEAN_REVERSION_EXECUTION.md](RANGE_MEAN_REVERSION_EXECUTION.md), [TREND_CONTINUATION_PLAN_V2.md](TREND_CONTINUATION_PLAN_V2.md), [EXECUTION_V2.md](EXECUTION_V2.md), and [POSITION_MANAGEMENT_V2.md](POSITION_MANAGEMENT_V2.md).
 # Sprint 2.6 reporting boundary
 

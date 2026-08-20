@@ -1,5 +1,19 @@
 # E2 Status
 
+## v2.0.2.1 exporter diagnostics correction
+
+- Manual exporter launches were entering `OnStart` but rejecting the invalid default server-offset sentinel; the reason appeared in the Experts log while the terminal Journal showed only script loaded/removed messages.
+- The standalone exporter now defaults to the active `+2` research offset, prints mandatory start/path/per-currency calendar diagnostics, and emits exactly one final SUCCESS/FAIL line on every execution path.
+- Connected-terminal verification exported and validated 624 EUR/USD high-impact 2024 events. The unchanged TC-only news-enabled tester profile then loaded all 624 events, rejected two plans for news, completed 11 trades, and reported `GLOBAL_CAUSALITY_VERIFY.totalViolations=0`.
+- This correction is confined to offline news-data tooling and documentation. E2 strategy and news-filter source remain unchanged.
+
+## v2.0.2 historical-news exporter sprint
+
+- A standalone native-MT5 Economic Calendar script exports selected UTC coverage, currencies, and importance levels into the existing deterministic E2 `FILE_COMMON` CSV contract.
+- Exporter-side deduplication, stable native identity encoding, deterministic sorting, overwrite protection, post-write schema validation, and bounded diagnostics are implemented.
+- No E2 trading source, filter behavior, strategy threshold, risk, execution, management, or reporting economics changed.
+- The installed script is compile-verified and the isolated connected-terminal mechanics matrix passes: full-year and one-month export, stable-snapshot repeatability, subset consistency, no-currency and invalid-range rejection, and overwrite preservation. Production use still requires the operator to verify the broker calendar/server UTC offset as described in [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md).
+
 ## v2.0.1 input-organization sprint
 
 - All 84 external inputs have been inventoried and placed in ten ownership-oriented MT5 groups.

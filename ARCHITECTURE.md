@@ -55,6 +55,8 @@ MT5 rates/ticks
 
 `E2.mq5` owns initialization, completed-source-bar scheduling, module wiring, tick dispatch, transaction dispatch, and bounded tester summaries. Strategy formulas live in their owning modules.
 
+Historical news preparation is outside this runtime pipeline. `utilities/E2NewsExporter.mq5` queries the native MT5 calendar only when run manually outside Strategy Tester, validates the frozen E2 CSV contract, and writes to `FILE_COMMON`. The EA continues to consume only the deterministic file through `E2NewsFilter`; it never calls the native calendar. See [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md).
+
 ## 5. Module responsibilities
 
 | Stage | Owner | Responsibility |
