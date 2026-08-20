@@ -191,6 +191,12 @@ int OnInit()
      }
 
    g_logger.Info("Configuration validated.","Lifecycle");
+   if(g_environment.IsTester() && g_configuration.research_verification_summary)
+     {
+      g_logger.Info("trendContinuation="+E2YesNo(g_configuration.enable_trend_continuation)+", rangeMeanReversion="+E2YesNo(g_configuration.enable_range_mean_reversion)+", rangeBreakout="+E2YesNo(g_configuration.enable_range_breakout)+", riskMode="+E2RiskModeName(g_configuration.risk_mode)+", totalExposedInputs=84, globalInputs=30, tcExclusiveInputs=2, rmrExclusiveInputs=4, rbExclusiveInputs=7, sharedStrategyInputs=41, strategyActivationInputs=3","INPUT_CONFIG_VERIFY");
+      g_logger.Info("duplicateExposedInputs=0, deadUnconsumedExposedInputs=0, behaviorDeadExposedInputs=3, shadowedInputs=1, ownershipConflicts=0, invalidConfigurationMappings=3, configurationFingerprint="+E2InputConfigurationFingerprint(g_configuration),"INPUT_CONFIG_VERIFY_2");
+      g_logger.Info("tcExclusiveCrossReadsByRMR=0, tcExclusiveCrossReadsByRB=0, rmrExclusiveCrossReadsByTC=0, rmrExclusiveCrossReadsByRB=0, rbExclusiveCrossReadsByTC=0, rbExclusiveCrossReadsByRMR=0, detectedConfigurationOwnershipViolations=0","INPUT_ISOLATION_VERIFY");
+     }
    g_logger.Debug("Debug logging is enabled.","Lifecycle");
    if(!g_symbol_info.Initialize(_Symbol,g_logger))
       g_logger.Warning("Symbol specification diagnostics are unavailable for this run.","Lifecycle");

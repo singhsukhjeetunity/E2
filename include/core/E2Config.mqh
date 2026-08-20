@@ -21,86 +21,62 @@ string E2RiskModeName(const E2RiskMode mode)
    return("INVALID");
   }
 
-input group "E2 GENERAL"
-input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders.
-input bool  InpTradingEnabled   = true;    // Master switch for future trade execution.
-
-input group "STRATEGIES"
+input group "=== STRATEGY SELECTION ==="
 input bool InpEnableTrendContinuation = true; // Enable Trend Continuation.
 input bool InpEnableRangeMeanReversion = false;
 input bool InpEnableRangeBreakout = false;
 
-input group "RISK MANAGEMENT"
-input E2RiskMode InpRiskMode = E2_RISK_FIXED_CASH; // FIXED_CASH is non-compounding; BALANCE_PERCENT uses current balance.
-input double InpFixedCashRisk = 1000.0; // Frozen validated baseline: 1% of the $100,000 test balance.
-input double InpBalanceRiskPercent = 1.0; // Current account BALANCE percentage when BALANCE_PERCENT is selected.
-
-input group "MANAGEMENT"
-input bool InpEnableFixed2RManagement = true;
-input bool InpEnableZoneTargetTrailingManagement = false;
-
-input group "H4 REGIME"
+input group "=== GLOBAL / SHARED MARKET MODEL ==="
+input ENUM_TIMEFRAMES InpTrendTimeframe        = PERIOD_H4;  // H4 market structure timeframe.
+input ENUM_TIMEFRAMES InpZoneTimeframe         = PERIOD_H1;  // Baseline stores/reports this; H1 modules remain fixed to H1.
+input ENUM_TIMEFRAMES InpConfirmationTimeframe = PERIOD_M15; // Baseline stores/reports this; confirmation modules remain fixed to M15.
+input int  InpSwingSensitivity = 3;    // Closed bars required on each side to confirm an H4 pivot.
+input int  InpTrendStructureLookbackBars = 80; // Baseline H4 engine applies its existing 300-bar minimum.
+input bool InpAdxEnabled        = true; // Baseline compatibility input; currently reporting-only.
+input int  InpAdxPeriod         = 14;
+input double InpAdxMinimumThreshold = 20.0;
 input int InpResearchH4EmaFastPeriod = 20;
 input int InpResearchH4EmaSlowPeriod = 50;
 input int InpResearchH4EmaSlopeLookback = 5;
 input int InpResearchH4AtrPeriod = 14;
 input double InpResearchH4StructuralBreakoutDistanceAtr = 0.10;
-input double InpResearchH4TrendExtensionLimitAtr = 1.50;
 input double InpH4RangeAdxMaximum = 20.0;
 input int InpH4RangeContainmentLookback = 20;
 input double InpH4RangeMaximumWidthAtr = 6.0;
-
-input group "RANGE CLASSIFICATION"
-input double InpResearchRangeOuterEntryRegionFraction = 0.20;
 input double InpRangeBoundaryContainmentToleranceAtr = 0.25;
 input double InpRangeBoundaryMinimumHeightAtr = 3.0;
 input double InpResearchRangeBoundaryInvalidationAtr = 0.25;
-
-input group "TIMEFRAMES"
-input ENUM_TIMEFRAMES InpTrendTimeframe        = PERIOD_H4;  // H4 market structure timeframe.
-input ENUM_TIMEFRAMES InpZoneTimeframe         = PERIOD_H1;  // H1 support/resistance timeframe.
-input ENUM_TIMEFRAMES InpConfirmationTimeframe = PERIOD_M15; // M15 entry-confirmation timeframe.
-
-input group "TREND / RANGE"
-input int  InpSwingSensitivity = 3;    // Closed bars required on each side to confirm an H4 pivot.
-input int  InpTrendStructureLookbackBars = 80; // Closed trend-timeframe bars used for confirmed-pivot structure.
-input bool InpAdxEnabled        = true; // Use ADX in the future trend/range classifier.
-input int  InpAdxPeriod         = 14;   // ADX calculation period.
-input double InpAdxMinimumThreshold = 20.0; // Provisional ADX trend-strength threshold; finalized in Sprint 1.2.
-
-input group "SUPPORT / RESISTANCE"
 input int    InpZoneLookbackBars        = 240; // Closed H1 bars used for deterministic zone analysis.
-
-input group "H1 PERSISTENT ZONES / TREND CONTINUATION"
 input int InpResearchH1AtrPeriod = 14;
 input double InpResearchH1ZonePivotClusteringAtr = 0.50;
 input int InpResearchH1MinimumTouchSeparationBars = 3;
 input double InpResearchH1MinimumPostTouchDepartureAtr = 1.00;
 input double InpResearchH1ZoneInvalidationAtr = 0.10;
 input double InpResearchH1BreakoutDistanceAtr = 0.10;
+input double InpResearchH1ZoneRearmDistanceAtr = 0.50;
+input int InpResearchM15BodyMedianLookback = 20;
+input double InpResearchM15MomentumBodyMultiplier = 1.25;
+input double InpResearchM15MomentumBodyRangeMinimum = 0.60;
+input double InpResearchM15MomentumClosingLocationFraction = 0.20;
+
+input group "=== TREND CONTINUATION (TC) ==="
+input double InpResearchH4TrendExtensionLimitAtr = 1.50;
+
+input group "=== RANGE MEAN REVERSION (RMR) ==="
+input double InpResearchRangeOuterEntryRegionFraction = 0.20;
+input double InpResearchM15RejectionWickBodyMinimum = 1.50;
+input double InpResearchM15RejectionWickRangeMinimum = 0.40;
+
+input group "=== RANGE BREAKOUT (RB) ==="
 input int InpResearchH1BreakoutBodyLookback = 20;
 input double InpResearchH1BreakoutBodyMultiplier = 1.25;
 input double InpResearchH1BreakoutBodyRangeMinimum = 0.60;
 input double InpResearchH1BreakoutClosingLocationFraction = 0.20;
 input int InpResearchH1BreakoutRetestExpiryBars = 12;
 input double InpResearchH1BreakoutInvalidationDepthAtr = 0.10;
-input double InpResearchH1ZoneRearmDistanceAtr = 0.50;
 
-input group "M15 CONFIRMATION"
-input int InpResearchM15BodyMedianLookback = 20;
-input double InpResearchM15MomentumBodyMultiplier = 1.25;
-input double InpResearchM15MomentumBodyRangeMinimum = 0.60;
-input double InpResearchM15MomentumClosingLocationFraction = 0.20;
-input double InpResearchM15RejectionWickBodyMinimum = 1.50;
-input double InpResearchM15RejectionWickRangeMinimum = 0.40;
-
-input group "EXECUTION / BROKER SAFETY"
-input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
-input double InpMaxSpreadPips          = 3.0;  // Provisional broker-generic spread ceiling; set to zero to disable this filter.
-input int    InpMaxQuoteAgeSeconds     = 10;   // Reject quotes older than this; set to zero to disable the age check.
-input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldown after a successful execution.
-
-input group "TRADING SESSIONS"
+input group "=== SHARED TRADE FILTERS ==="
+input double InpMaxSpreadPips          = 3.0;  // Shared planner/execution spread ceiling; zero disables it.
 input bool InpEnableLondonSession   = true; // Allow future entries during the London session.
 input bool InpEnableNewYorkSession  = true; // Allow future entries during the New York session.
 input int  InpBrokerUtcOffsetHours  = 999;  // Required server/source UTC offset (-14..14); 999 disables session eligibility until configured.
@@ -109,21 +85,34 @@ input int  InpLondonSessionEndHour   = 17;  // London local session end, exclusi
 input int  InpNewYorkSessionStartHour = 8;  // New York local session start, inclusive.
 input int  InpNewYorkSessionEndHour   = 17; // New York local session end, exclusive.
 
-input group "NEWS FILTER"
 input bool InpNewsFilterEnabled          = true; // Enable deterministic historical-news entry exclusion.
 input int  InpHighImpactBufferBeforeMins = 30;   // Minutes to exclude before a scheduled event, inclusive.
 input int  InpHighImpactBufferAfterMins  = 30;   // Minutes to exclude after a scheduled event, inclusive.
 input bool InpNewsHighImpactOnly          = true; // When false, all recognized event impacts are blocking.
 input string InpNewsDataFile              = "E2_news_events.csv"; // FILE_COMMON CSV; schema is documented in E2NewsFilter.mqh.
 
-input group "VISUALIZATION / DIAGNOSTICS"
+input group "=== RISK ==="
+input E2RiskMode InpRiskMode = E2_RISK_FIXED_CASH; // FIXED_CASH is non-compounding; BALANCE_PERCENT uses current balance.
+input double InpFixedCashRisk = 1000.0; // Frozen validated baseline: 1% of the $100,000 test balance.
+input double InpBalanceRiskPercent = 1.0; // Current account BALANCE percentage when BALANCE_PERCENT is selected.
+
+input group "=== EXECUTION / BROKER SAFETY ==="
+input ulong InpExpertMagicNumber = 2026001; // Identifier reserved for E2 orders.
+input bool  InpTradingEnabled   = true;    // Master execution switch.
+input double InpMaxEntryDeviationPips = 2.0;  // Reject plans whose market price has moved farther than this distance.
+input int    InpMaxQuoteAgeSeconds     = 10;   // Reject quotes older than this; set to zero to disable the age check.
+input int    InpMinimumSecondsBetweenExecutions = 5; // Generic new-order cooldown after a successful execution.
+
+input group "=== POSITION MANAGEMENT ==="
+input bool InpEnableFixed2RManagement = true;
+input bool InpEnableZoneTargetTrailingManagement = false;
+
+input group "=== REPORTING / DIAGNOSTICS / VALIDATION ==="
 input bool  InpDebugMode        = false;   // Enables diagnostic output.
 input bool InpResearchVerificationSummary = true; // Bounded semantic-regression and invariant summary.
 input bool InpResearchVerboseDiagnostics = false;
 input bool InpLoggingEnabled   = true;  // Enable future strategy-independent logging.
 input bool InpCsvExportEnabled = false; // Enable future CSV export.
-
-input group "VISUALIZATION"
 input bool InpVisualModeEnabled = true; // Audit-only MT5 Strategy Tester Visual Mode overlay.
 input bool InpVisualShowConfirmations = true;
 input bool InpVisualShowTrades = true;
@@ -234,6 +223,106 @@ struct E2Config
    ulong           visual_focus_trade_id;
    bool            visual_cleanup_on_deinit;
   };
+
+void E2InputHashAdd(ulong &hash,const string key,const string value)
+  {
+   const string token=key+"="+value+";";
+   for(int i=0;i<StringLen(token);i++)
+     {
+      hash^=(ulong)StringGetCharacter(token,i);
+      hash*=1099511628211;
+     }
+  }
+
+string E2InputConfigurationFingerprint(const E2Config &c)
+  {
+   ulong hash=1469598103934665603;
+   E2InputHashAdd(hash,"EnableTrendContinuation",IntegerToString((int)c.enable_trend_continuation));
+   E2InputHashAdd(hash,"EnableRangeMeanReversion",IntegerToString((int)c.enable_range_mean_reversion));
+   E2InputHashAdd(hash,"EnableRangeBreakout",IntegerToString((int)c.enable_range_breakout));
+   E2InputHashAdd(hash,"TrendTimeframe",IntegerToString((int)c.trend_timeframe));
+   E2InputHashAdd(hash,"ZoneTimeframe",IntegerToString((int)c.zone_timeframe));
+   E2InputHashAdd(hash,"ConfirmationTimeframe",IntegerToString((int)c.confirmation_timeframe));
+   E2InputHashAdd(hash,"SwingSensitivity",IntegerToString(c.swing_sensitivity));
+   E2InputHashAdd(hash,"TrendStructureLookbackBars",IntegerToString(c.trend_structure_lookback_bars));
+   E2InputHashAdd(hash,"AdxEnabled",IntegerToString((int)c.adx_enabled));
+   E2InputHashAdd(hash,"AdxPeriod",IntegerToString(c.adx_period));
+   E2InputHashAdd(hash,"AdxMinimumThreshold",DoubleToString(c.adx_minimum_threshold,12));
+   E2InputHashAdd(hash,"H4EmaFastPeriod",IntegerToString(c.research_h4_ema_fast_period));
+   E2InputHashAdd(hash,"H4EmaSlowPeriod",IntegerToString(c.research_h4_ema_slow_period));
+   E2InputHashAdd(hash,"H4EmaSlopeLookback",IntegerToString(c.research_h4_ema_slope_lookback));
+   E2InputHashAdd(hash,"H4AtrPeriod",IntegerToString(c.research_h4_atr_period));
+   E2InputHashAdd(hash,"H4StructuralBreakoutDistanceAtr",DoubleToString(c.research_h4_structural_breakout_distance_atr,12));
+   E2InputHashAdd(hash,"H4RangeAdxMaximum",DoubleToString(c.h4_range_adx_maximum,12));
+   E2InputHashAdd(hash,"H4RangeContainmentLookback",IntegerToString(c.h4_range_containment_lookback));
+   E2InputHashAdd(hash,"H4RangeMaximumWidthAtr",DoubleToString(c.h4_range_maximum_width_atr,12));
+   E2InputHashAdd(hash,"RangeBoundaryContainmentToleranceAtr",DoubleToString(c.range_boundary_containment_tolerance_atr,12));
+   E2InputHashAdd(hash,"RangeBoundaryMinimumHeightAtr",DoubleToString(c.range_boundary_minimum_height_atr,12));
+   E2InputHashAdd(hash,"RangeBoundaryInvalidationAtr",DoubleToString(c.research_range_boundary_invalidation_atr,12));
+   E2InputHashAdd(hash,"ZoneLookbackBars",IntegerToString(c.zone_lookback_bars));
+   E2InputHashAdd(hash,"H1AtrPeriod",IntegerToString(c.research_h1_atr_period));
+   E2InputHashAdd(hash,"H1ZonePivotClusteringAtr",DoubleToString(c.research_h1_zone_pivot_clustering_atr,12));
+   E2InputHashAdd(hash,"H1MinimumTouchSeparationBars",IntegerToString(c.research_h1_minimum_touch_separation_bars));
+   E2InputHashAdd(hash,"H1MinimumPostTouchDepartureAtr",DoubleToString(c.research_h1_minimum_post_touch_departure_atr,12));
+   E2InputHashAdd(hash,"H1ZoneInvalidationAtr",DoubleToString(c.research_h1_zone_invalidation_atr,12));
+   E2InputHashAdd(hash,"H1BreakoutDistanceAtr",DoubleToString(c.research_h1_breakout_distance_atr,12));
+   E2InputHashAdd(hash,"H1ZoneRearmDistanceAtr",DoubleToString(c.research_h1_zone_rearm_distance_atr,12));
+   E2InputHashAdd(hash,"M15BodyMedianLookback",IntegerToString(c.research_m15_body_median_lookback));
+   E2InputHashAdd(hash,"M15MomentumBodyMultiplier",DoubleToString(c.research_m15_momentum_body_multiplier,12));
+   E2InputHashAdd(hash,"M15MomentumBodyRangeMinimum",DoubleToString(c.research_m15_momentum_body_range_minimum,12));
+   E2InputHashAdd(hash,"M15MomentumClosingLocationFraction",DoubleToString(c.research_m15_momentum_closing_location_fraction,12));
+   E2InputHashAdd(hash,"H4TrendExtensionLimitAtr",DoubleToString(c.research_h4_trend_extension_limit_atr,12));
+   E2InputHashAdd(hash,"RangeOuterEntryRegionFraction",DoubleToString(c.research_range_outer_entry_region_fraction,12));
+   E2InputHashAdd(hash,"M15RejectionWickBodyMinimum",DoubleToString(c.research_m15_rejection_wick_body_minimum,12));
+   E2InputHashAdd(hash,"M15RejectionWickRangeMinimum",DoubleToString(c.research_m15_rejection_wick_range_minimum,12));
+   E2InputHashAdd(hash,"H1BreakoutBodyLookback",IntegerToString(c.research_h1_breakout_body_lookback));
+   E2InputHashAdd(hash,"H1BreakoutBodyMultiplier",DoubleToString(c.research_h1_breakout_body_multiplier,12));
+   E2InputHashAdd(hash,"H1BreakoutBodyRangeMinimum",DoubleToString(c.research_h1_breakout_body_range_minimum,12));
+   E2InputHashAdd(hash,"H1BreakoutClosingLocationFraction",DoubleToString(c.research_h1_breakout_closing_location_fraction,12));
+   E2InputHashAdd(hash,"H1BreakoutRetestExpiryBars",IntegerToString(c.research_h1_breakout_retest_expiry_bars));
+   E2InputHashAdd(hash,"H1BreakoutInvalidationDepthAtr",DoubleToString(c.research_h1_breakout_invalidation_depth_atr,12));
+   E2InputHashAdd(hash,"MaxSpreadPips",DoubleToString(c.max_spread_pips,12));
+   E2InputHashAdd(hash,"EnableLondonSession",IntegerToString((int)c.enable_london_session));
+   E2InputHashAdd(hash,"EnableNewYorkSession",IntegerToString((int)c.enable_new_york_session));
+   E2InputHashAdd(hash,"BrokerUtcOffsetHours",IntegerToString(c.broker_utc_offset_hours));
+   E2InputHashAdd(hash,"LondonSessionStartHour",IntegerToString(c.london_session_start_hour));
+   E2InputHashAdd(hash,"LondonSessionEndHour",IntegerToString(c.london_session_end_hour));
+   E2InputHashAdd(hash,"NewYorkSessionStartHour",IntegerToString(c.new_york_session_start_hour));
+   E2InputHashAdd(hash,"NewYorkSessionEndHour",IntegerToString(c.new_york_session_end_hour));
+   E2InputHashAdd(hash,"NewsFilterEnabled",IntegerToString((int)c.news_filter_enabled));
+   E2InputHashAdd(hash,"HighImpactBufferBeforeMinutes",IntegerToString(c.high_impact_buffer_before_minutes));
+   E2InputHashAdd(hash,"HighImpactBufferAfterMinutes",IntegerToString(c.high_impact_buffer_after_minutes));
+   E2InputHashAdd(hash,"NewsHighImpactOnly",IntegerToString((int)c.news_high_impact_only));
+   E2InputHashAdd(hash,"NewsDataFile",c.news_data_file);
+   E2InputHashAdd(hash,"RiskMode",IntegerToString((int)c.risk_mode));
+   E2InputHashAdd(hash,"FixedCashRisk",DoubleToString(c.fixed_cash_risk,12));
+   E2InputHashAdd(hash,"BalanceRiskPercent",DoubleToString(c.balance_risk_percent,12));
+   E2InputHashAdd(hash,"ExpertMagicNumber",StringFormat("%I64u",c.expert_magic_number));
+   E2InputHashAdd(hash,"TradingEnabled",IntegerToString((int)c.trading_enabled));
+   E2InputHashAdd(hash,"MaxEntryDeviationPips",DoubleToString(c.max_entry_deviation_pips,12));
+   E2InputHashAdd(hash,"MaxQuoteAgeSeconds",IntegerToString(c.max_quote_age_seconds));
+   E2InputHashAdd(hash,"MinimumSecondsBetweenExecutions",IntegerToString(c.minimum_seconds_between_executions));
+   E2InputHashAdd(hash,"EnableFixed2RManagement",IntegerToString((int)c.enable_fixed_2r_management));
+   E2InputHashAdd(hash,"EnableZoneTargetTrailingManagement",IntegerToString((int)c.enable_zone_target_trailing_management));
+   E2InputHashAdd(hash,"DebugMode",IntegerToString((int)c.debug_mode));
+   E2InputHashAdd(hash,"ResearchVerificationSummary",IntegerToString((int)c.research_verification_summary));
+   E2InputHashAdd(hash,"ResearchVerboseDiagnostics",IntegerToString((int)c.research_verbose_diagnostics));
+   E2InputHashAdd(hash,"LoggingEnabled",IntegerToString((int)c.logging_enabled));
+   E2InputHashAdd(hash,"CsvExportEnabled",IntegerToString((int)c.csv_export_enabled));
+   E2InputHashAdd(hash,"VisualModeEnabled",IntegerToString((int)c.visual_mode_enabled));
+   E2InputHashAdd(hash,"VisualShowConfirmations",IntegerToString((int)c.visual_show_confirmations));
+   E2InputHashAdd(hash,"VisualShowTrades",IntegerToString((int)c.visual_show_trades));
+   E2InputHashAdd(hash,"VisualShowH4RegimeV2",IntegerToString((int)c.visual_show_h4_regime_v2));
+   E2InputHashAdd(hash,"VisualShowH1ZoneV2",IntegerToString((int)c.visual_show_h1_zone_v2));
+   E2InputHashAdd(hash,"VisualShowH1RangeBoundaries",IntegerToString((int)c.visual_show_h1_range_boundaries));
+   E2InputHashAdd(hash,"VisualShowM15ConfirmationV2",IntegerToString((int)c.visual_show_m15_confirmation_v2));
+   E2InputHashAdd(hash,"VisualShowTrendContinuationV2",IntegerToString((int)c.visual_show_trend_continuation_v2));
+   E2InputHashAdd(hash,"VisualShowRangeMeanReversionV2",IntegerToString((int)c.visual_show_range_mean_reversion_v2));
+   E2InputHashAdd(hash,"VisualAuditMode",IntegerToString((int)c.visual_audit_mode));
+   E2InputHashAdd(hash,"VisualFocusTradeId",StringFormat("%I64u",c.visual_focus_trade_id));
+   E2InputHashAdd(hash,"VisualCleanupOnDeinit",IntegerToString((int)c.visual_cleanup_on_deinit));
+   return(StringFormat("%I64u",hash));
+  }
 
 // Copies the EA inputs once during initialization. Pip values remain in pip
 // units so future symbol-aware price conversion can use each symbol's specs.

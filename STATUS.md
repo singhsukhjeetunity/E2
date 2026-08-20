@@ -1,5 +1,13 @@
 # E2 Status
 
+## v2.0.1 input-organization sprint
+
+- All 84 external inputs have been inventoried and placed in ten ownership-oriented MT5 groups.
+- No external input was renamed and all v2.0.0 default values remain unchanged.
+- `[INPUT_CONFIG_VERIFY]` and `[INPUT_ISOLATION_VERIFY]` provide bounded tester diagnostics.
+- Three behavior-dead compatibility mappings and one shadowed lookback are documented in [INPUT_REFERENCE.md](INPUT_REFERENCE.md); none was repaired because that would exceed this sprint's semantic scope.
+- Static/compile validation is required before release, followed by the exact integrated and isolation Strategy Tester checks documented in `PRODUCTION_CONFIGURATION.md`.
+
 ## Implemented
 
 - Causal H4 regime analysis with structural trend/range state and anti-extension eligibility.

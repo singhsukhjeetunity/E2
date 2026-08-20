@@ -4,6 +4,12 @@
 
 E2 is a deterministic MQL5 research Expert Advisor. The active implementation supports Trend Continuation from causal multi-timeframe observations through native MT5 execution, position management, and authoritative deal reporting. Mechanical correctness does not imply a profitable edge or live readiness.
 
+### v2.0.1 configuration ownership
+
+The MT5 input surface is organized by ownership: strategy selection, shared market model, TC, RMR, RB, shared filters, risk, execution/broker safety, position management, and reporting/diagnostics. Declaration order and group labels are presentation concerns only; `E2LoadConfiguration()` and the existing `E2Config` fields remain the runtime boundary. The complete consumer trace is maintained in [INPUT_REFERENCE.md](INPUT_REFERENCE.md).
+
+Strategy-edge parameters are those that change regime, zone, range, breakout, retest, confirmation, or planning calculations. Operational parameters control shared filtering, risk, execution, management, reporting, or visualization. A shared upstream parameter may legitimately affect multiple strategies; exclusive inputs must not be read by another strategy's calculation.
+
 The recoverable v1.0 implementation exists at tag `v1.0.0`; it is not part of the active runtime tree.
 
 ## 2. Supported setup types

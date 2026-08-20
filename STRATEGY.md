@@ -1,5 +1,9 @@
 # E2 Strategy
 
+## v2.0.1 research input ownership
+
+MT5 inputs are now visibly separated into TC-exclusive, RMR-exclusive, RB-exclusive, genuinely shared market-model/filter inputs, and operational risk/execution/management/reporting inputs. This is an ownership and presentation refactor; formulas, thresholds, defaults, and precedence are unchanged. See [INPUT_REFERENCE.md](INPUT_REFERENCE.md) before tuning one strategy, especially for shared upstream inputs that can alter more than one setup.
+
 E2 v1.1.0-alpha executes the Trend Continuation V2 research strategy only. The v1.0 trend-pullback strategy has been removed from the active branch; its recovery artifact remains the immutable `v1.0.0` tag.
 
 ## Active decision pipeline
