@@ -1,6 +1,6 @@
 # E2 Core Architecture
 
-E2 OBR Sprint 3 is an end-to-end M15 strategy. The Sprint 2 market model remains the sole candidate authority; planning, execution and recovery consume its frozen candidates without recalculating them.
+E2 OBR is an end-to-end M15 strategy prepared for controlled forward/demo testing. The validated market model remains the sole candidate authority; planning, execution and recovery consume its frozen candidates without recalculating them.
 
 ## Active dependency graph
 
@@ -46,3 +46,5 @@ Magic number plus symbol identify E2-owned positions and orders. Filled OBR entr
 The active tree contains no TC, RMR, RB, H4 regime, H1 zone/range, M15 confirmation, multi-strategy planner, strategy session filter, V2 execution adapter, or V2 position manager. Git history preserves the former implementation.
 
 The frozen specification and execution lifecycle are in [OBR_STRATEGY.md](OBR_STRATEGY.md).
+
+Forward/demo operation uses one-time `[E2_PRODUCTION_CONFIG]` and `[E2_PRODUCTION_TIME]` diagnostics. They read configuration, account, and time-conversion state only; they do not participate in candidate, plan, execution, or management decisions.

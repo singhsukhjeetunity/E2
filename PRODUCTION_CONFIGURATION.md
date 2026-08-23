@@ -1,6 +1,8 @@
 # E2 Core Configuration and Verification
 
-Sprint 3 can place OBR trades when both `InpOBREnabled` and `InpTradingEnabled` are true. Validate on a demo/tester environment before any production use.
+E2 OBR can place trades when both `InpOBREnabled` and `InpTradingEnabled` are true. Validate on a demo/tester environment before any production use.
+
+The canonical controlled-demo preset is [E2_OBR_FORWARD_DEMO.set](presets/E2_OBR_FORWARD_DEMO.set). It intentionally makes FIXED_CASH `$1,000` visible to reproduce the accepted engineering baseline; this is not a recommendation for any account. Startup emits `[E2_PRODUCTION_CONFIG]` with risk mode/value, balance, equity, symbol, magic and all frozen OBR settings.
 
 ## Configuration categories
 
@@ -13,6 +15,10 @@ Sprint 3 can place OBR trades when both `InpOBREnabled` and `InpTradingEnabled` 
 The canonical timeframe and 08:00-09:00 Europe/London range are not optimizable inputs. Verify the broker offsets before every historical dataset. London DST is last Sunday in March 01:00 UTC through last Sunday in October 01:00 UTC.
 
 When news filtering is enabled, configure a broker UTC offset from -14 through 14 and supply a valid `FILE_COMMON` dataset following [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md). Exporter behavior is unchanged.
+
+Current production boundary: both backtests and forward terminals use the same static `FILE_COMMON/Files/E2_news_events.csv`; E2 does not poll the live MT5 calendar. More importantly, the frozen OBR execution route currently does not call the retained news filter, so the canonical preset keeps it disabled. A missing/malformed file is logged and evaluates ineligible inside the service, but must not be represented as active OBR protection until a separately authorized strategy change wires that service into planning.
+
+At startup `[E2_PRODUCTION_TIME]` reports server time, interpreted UTC, London time/offset, configured standard/summer broker offsets, DST switch and today's London OR mapped into server time. Verify against the actual broker; +2/+3 is not universal.
 
 ## Manual Strategy Tester checklist
 

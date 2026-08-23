@@ -15,6 +15,10 @@ Enable CSV export for two passive files in the terminal Common Files directory:
 
 End-of-run journal blocks are `OBR_RECONCILE_VERIFY`, `OBR_FINANCIAL_VERIFY`, `OBR_R_VERIFY`, `OBR_DAY_VERIFY`, `OBR_ENTRY_TIME_VERIFY`, `OBR_ENTRY_GAP_VERIFY`, `E2_RISK_VERIFY`, and `OBR_RUN_FINGERPRINT`, in addition to the Sprint 3 blocks. Monetary reconciliation tolerance is one account-currency cent; R geometry tolerance is one symbol tick. MT5 deal history is monetary authority.
 
+Sprint 5 timing classification: the accepted run's three formerly labelled late violations correspond exactly to `expiredCandidates=3`. They are now `missedWindowCandidates`; only submitted execution requests are checked for `actualLateExecutionViolations`, whose required value is zero. Planner expiry and execution behavior are unchanged.
+
+CSV counters are conditional. `tradeCsvStatus=CSV_DISABLED` and `decisionCsvStatus=CSV_DISABLED` make zero rows observational, not a mismatch. With CSV enabled, finalized-trade rows must equal finalized trades and `tradeCsvRowMismatch` must be zero.
+
 ## Determinism procedure
 
 Run the identical baseline twice with a clean tester state. Compare the complete decision and trade CSVs after excluding filenames/run IDs, plus `OBR_RUN_FINGERPRINT`. OR/candidate IDs, decisions, request IDs, trade IDs, directions, timestamps, initial SL, TP, counts and Net R must match. Record any tester-mode monetary field that legitimately differs; do not accept signal or geometry drift.

@@ -102,6 +102,7 @@ public:
      }
    string LondonDayAtServerTime(const datetime server)const{bool dst=false;return(DayId(ServerToLondon(server,dst)));}
    int LondonMinuteAtServerTime(const datetime server)const{bool dst=false;MqlDateTime p;TimeToStruct(ServerToLondon(server,dst),p);return(p.hour*60+p.min);}
+   string ProductionTimeDiagnostic(const datetime server)const{bool dst=false;datetime utc=ServerToUtc(server),london=ServerToLondon(server,dst);MqlDateTime p;TimeToStruct(london,p);p.hour=8;p.min=0;p.sec=0;datetime london_or=StructToTime(p),or_utc=london_or-(dst?3600:0),or_server=or_utc+(dst&&m_config.obr_server_uses_european_dst?m_config.obr_server_utc_offset_summer_hours:m_config.obr_server_utc_offset_standard_hours)*3600;return("serverTime="+TimeToString(server,TIME_DATE|TIME_SECONDS)+", interpretedUtc="+TimeToString(utc,TIME_DATE|TIME_SECONDS)+", londonTime="+TimeToString(london,TIME_DATE|TIME_SECONDS)+", londonOffsetHours="+IntegerToString(dst?1:0)+", brokerStandardOffset="+IntegerToString(m_config.obr_server_utc_offset_standard_hours)+", brokerSummerOffset="+IntegerToString(m_config.obr_server_utc_offset_summer_hours)+", europeanDstSwitch="+IntegerToString((int)m_config.obr_server_uses_european_dst)+", londonOrServerStart="+TimeToString(or_server,TIME_DATE|TIME_MINUTES)+", londonOrServerEnd="+TimeToString(or_server+3600,TIME_DATE|TIME_MINUTES));}
    E2OBROpeningRange CurrentRange(void)const{return(m_range);} E2OBRVerification Verification(void)const{return(m_verify);} E2OBRTimeVerification TimeVerification(void)const{return(m_time_verify);}
   };
 #endif

@@ -1,8 +1,10 @@
 # E2 Status
 
-## E2 OBR — Sprint 3 planning, execution and management
+## E2 OBR — controlled forward/demo baseline
 
 Sprint 4 adds passive lifecycle/rejection CSV audits and independent reconciliation summaries without changing the frozen trading rules. Procedures and the accepted baseline are documented in [OBR_VALIDATION.md](OBR_VALIDATION.md).
+
+Sprint 5 prepares release identity **E2 OBR** for controlled forward/demo testing with a canonical preset, one-time production configuration/time diagnostics, corrected missed-window verification semantics, explicit CSV-disabled status, and [OBR_FORWARD_TEST.md](OBR_FORWARD_TEST.md). Proposed future Git tag: `e2-obr-v1.0.0`; no tag or release has been created.
 
 - Generic E2 runtime, market-data, risk, execution-safety, order, ownership, news, logging, CSV and reporting foundations remain.
 - The legacy TC/RMR/RB strategy system and its H4/H1/M15 market-model dependencies have been removed.

@@ -11,7 +11,7 @@ Status: Sprint 3 end-to-end lock. Sprint 2 candidate semantics are unchanged; pl
 - ADX(14), ATR(14), range qualification and gap qualification are evaluated anew on each completed breakout-eligible bar, including that bar.
 - Failed ADX, range-size or breakout-gap checks do not consume the day. Multiple unique candidates are permitted; only a future successful trade consumes the day.
 - Baseline news filtering is disabled for OBR candidates. Spread is an execution-only check.
-- Future structural stop: long `OR Low - 0.10 * frozen breakout ATR`; short `OR High + 0.10 * frozen breakout ATR`. Sprint 2 does not calculate executable geometry.
+- Structural stop: long `OR Low - 0.10 * frozen breakout ATR`; short `OR High + 0.10 * frozen breakout ATR`. Planning preserves this separately from the broker-valid submitted SL.
 
 ## Authority and semantic priority
 

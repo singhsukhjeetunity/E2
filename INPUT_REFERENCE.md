@@ -1,6 +1,8 @@
-# E2 Sprint 3 Input Reference
+# E2 OBR Input Reference
 
 E2 exposes 32 inputs. Every declaration is copied once into `E2Config`, validated where applicable, and consumed. There are no compatibility-only inputs.
+
+The canonical controlled-demo values are provided in [E2_OBR_FORWARD_DEMO.set](presets/E2_OBR_FORWARD_DEMO.set). Its `$1,000` fixed-risk value reproduces the engineering baseline and must be reviewed for the target account.
 
 | Input | Default | Category | Consumer and purpose |
 |---|---:|---|---|
