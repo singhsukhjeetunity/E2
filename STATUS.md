@@ -1,5 +1,14 @@
 # E2 Status
 
+## E2 OBR transition — Sprint 0
+
+- The E2 OBR transition has begun.
+- Sprint 0 is architecture and strategy-specification documentation only.
+- The current TC/RMR/RB trading implementation remains unchanged.
+- OBR is not implemented.
+- No strategy deletion has occurred.
+- Sprint 1 has not started.
+
 ## v2.0.2.1 exporter diagnostics correction
 
 - Manual exporter launches were entering `OnStart` but rejecting the invalid default server-offset sentinel; the reason appeared in the Experts log while the terminal Journal showed only script loaded/removed messages.
