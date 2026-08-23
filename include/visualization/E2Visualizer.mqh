@@ -25,6 +25,11 @@ public: E2Visualizer(void):m_logger(NULL),m_chart(0),m_active(false){}
         }
       ChartRedraw(m_chart);
      }
+   void DrawOBRExecution(const E2OBRPositionMetadata &m)
+     {
+      if(!m_active||Period()!=PERIOD_M15||!m.valid)return;const string key="E2VIS_EXEC_"+m.execution_id;if(ObjectFind(m_chart,key+"_ENTRY")<0&&ObjectCreate(m_chart,key+"_ENTRY",OBJ_ARROW,0,m.entry_time,m.fill_price)){ObjectSetInteger(m_chart,key+"_ENTRY",OBJPROP_ARROWCODE,m.direction==E2_DIRECTION_LONG?233:234);ObjectSetInteger(m_chart,key+"_ENTRY",OBJPROP_COLOR,clrGold);}
+      datetime right=m.entry_time+PeriodSeconds(PERIOD_M15)*8;if(ObjectFind(m_chart,key+"_SL")<0&&ObjectCreate(m_chart,key+"_SL",OBJ_TREND,0,m.entry_time,m.submitted_stop,right,m.submitted_stop)){ObjectSetInteger(m_chart,key+"_SL",OBJPROP_COLOR,clrRed);ObjectSetInteger(m_chart,key+"_SL",OBJPROP_RAY_RIGHT,true);}if(ObjectFind(m_chart,key+"_TP")<0&&ObjectCreate(m_chart,key+"_TP",OBJ_TREND,0,m.entry_time,m.target_price,right,m.target_price)){ObjectSetInteger(m_chart,key+"_TP",OBJPROP_COLOR,clrLimeGreen);ObjectSetInteger(m_chart,key+"_TP",OBJPROP_RAY_RIGHT,true);}ChartRedraw(m_chart);
+     }
    void Cleanup(void){if(!m_active||!m_config.visual_cleanup_on_deinit)return;for(int i=ObjectsTotal(m_chart,0,-1)-1;i>=0;i--){string name=ObjectName(m_chart,i,0,-1);if(StringFind(name,"E2VIS_")==0)ObjectDelete(m_chart,name);}ChartRedraw(m_chart);}
   };
 #endif

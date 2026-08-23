@@ -1,13 +1,13 @@
 # E2 Strategy State
 
-## Current state: OBR signal discovery only
+## Current state: OBR end-to-end execution
 
-E2 constructs the London M15 opening range and may emit OBR candidates. It produces no trade requests, execution attempts, registered positions or trades.
+E2 constructs the London M15 opening range, emits the unchanged Sprint 2 candidates and may execute a candidate only during its immediately following M15 window. Entry uses side-specific Ask/Bid, frozen candidate ATR, a structural OR stop, broker-valid submitted SL and generic monetary risk sizing.
 
 The former Trend Continuation, Range Mean Reversion and Range Breakout system has been removed from the active source tree. It is available through Git history only.
 
-## Future direction
+## Trade lifecycle
 
-E2 OBR is under construction. Sprint 2 implements completed-candle signal discovery only. Its rules and remaining execution decisions are maintained in [OBR_STRATEGY.md](OBR_STRATEGY.md).
+After the actual fill, Original R is frozen from fill to submitted SL and the EA immediately attaches a 2R target. SL and TP remain fixed: there is no trailing, breakeven, partial close or discretionary management. Only a successful fill consumes the per-symbol London day; rejected and failed attempts do not.
 
-No retained generic service is itself a strategy. In particular, market data, news eligibility, risk sizing, execution safety, order submission and deal reporting cannot generate a trade without a future strategy producing a valid request.
+Restart recovery combines authoritative entry-deal history for the day lock with persisted metadata for an open position. Full rules are maintained in [OBR_STRATEGY.md](OBR_STRATEGY.md).

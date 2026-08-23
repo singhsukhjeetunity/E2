@@ -1,6 +1,6 @@
 # E2 Core Configuration and Verification
 
-Sprint 2 is a signal-only build. OBR candidates may exist, but no configuration can enable trading because no request producer exists. `InpTradingEnabled` only gates the retained executor for future use.
+Sprint 3 can place OBR trades when both `InpOBREnabled` and `InpTradingEnabled` are true. Validate on a demo/tester environment before any production use.
 
 ## Configuration categories
 
@@ -8,7 +8,7 @@ Sprint 2 is a signal-only build. OBR candidates may exist, but no configuration 
 - Execution safety: magic, master gate, spread, entry deviation, quote age and cooldown.
 - News infrastructure: disabled by default, broker UTC conversion, buffers, impact selection and CSV filename.
 - Reporting/diagnostics: logging, debug, core verification, CSV and generic visual controls.
-- OBR: enablement, M15 ADX/ATR/filter thresholds and explicit broker standard/summer UTC conversion.
+- OBR: enablement, M15 ADX/ATR/filter thresholds, stop buffer, target multiple and explicit broker standard/summer UTC conversion.
 
 The canonical timeframe and 08:00-09:00 Europe/London range are not optimizable inputs. Verify the broker offsets before every historical dataset. London DST is last Sunday in March 01:00 UTC through last Sunday in October 01:00 UTC.
 
@@ -18,12 +18,13 @@ When news filtering is enabled, configure a broker UTC offset from -14 through 1
 
 1. Compile `E2.mq5` with zero errors and zero warnings.
 2. Run a basic EURUSD test with default inputs.
-3. Capture the initialization line containing `Strategy layer=OBR_SIGNAL_ONLY`.
-4. Capture `[E2_INPUT_VERIFY]` and confirm `totalExposedInputs=30, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
-5. Confirm `[E2_CORE_VERIFY].strategyCandidates` equals `[OBR_VERIFY].totalCandidates`; requests, attempts, successes, registrations and finalized trades remain zero.
-6. Confirm OBR duplicate/causality and time mutation/reset counters are zero; reconstruction failures must be zero where all four OR bars exist.
-7. Confirm the Tester Results/Deals tabs contain no E2 strategy order or deal.
-8. Enable debug mode for selected candidate/rejection audit rows and compare OHLC, ATR, ADX, OR/ATR and gap/ATR against TradingView.
-9. Confirm there are no runtime errors on initialization or deinitialization.
+3. Capture `[E2_INPUT_VERIFY]` and confirm `totalExposedInputs=32, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+4. Re-run the Sprint 2 baseline period and confirm `[OBR_VERIFY].totalCandidates` remains the accepted candidate count (316 for the locked baseline dataset).
+5. Confirm every valid plan uses the candidate's immediate next M15 window and current Ask/Bid entry gap is at most 0.5 frozen ATR; deliberately start late and confirm expiry without an order.
+6. For long and short fills, verify structural SL, outward broker-valid submitted SL, volume risk, actual fill, immutable Original R and fixed normalized 2R TP in logs/CSV/deals.
+7. Force spread, stale-quote, margin and broker rejection scenarios. Confirm no failed attempt consumes the London day and no deterministic request executes twice.
+8. Restart once with an open OBR position and once after a same-day closed OBR trade. Confirm metadata recovery, unchanged Original R/SL/TP, and day lock recovery without a duplicate trade.
+9. Confirm `[OBR_PLAN_VERIFY]`, `[OBR_EXEC_VERIFY]`, `[OBR_RECOVERY_VERIFY]`, `[E2_RISK_VERIFY]` and `[E2_CORE_VERIFY]` show zero duplicate, causality, ownership and recovery violations.
+10. Confirm there is no SL/TP movement, breakeven, partial close or trailing behavior and no runtime errors on initialization/deinitialization.
 
 No old v2.x trading fingerprint is expected: those strategies were intentionally deleted.

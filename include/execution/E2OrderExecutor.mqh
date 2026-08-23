@@ -90,7 +90,7 @@ public:
      {
       ResetResult(result); result.symbol=plan.symbol; result.direction=plan.direction; result.planned_entry_price=plan.requested_entry_price; result.requested_volume=plan.volume; result.stop_loss_price=plan.submitted_stop_price; result.take_profit_price=plan.take_profit_price;
       if(!m_trading_enabled) { Fail(result,E2_EXECUTION_TRADING_DISABLED); return(false); }
-      if(plan.status!=E2_ORDER_REQUEST_VALID || plan.symbol=="" || plan.execution_id=="" || plan.direction==E2_DIRECTION_NONE || plan.volume<=0.0 || !MathIsValidNumber(plan.requested_entry_price) || !MathIsValidNumber(plan.submitted_stop_price) || !MathIsValidNumber(plan.take_profit_price)) { Fail(result,E2_EXECUTION_INVALID_PLAN); return(false); }
+      if(plan.status!=E2_ORDER_REQUEST_VALID || plan.symbol=="" || plan.execution_id=="" || plan.direction==E2_DIRECTION_NONE || plan.volume<=0.0 || !MathIsValidNumber(plan.requested_entry_price) || !MathIsValidNumber(plan.submitted_stop_price) || !MathIsValidNumber(plan.take_profit_price) || plan.take_profit_price<0.0) { Fail(result,E2_EXECUTION_INVALID_PLAN); return(false); }
       if(m_symbol_info==NULL || m_account_info==NULL || (!m_symbol_info.IsInitialized() && !m_symbol_info.Refresh(plan.symbol)) || (m_symbol_info.IsInitialized() && m_symbol_info.Specification().symbol!=plan.symbol && !m_symbol_info.Refresh(plan.symbol))) { Fail(result,E2_EXECUTION_SYMBOL_UNAVAILABLE); return(false); }
       E2SymbolSpecification spec=m_symbol_info.Specification();
       E2PositionGuardResult guard_result;
@@ -101,9 +101,9 @@ public:
       result.requested_market_price=(plan.direction==E2_DIRECTION_LONG ? tick.ask : tick.bid);
       if(result.requested_market_price<=0.0 || !MathIsValidNumber(result.requested_market_price)) { Fail(result,E2_EXECUTION_MARKET_PRICE_UNAVAILABLE); return(false); }
       if(MathAbs(result.requested_market_price-plan.requested_entry_price)>m_max_entry_deviation_pips*spec.pip_size) { Fail(result,E2_EXECUTION_PRICE_DEVIATION_EXCEEDED); return(false); }
-      if((plan.direction==E2_DIRECTION_LONG && !(plan.submitted_stop_price<result.requested_market_price && result.requested_market_price<plan.take_profit_price)) || (plan.direction==E2_DIRECTION_SHORT && !(plan.take_profit_price<result.requested_market_price && result.requested_market_price<plan.submitted_stop_price))) { Fail(result,E2_EXECUTION_INVALID_CURRENT_GEOMETRY); return(false); }
+      if((plan.direction==E2_DIRECTION_LONG && !(plan.submitted_stop_price<result.requested_market_price && (plan.take_profit_price==0.0||result.requested_market_price<plan.take_profit_price))) || (plan.direction==E2_DIRECTION_SHORT && !((plan.take_profit_price==0.0||plan.take_profit_price<result.requested_market_price) && result.requested_market_price<plan.submitted_stop_price))) { Fail(result,E2_EXECUTION_INVALID_CURRENT_GEOMETRY); return(false); }
       const double minimum_stop_distance=MathMax((double)SymbolInfoInteger(plan.symbol,SYMBOL_TRADE_STOPS_LEVEL),(double)SymbolInfoInteger(plan.symbol,SYMBOL_TRADE_FREEZE_LEVEL))*spec.point;
-      if(minimum_stop_distance>0.0 && (MathAbs(result.requested_market_price-plan.submitted_stop_price)<minimum_stop_distance || MathAbs(plan.take_profit_price-result.requested_market_price)<minimum_stop_distance)) { Fail(result,E2_EXECUTION_BROKER_STOP_CONSTRAINT); return(false); }
+      if(minimum_stop_distance>0.0 && (MathAbs(result.requested_market_price-plan.submitted_stop_price)<minimum_stop_distance || (plan.take_profit_price>0.0&&MathAbs(plan.take_profit_price-result.requested_market_price)<minimum_stop_distance))) { Fail(result,E2_EXECUTION_BROKER_STOP_CONSTRAINT); return(false); }
 
       if(!m_account_info.Refresh()) { Fail(result,E2_EXECUTION_TRADING_NOT_ALLOWED,"Account data unavailable."); return(false); }
       const ENUM_ORDER_TYPE order_type=(plan.direction==E2_DIRECTION_LONG ? ORDER_TYPE_BUY : ORDER_TYPE_SELL); double margin=0.0;
@@ -118,6 +118,12 @@ public:
       result.status=E2_EXECUTION_EXECUTED;
       if(m_safety!=NULL) m_safety.RecordSuccessfulExecution();
       return(true);
+     }
+   bool AttachProtection(const string symbol,const ulong position_id,const double stop_loss,const double take_profit,uint &retcode,string &description)
+     {
+      retcode=0;description="";ulong ticket=0;for(int i=0;i<PositionsTotal();i++){ulong value=PositionGetTicket(i);if(value>0&&PositionGetString(POSITION_SYMBOL)==symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic_number&&(ulong)PositionGetInteger(POSITION_IDENTIFIER)==position_id){ticket=value;break;}}
+      if(ticket==0){description="Owned position was not found for protection update.";return(false);}m_trade.SetExpertMagicNumber(m_magic_number);
+      bool changed=m_trade.PositionModify(ticket,stop_loss,take_profit);retcode=m_trade.ResultRetcode();description=m_trade.ResultRetcodeDescription();return(changed&&SuccessfulRetcode(retcode));
      }
   };
 

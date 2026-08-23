@@ -1,6 +1,6 @@
 # E2 OBR Canonical Strategy Specification
 
-Status: Sprint 2 signal-model lock. Candidate discovery is implemented; execution remains disconnected.
+Status: Sprint 3 end-to-end lock. Sprint 2 candidate semantics are unchanged; planning, execution, recovery and fixed trade management are implemented.
 
 ## Sprint 2 decisions locked
 
@@ -94,7 +94,9 @@ A qualifying breakout is known only after the breakout candle completes. Executi
 
 At minimum, E2 must enforce `breakout_known_from < entry_time` using the timestamp convention locked for implementation. The intended order is strict: detection from a completed candle first, execution on the next candle second. Actual market execution may differ from the nominal bar open because of bid/ask, spread, latency, slippage, market state, and broker rules; the authoritative entry is the MT5 fill price.
 
-Whether a delayed fill still counts as the next-candle entry, and when a pending plan expires, require decisions before implementation.
+The candidate is executable only while the current M15 bar is exactly its `known_from` bar. A plan seen earlier or later is rejected as non-causal or expired. There is no retry after that window.
+
+Immediately before planning, long uses current Ask and short uses current Bid. Entry distance beyond the breakout boundary must remain at most `0.5 * frozen breakout ATR`. Quote freshness, spread, deviation, ownership, margin and broker checks remain generic execution gates. Any rejection or failed attempt leaves the London day available, but the same deterministic execution request is never submitted twice.
 
 ## Structural stop, Original R, target, and reporting
 
@@ -117,7 +119,7 @@ Reporting must preserve both:
 - the strategy-intended structural stop (`OR Low` or `OR High`); and
 - the broker-valid protective SL actually submitted/accepted.
 
-If broker constraints require changing the submitted protective SL, monetary position sizing uses the submitted SL, while strategy reporting retains the unmodified structural level and explicitly records the adjustment. The 2R strategy target is defined from actual fill and structural Original R; whether broker normalization of the submitted SL should also alter the submitted TP is not specified and requires a decision.
+If broker constraints require changing the submitted protective SL, it is adjusted outward to a valid tick and minimum distance. Monetary position sizing uses that submitted SL, while reporting retains the unmodified structural level. The market order carries the protective SL and no initial TP. After the authoritative fill, Original R is frozen from fill to submitted SL and a broker-normalized `fill +/- 2 * Original R` TP is attached immediately, with one retry on failure.
 
 Baseline OBR has no trailing stop, breakeven movement, partial exit, zone target, or milestone trailing.
 
@@ -140,7 +142,7 @@ The Pine expression `riskCapital / price distance` is not sufficient for MT5 and
 
 The fixed rule is a maximum of one successfully entered OBR trade per authoritative trading day. A confirmed successful entry consumes that day's opportunity.
 
-The following are deliberately not inferred: whether a valid but failed execution is retryable, whether an overextended breakout blocks later candles, whether a rejected plan consumes anything, and whether a later qualifying close can create a new candidate. Those cases require explicit decisions.
+The limit is per symbol and Europe/London calendar day. Rejected plans and failed execution attempts do not consume it. A successful filled entry does, including after restart. Later Sprint 2 candidates may be considered only while the day remains unconsumed.
 
 ## Completed-data and determinism requirements
 
@@ -163,21 +165,8 @@ The following are deliberately not inferred: whether a valid but failed executio
 | Stop representation | One stop price | Preserve structural stop separately from submitted/accepted SL |
 | Daily consumption | `tradedToday` is set when the entry branch executes | Only a successfully entered trade definitely consumes the day; failure/retry policy is unresolved |
 
-## OBR RULE DECISIONS REQUIRED
+## Sprint 3 recovery and verification
 
-The following cannot be determined objectively for E2 from the supplied Pine source or current repository. Pine behavior is recorded where it is objective; no E2 choice is made here.
+Entry-deal history under the configured magic, symbol and `E2OBR|<LondonDay>` comment is authoritative for the consumed-day lock. A small `FILE_COMMON` record preserves open-position candidate identity, fill, structural/submitted stops, immutable Original R, TP, initial risk, volume and tickets. Startup validates and re-registers it; stale state is cleared once no owned position remains.
 
-1. **Broker timestamp schedule.** Confirm the configured standard/summer server UTC offsets and whether the broker follows the European transition schedule for every tested historical period.
-2. **Indicator parity evidence.** M15 `iATR(14)` and `iADX(14)` use MT5 Wilder indicators and include the completed breakout candle. Complete numerical TradingView comparison before execution is authorized.
-11. **Candidate lifetime.** Define whether a valid candidate is executable only at the immediately following candle open and exactly when it expires.
-12. **Execution failure.** Define retry/no-retry behavior for market closed, stale quote, excessive deviation, broker rejection, invalid volume, margin, trade-context, or other failure.
-13. **Daily-limit event.** The canonical minimum is one successful entry. Confirm whether an attempted signal, accepted candidate, submitted request, partial fill, or recovered existing position also consumes the day.
-14. **Simultaneous long/short handling.** Unlikely with a valid positive range on one close, but define deterministic precedence for malformed/edge data and multiple-symbol operation.
-16. **Entry deviation/slippage policy.** Define acceptable distance from nominal next-candle open, whether the plan is recalculated from the actual fill, and when excessive movement cancels the opportunity.
-19. **Broker-adjusted stop and TP.** Define stop-normalization direction, maximum acceptable adjustment, target basis after adjustment, and reject behavior if the structural stop violates broker constraints.
-20. **Volume normalization.** Lock round-down/reject/minimum-volume behavior when exact requested cash risk is unavailable.
-21. **Gap at entry.** The 0.5 ATR guard tests the breakout close, not the next open/fill. Decide whether an additional entry-fill gap/geometry guard exists.
-22. **Multi-symbol scope.** Define whether the one-trade limit is per symbol, per EA instance, or global to the E2 magic/account/day.
-23. **Restart/recovery.** Define persisted/reconstructed OR, candidate, and consumed-day state, including restart during the OR window or between signal close and next open.
-24. **Missing bars/data.** Define whether an incomplete OR, indicator warm-up failure, market closure, or history gap invalidates the entire day.
-25. **Price basis.** Pine OHLC is a chart series; MT5 execution uses bid/ask. Lock the chart/bid/mid basis for OR and indicators while retaining actual side-specific fill for execution.
+Tester output separates `[OBR_VERIFY]` candidate parity from `[OBR_PLAN_VERIFY]`, `[OBR_EXEC_VERIFY]`, `[OBR_RECOVERY_VERIFY]` and `[E2_RISK_VERIFY]`. Broker offset history and numerical MT5/TradingView indicator parity remain deployment evidence that must be checked for each dataset, not alternative runtime rules.

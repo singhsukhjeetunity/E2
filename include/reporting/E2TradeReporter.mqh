@@ -6,9 +6,9 @@
 
 struct E2ReportEntryData
   {
-   string symbol,setup_id,signal_id,execution_id; E2TradeDirection direction;
+   string symbol,setup_id,signal_id,execution_id,london_day; E2TradeDirection direction;
    datetime signal_time,signal_known_from,request_time,entry_time;
-   double requested_entry_price,fill_price,structural_stop_price,submitted_stop_price,take_profit_price,original_r_price,requested_risk_cash,actual_risk_cash,volume;
+   double or_high,or_low,frozen_atr,frozen_adx,requested_entry_price,fill_price,structural_stop_price,submitted_stop_price,take_profit_price,original_r_price,requested_risk_cash,actual_risk_cash,volume;
    ulong order_ticket,entry_deal;
   };
 
@@ -37,7 +37,7 @@ private:
       const double realized_r=(trade.entry.actual_risk_cash>0.0?net/trade.entry.actual_risk_cash:0.0);
       const double exit_price=(trade.exit_volume>0.0?trade.exit_value/trade.exit_volume:0.0);
       if(trade.entry.original_r_price<=0.0||trade.entry.actual_risk_cash<=0.0)m_invalid_original_r++;
-      string row[]={StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.setup_id,trade.entry.signal_id,trade.entry.execution_id,E2TradeDirectionName(trade.entry.direction),TimeText(trade.entry.signal_time),TimeText(trade.entry.signal_known_from),TimeText(trade.entry.request_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),Number(trade.entry.requested_entry_price),Number(trade.entry.fill_price),Number(trade.entry.structural_stop_price),Number(trade.entry.submitted_stop_price),Number(trade.entry.take_profit_price),Number(trade.entry.original_r_price),Number(trade.entry.requested_risk_cash,2),Number(trade.entry.actual_risk_cash,2),Number(trade.entry.volume,4),Number(exit_price),trade.exit_reason,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),StringFormat("%I64u",trade.entry.order_ticket),StringFormat("%I64u",trade.entry.entry_deal)};
+      string row[]={StringFormat("%I64u",trade.position_id),trade.entry.symbol,trade.entry.setup_id,trade.entry.signal_id,trade.entry.execution_id,trade.entry.london_day,E2TradeDirectionName(trade.entry.direction),TimeText(trade.entry.signal_time),TimeText(trade.entry.signal_known_from),TimeText(trade.entry.request_time),TimeText(trade.entry.entry_time),TimeText(trade.exit_time),Number(trade.entry.or_high),Number(trade.entry.or_low),Number(trade.entry.frozen_atr),Number(trade.entry.frozen_adx,4),Number(trade.entry.requested_entry_price),Number(trade.entry.fill_price),Number(trade.entry.structural_stop_price),Number(trade.entry.submitted_stop_price),Number(trade.entry.take_profit_price),Number(trade.entry.original_r_price),Number(trade.entry.requested_risk_cash,2),Number(trade.entry.actual_risk_cash,2),Number(trade.entry.volume,4),Number(exit_price),trade.exit_reason,Number(trade.profit,2),Number(trade.commission,2),Number(trade.swap,2),Number(trade.fee,2),Number(net,2),Number(realized_r,4),StringFormat("%I64u",trade.entry.order_ticket),StringFormat("%I64u",trade.entry.entry_deal)};
       if(m_csv.IsInitialized())m_csv.WriteRow(row);m_completed++;
      }
    void FinalizeIfClosed(const int index)
@@ -54,7 +54,7 @@ public:
       m_magic=magic;m_logger=&logger;ArrayResize(m_trades,0);ArrayResize(m_processed_exit_deals,0);m_completed=0;m_duplicate_entries=0;m_duplicate_finalized=0;m_foreign_deals=0;m_unregistered_exits=0;m_invalid_original_r=0;m_causality_violations=0;
       m_run_id=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);StringReplace(m_run_id,".","");StringReplace(m_run_id,":","");StringReplace(m_run_id," ","_");
       if(!csv_enabled)return(true);if(!m_csv.Initialize("E2_trades_"+symbol+"_"+m_run_id+".csv",logger))return(false);
-      string header[]={"position_id","symbol","setup_id","signal_id","execution_id","direction","signal_time","signal_known_from","request_time","entry_time","exit_time","requested_entry","actual_fill","structural_stop","submitted_stop","take_profit","original_r_price","requested_risk_cash","actual_risk_cash","volume","exit_price","exit_reason","profit","commission","swap","fees","net_profit","realized_r","order_ticket","entry_deal"};return(m_csv.WriteHeader(header));
+      string header[]={"position_id","symbol","setup_id","signal_id","execution_id","london_day","direction","breakout_time","signal_known_from","request_time","entry_time","exit_time","or_high","or_low","frozen_atr","frozen_adx","requested_entry","actual_fill","structural_stop","submitted_initial_stop","take_profit","original_r_price","requested_risk_cash","actual_initial_risk_cash","volume","exit_price","exit_reason","profit","commission","swap","fees","net_profit","realized_r","order_ticket","entry_deal"};return(m_csv.WriteHeader(header));
      }
    bool CaptureEntry(const E2ReportEntryData &source)
      {

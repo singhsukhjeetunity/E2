@@ -215,6 +215,7 @@ public:
    // Risk is always resolved from the configured mode and current account balance.
    void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);}}
    E2RiskModeVerification Verification()const{return(m_verify);}
+   bool CalculateActualRisk(const string symbol,const E2TradeDirection direction,const double volume,const double entry_price,const double stop_price,double &risk){return(CalculateLoss(symbol,direction,volume,entry_price,stop_price,risk));}
 
   };
 

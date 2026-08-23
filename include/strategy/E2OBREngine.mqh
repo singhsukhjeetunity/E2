@@ -100,6 +100,8 @@ public:
       if(reconstructing){if(m_range.complete)m_time_verify.or_reconstruction_successes++;else{bool dst=false;datetime london=ServerToLondon(latest.time,dst);MqlDateTime p;TimeToStruct(london,p);if(p.hour>=9)m_time_verify.or_reconstruction_failures++;}}
       return(true);
      }
+   string LondonDayAtServerTime(const datetime server)const{bool dst=false;return(DayId(ServerToLondon(server,dst)));}
+   int LondonMinuteAtServerTime(const datetime server)const{bool dst=false;MqlDateTime p;TimeToStruct(ServerToLondon(server,dst),p);return(p.hour*60+p.min);}
    E2OBROpeningRange CurrentRange(void)const{return(m_range);} E2OBRVerification Verification(void)const{return(m_verify);} E2OBRTimeVerification TimeVerification(void)const{return(m_time_verify);}
   };
 #endif
