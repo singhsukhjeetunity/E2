@@ -1,41 +1,24 @@
-# E2 Production Configuration
+# E2 Core Configuration and Verification
 
-## Risk mode
+Sprint 1 is a no-strategy build. No configuration can enable trading because no strategy request producer exists. `InpTradingEnabled` only gates the retained executor for future use.
 
-`FIXED_CASH` is the baseline default. `InpFixedCashRisk=1000.0` reproduces the prior validated $100,000-test risk, which was calculated as one percent of the initial balance.
+## Configuration categories
 
-`BALANCE_PERCENT` resolves its requested cash risk at execution from the current MT5 account `BALANCE`; it does not use equity or an initial-test snapshot. Set `InpBalanceRiskPercent` to the desired positive percentage.
+- Risk: FIXED_CASH or BALANCE_PERCENT and its selected value.
+- Execution safety: magic, master gate, spread, entry deviation, quote age and cooldown.
+- News infrastructure: disabled by default, broker UTC conversion, buffers, impact selection and CSV filename.
+- Reporting/diagnostics: logging, debug, core verification, CSV and generic visual controls.
 
-All Trend Continuation, Range Mean-Reversion, and Range Breakout orders use the same position-sizing path. A non-positive or non-finite selected risk value prevents initialization.
+When news filtering is enabled, configure a broker UTC offset from -14 through 14 and supply a valid `FILE_COMMON` dataset following [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md). Exporter behavior is unchanged.
 
-## Input ownership
+## Manual Strategy Tester checklist
 
-The Expert Properties input panel is ordered for one-strategy-at-a-time research. Strategy-edge inputs are separated from shared filters, risk, execution, position management, and reporting controls. No v2.0.1 input was renamed, so existing `.set` files retain their parameter names. Review [INPUT_REFERENCE.md](INPUT_REFERENCE.md) before changing a shared market-model input.
+1. Compile `E2.mq5` with zero errors and zero warnings.
+2. Run a basic EURUSD test with default inputs.
+3. Capture the initialization line containing `Strategy layer=NONE`.
+4. Capture `[E2_INPUT_VERIFY]` and confirm `totalExposedInputs=21, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+5. Capture `[E2_CORE_VERIFY]` and confirm `initialized=1`, with zero candidates, requests, attempts, successes, registrations, finalized trades, duplicates, causality violations, ownership violations and unknown positions.
+6. Confirm the Tester Results/Deals tabs contain no E2 strategy order or deal.
+7. Confirm there are no runtime errors on initialization or deinitialization.
 
-Known frozen baseline mappings are visible rather than silently repaired: the zone and confirmation timeframe inputs do not replace the H1/M15 constants in strategy modules, `InpAdxEnabled` is reporting-only, and the H4 structure lookback has an existing 300-bar minimum.
-
-## Historical news data
-
-E2 reads `InpNewsDataFile` from the terminal common-files directory. Use the standalone native-calendar exporter and procedure in [NEWS_DATA_WORKFLOW.md](NEWS_DATA_WORKFLOW.md) to create the deterministic CSV before a news-enabled Strategy Tester run. The file contains UTC minutes; configure `InpBrokerUtcOffsetHours` for the tested broker/source clock and do not apply a second offset to the CSV.
-
-The exporter is offline tooling and does not change the EA's session/news exclusion formulas, buffers, impact policy, or trade semantics.
-
-## Release checklist
-
-1. Select exactly the intended strategy and its valid management branch.
-2. Verify the risk mode and selected positive input.
-3. Run a tester pass and inspect `[RISK_MODE_VERIFY]`: request counters must match the selected mode, and invalid counters must be zero.
-4. Confirm entry report rows show requested and original risk cash consistent with the selected mode.
-5. Re-run baseline tests before changing any frozen research inputs.
-
-## v2.0.1 release verification
-
-1. Compile `E2.mq5` with 0 errors and 0 warnings and run `git diff --check`.
-2. Confirm `[INPUT_CONFIG_VERIFY]` reports 84 total inputs, 30 global/operational/compatibility, 2 TC-exclusive, 4 RMR-exclusive, 7 RB-exclusive, and 41 shared. Confirm `[INPUT_CONFIG_VERIFY_2]` reports zero duplicates, zero wholly unconsumed inputs, three behavior-dead mappings, one shadowed input, and zero ownership conflicts.
-3. Confirm `[INPUT_ISOLATION_VERIFY].detectedConfigurationOwnershipViolations=0`.
-4. Run the all-enabled EURUSD 2024 fixed-$1,000 baseline and verify TC `85/9/7/7`, RMR `10/2/2/2`, RB `8/4/4/4`, 13 total trades, Net R `13.3268`, Max DD R `2.0217`, and Net Profit `13325.06`.
-5. Confirm `GLOBAL_CAUSALITY_VERIFY.totalViolations=0`, maximum one concurrent E2 position per symbol, and all previously-zero namespace, identity, duplicate, reporting, and reconciliation violations remain zero.
-6. Run TC-only, RMR-only, and RB-only configurations. Change one exclusive input at a time and confirm the other strategy engines do not read that value. Restore defaults before the integrated comparison.
-7. Verify risk-mode routing independently for fixed cash and balance percent without changing the baseline comparison configuration.
-
-Passing compilation and static checks does not constitute runtime regression verification; release remains blocked until the Strategy Tester steps above are executed and recorded.
+No old v2.x trading fingerprint is expected: those strategies were intentionally deleted.

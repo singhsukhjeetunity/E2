@@ -108,7 +108,7 @@ public:
       if(plan.symbol=="" || !SymbolSelect(plan.symbol,true))
          return(Reject(result,E2_SAFETY_SYMBOL_UNAVAILABLE,"symbol unavailable"));
       const ENUM_SYMBOL_TRADE_MODE trade_mode=(ENUM_SYMBOL_TRADE_MODE)SymbolInfoInteger(plan.symbol,SYMBOL_TRADE_MODE);
-      if(trade_mode==SYMBOL_TRADE_MODE_DISABLED || trade_mode==SYMBOL_TRADE_MODE_CLOSEONLY || (plan.direction==E2_DIRECTION_BUY && trade_mode==SYMBOL_TRADE_MODE_SHORTONLY) || (plan.direction==E2_DIRECTION_SELL && trade_mode==SYMBOL_TRADE_MODE_LONGONLY))
+      if(trade_mode==SYMBOL_TRADE_MODE_DISABLED || trade_mode==SYMBOL_TRADE_MODE_CLOSEONLY || (plan.direction==E2_DIRECTION_LONG && trade_mode==SYMBOL_TRADE_MODE_SHORTONLY) || (plan.direction==E2_DIRECTION_SHORT && trade_mode==SYMBOL_TRADE_MODE_LONGONLY))
          return(Reject(result,E2_SAFETY_SYMBOL_TRADING_DISABLED,"symbol trading mode does not permit this order"));
       if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) || !MQLInfoInteger(MQL_TRADE_ALLOWED) || !AccountInfoInteger(ACCOUNT_TRADE_ALLOWED) || !AccountInfoInteger(ACCOUNT_TRADE_EXPERT))
          return(Reject(result,E2_SAFETY_TRADING_NOT_ALLOWED,"terminal, EA, or account trading permission is unavailable"));

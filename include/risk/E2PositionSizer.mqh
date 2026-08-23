@@ -4,12 +4,7 @@
 #include "..\\core\\E2Config.mqh"
 #include "..\\core\\E2SymbolInfo.mqh"
 #include "..\\core\\E2AccountInfo.mqh"
-
-enum E2TradeDirection
-  {
-   E2_DIRECTION_BUY,
-   E2_DIRECTION_SELL
-  };
+#include "..\\core\\E2TradeTypes.mqh"
 
 enum E2SizingStatus
   {
@@ -89,7 +84,7 @@ private:
    bool CalculateLoss(const string symbol,const E2TradeDirection direction,const double volume,const double entry_price,const double stop_price,double &loss)
      {
       double profit=0.0;
-      const ENUM_ORDER_TYPE order_type=(direction==E2_DIRECTION_BUY ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+      const ENUM_ORDER_TYPE order_type=(direction==E2_DIRECTION_LONG ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
       ResetLastError();
       if(!OrderCalcProfit(order_type,symbol,volume,entry_price,stop_price,profit))
         {
@@ -138,8 +133,8 @@ public:
         }
 
       E2SymbolSpecification specification=m_symbol_info.Specification();
-      if((direction==E2_DIRECTION_BUY && stop_price>=entry_price) ||
-         (direction==E2_DIRECTION_SELL && stop_price<=entry_price))
+      if((direction==E2_DIRECTION_LONG && stop_price>=entry_price) ||
+         (direction==E2_DIRECTION_SHORT && stop_price<=entry_price))
         {
          result.status=E2_SIZING_INVALID_STOP;
          return(false);
@@ -218,10 +213,6 @@ public:
 
    // The historical name remains only to keep planning call sites source-compatible.
    // Risk is always resolved from the configured mode and current account balance.
-   bool              CalculateFixedInitialBalance(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,const double initial_balance,E2PositionSizingResult &result)
-     {
-      return(CalculateRequestedRisk(symbol,direction,entry_price,stop_price,result,false));
-     }
    void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);}}
    E2RiskModeVerification Verification()const{return(m_verify);}
 

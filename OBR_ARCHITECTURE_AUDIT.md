@@ -1,5 +1,7 @@
 # E2 OBR Existing Architecture Audit
 
+> Sprint 1 implementation note: the audit's deletion order was followed. The final core exposes 21 rather than the provisional 19 KEEP-only inputs because the new core-verification switch and retained news-time conversion have concrete generic consumers. The V2 execution adapter and V2 position manager were removed rather than kept as compatibility shells; generic order execution, ownership guarding and deal reporting remain in narrower contracts. See current `ARCHITECTURE.md` and `INPUT_REFERENCE.md`.
+
 Status: Sprint 0 static audit only. No source, input, formula, or runtime behavior has been changed.
 
 ## Audit method and classification rule

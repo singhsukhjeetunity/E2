@@ -1,7 +1,6 @@
 #ifndef E2_ANALYSIS_E2MARKETDATA_MQH
 #define E2_ANALYSIS_E2MARKETDATA_MQH
 
-#include "..\\core\\E2Config.mqh"
 #include "..\\reporting\\E2Logger.mqh"
 
 // The market-data boundary uses MqlRates directly. For GetClosedBar(),
@@ -13,9 +12,6 @@
 class E2MarketData
   {
 private:
-   ENUM_TIMEFRAMES   m_trend_timeframe;
-   ENUM_TIMEFRAMES   m_zone_timeframe;
-   ENUM_TIMEFRAMES   m_confirmation_timeframe;
    E2Logger          *m_logger;
 
    void ReportDebug(const string message)
@@ -65,29 +61,11 @@ private:
      }
 
 public:
-                     E2MarketData(void) : m_trend_timeframe(PERIOD_CURRENT),m_zone_timeframe(PERIOD_CURRENT),m_confirmation_timeframe(PERIOD_CURRENT),m_logger(NULL) {}
+                     E2MarketData(void) : m_logger(NULL) {}
 
-   void              Initialize(const E2Config &configuration,E2Logger &logger)
+   void              Initialize(E2Logger &logger)
      {
-      m_trend_timeframe=configuration.trend_timeframe;
-      m_zone_timeframe=configuration.zone_timeframe;
-      m_confirmation_timeframe=configuration.confirmation_timeframe;
       m_logger=&logger;
-     }
-
-   ENUM_TIMEFRAMES   TrendTimeframe(void) const
-     {
-      return(m_trend_timeframe);
-     }
-
-   ENUM_TIMEFRAMES   ZoneTimeframe(void) const
-     {
-      return(m_zone_timeframe);
-     }
-
-   ENUM_TIMEFRAMES   ConfirmationTimeframe(void) const
-     {
-      return(m_confirmation_timeframe);
      }
 
    bool              GetClosedBar(const string symbol,const ENUM_TIMEFRAMES timeframe,const int closed_shift,MqlRates &bar)

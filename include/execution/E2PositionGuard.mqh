@@ -18,7 +18,7 @@ class E2PositionGuard
       {r.status=E2_GUARD_CLEAR;r.open_e2_positions=CountOpenE2Positions(p.symbol);r.pending_e2_orders=HasPendingE2Order(p.symbol)?1:0;
        const bool netting=(AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING);
        if(netting){for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==p.symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)!=m_magic){r.status=E2_GUARD_ACCOUNT_MODE_UNSUPPORTED;return(false);}}}
-       if(r.open_e2_positions>0){for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==p.symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic){ENUM_POSITION_TYPE type=(ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);r.status=((p.direction==E2_DIRECTION_BUY&&type==POSITION_TYPE_BUY)||(p.direction==E2_DIRECTION_SELL&&type==POSITION_TYPE_SELL))?E2_GUARD_POSITION_ALREADY_OPEN:E2_GUARD_DIRECTION_CONFLICT;return(false);}}}
+       if(r.open_e2_positions>0){for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==p.symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic){ENUM_POSITION_TYPE type=(ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);r.status=((p.direction==E2_DIRECTION_LONG&&type==POSITION_TYPE_BUY)||(p.direction==E2_DIRECTION_SHORT&&type==POSITION_TYPE_SELL))?E2_GUARD_POSITION_ALREADY_OPEN:E2_GUARD_DIRECTION_CONFLICT;return(false);}}}
        if(r.pending_e2_orders>0){r.status=E2_GUARD_PENDING_ORDER_EXISTS;return(false);}return(true);}
   };
 #endif
