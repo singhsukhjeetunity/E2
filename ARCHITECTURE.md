@@ -24,6 +24,8 @@ E2 OBR Sprint 3 is an end-to-end M15 strategy. The Sprint 2 market model remains
 - `E2OBREngine.mqh`: London-time conversion, four-bar OR reconstruction/freeze, M15 ATR/ADX sampling, filters, deterministic candidate identity and duplicate protection.
 - `E2OBRTradePlanner.mqh`: next-window expiry, entry-gap validation, structural/broker stop geometry, risk sizing and request/attempt deduplication.
 - `E2OBRRecovery.mqh`: London-day deal-history lock and small persisted open-position metadata record.
+- `E2TradeReporter.mqh`: passive finalized-trade audit plus independent financial, R, day and chain reconciliation.
+- `E2OBRTradePlanner.mqh`: also emits the optional passive candidate decision/rejection audit and entry-time/gap verification.
 
 The engine still emits metadata only. The planner is the only bridge into generic risk and execution services.
 

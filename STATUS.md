@@ -2,6 +2,8 @@
 
 ## E2 OBR — Sprint 3 planning, execution and management
 
+Sprint 4 adds passive lifecycle/rejection CSV audits and independent reconciliation summaries without changing the frozen trading rules. Procedures and the accepted baseline are documented in [OBR_VALIDATION.md](OBR_VALIDATION.md).
+
 - Generic E2 runtime, market-data, risk, execution-safety, order, ownership, news, logging, CSV and reporting foundations remain.
 - The legacy TC/RMR/RB strategy system and its H4/H1/M15 market-model dependencies have been removed.
 - M15 Europe/London opening-range construction, ATR/ADX filters, breakout checks and deterministic candidate generation are implemented.

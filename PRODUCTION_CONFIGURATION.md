@@ -27,4 +27,6 @@ When news filtering is enabled, configure a broker UTC offset from -14 through 1
 9. Confirm `[OBR_PLAN_VERIFY]`, `[OBR_EXEC_VERIFY]`, `[OBR_RECOVERY_VERIFY]`, `[E2_RISK_VERIFY]` and `[E2_CORE_VERIFY]` show zero duplicate, causality, ownership and recovery violations.
 10. Confirm there is no SL/TP movement, breakeven, partial close or trailing behavior and no runtime errors on initialization/deinitialization.
 
+The full determinism, TradingView parity, DST, restart and control-run procedures are in [OBR_VALIDATION.md](OBR_VALIDATION.md). Do not mark those controls passed from compilation alone.
+
 No old v2.x trading fingerprint is expected: those strategies were intentionally deleted.

@@ -33,7 +33,7 @@ struct E2PositionSizingResult
    double            monetary_loss_per_lot;
   };
 struct E2RiskModeVerification
-  {int trades_sized,fixed_cash_requests,balance_percent_requests,invalid_risk_requests,non_positive_balance,risk_mode_mismatch,invalid_volume_after_sizing;double requested_min,requested_max,requested_sum,original_min,original_max;};
+  {int trades_sized,fixed_cash_requests,balance_percent_requests,invalid_risk_requests,non_positive_balance,risk_mode_mismatch,invalid_volume_after_sizing,actual_risk_above_requested;double requested_min,requested_max,requested_sum,original_min,original_max,original_sum,difference_min,difference_max,difference_sum;};
 
 string E2SizingStatusName(const E2SizingStatus status)
   {
@@ -58,7 +58,7 @@ private:
    E2AccountInfo     *m_account_info;
    E2Logger          *m_logger;
    E2RiskMode        m_risk_mode;
-   double            m_fixed_cash_risk,m_balance_risk_percent;
+   double            m_fixed_cash_risk,m_balance_risk_percent,m_last_requested_risk;
    E2RiskModeVerification m_verify;
 
    void ResetResult(E2PositionSizingResult &result)
@@ -97,7 +97,7 @@ private:
      }
 
 public:
-                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_mode(E2_RISK_FIXED_CASH),m_fixed_cash_risk(0.0),m_balance_risk_percent(0.0) {ZeroMemory(m_verify);}
+                     E2PositionSizer(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_risk_mode(E2_RISK_FIXED_CASH),m_fixed_cash_risk(0.0),m_balance_risk_percent(0.0),m_last_requested_risk(0.0) {ZeroMemory(m_verify);}
 
    void              Initialize(const E2Config &configuration,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2Logger &logger)
      {
@@ -107,7 +107,7 @@ public:
       m_risk_mode=configuration.risk_mode;
       m_fixed_cash_risk=configuration.fixed_cash_risk;
       m_balance_risk_percent=configuration.balance_risk_percent;
-      ZeroMemory(m_verify);
+      ZeroMemory(m_verify);m_last_requested_risk=0.0;
      }
 
    bool              CalculateRequestedRisk(const string symbol,const E2TradeDirection direction,const double entry_price,const double stop_price,E2PositionSizingResult &result,const bool record=false)
@@ -206,14 +206,14 @@ public:
         }
 
       result.actual_risk_percent=result.actual_risk_money/result.risk_base_value*100.0;
-      if(record){m_verify.trades_sized++;if(m_risk_mode==E2_RISK_FIXED_CASH)m_verify.fixed_cash_requests++;else if(m_risk_mode==E2_RISK_BALANCE_PERCENT)m_verify.balance_percent_requests++;m_verify.requested_sum+=result.target_risk_money;if(m_verify.trades_sized==1){m_verify.requested_min=result.target_risk_money;m_verify.requested_max=result.target_risk_money;}else{m_verify.requested_min=MathMin(m_verify.requested_min,result.target_risk_money);m_verify.requested_max=MathMax(m_verify.requested_max,result.target_risk_money);}}
+      if(record){m_last_requested_risk=result.target_risk_money;m_verify.trades_sized++;if(m_risk_mode==E2_RISK_FIXED_CASH)m_verify.fixed_cash_requests++;else if(m_risk_mode==E2_RISK_BALANCE_PERCENT)m_verify.balance_percent_requests++;m_verify.requested_sum+=result.target_risk_money;if(m_verify.trades_sized==1){m_verify.requested_min=result.target_risk_money;m_verify.requested_max=result.target_risk_money;}else{m_verify.requested_min=MathMin(m_verify.requested_min,result.target_risk_money);m_verify.requested_max=MathMax(m_verify.requested_max,result.target_risk_money);}}
       result.status=E2_SIZING_VALID;
       return(true);
      }
 
    // The historical name remains only to keep planning call sites source-compatible.
    // Risk is always resolved from the configured mode and current account balance.
-   void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);}}
+   void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}double difference=value-m_last_requested_risk;m_verify.original_sum+=value;m_verify.difference_sum+=difference;if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;m_verify.difference_min=difference;m_verify.difference_max=difference;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);m_verify.difference_min=MathMin(m_verify.difference_min,difference);m_verify.difference_max=MathMax(m_verify.difference_max,difference);}if(m_last_requested_risk>0.0&&value>m_last_requested_risk+MathMax(0.01,m_last_requested_risk*1e-8))m_verify.actual_risk_above_requested++;}
    E2RiskModeVerification Verification()const{return(m_verify);}
    bool CalculateActualRisk(const string symbol,const E2TradeDirection direction,const double volume,const double entry_price,const double stop_price,double &risk){return(CalculateLoss(symbol,direction,volume,entry_price,stop_price,risk));}
 

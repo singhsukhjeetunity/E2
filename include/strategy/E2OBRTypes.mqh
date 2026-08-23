@@ -50,4 +50,11 @@ struct E2OBRPositionMetadata
    bool valid; ulong position_id,order_ticket,entry_deal; string candidate_id,execution_id,london_day,symbol; E2TradeDirection direction;
    datetime breakout_time,entry_time; double or_high,or_low,frozen_atr,frozen_adx,fill_price,structural_stop,submitted_stop,original_r_price,target_price,requested_risk_cash,actual_risk_cash,volume;
   };
+
+struct E2OBRReconcileVerification { long candidate_count,plan_candidate_count,valid_request_count,execution_attempt_count,successful_entry_count,registered_position_count,finalized_trade_count,trade_csv_rows,unique_trade_ids,unique_candidate_ids_for_trades,day_locks_created,unique_successful_symbol_days,duplicate_trade_ids,duplicate_successful_symbol_days,orphan_executions,orphan_registrations,orphan_finalizations,missing_candidate_links,missing_execution_links,trade_count_mismatch; };
+struct E2OBRFinancialVerification { double gross_profit,commission,swap,fees,net_profit,net_r,win_rate,average_r,average_win_r,average_loss_r,profit_factor_r,maximum_drawdown_r,profit_difference,r_difference; long wins,losses,breakevens,trade_count_difference; };
+struct E2OBRRVerification { long trades_checked,invalid_original_r,original_r_mismatches,tp_geometry_mismatches,non_positive_original_r,original_r_mutation_violations; double maximum_tp_difference_ticks; };
+struct E2OBRDayVerification { long successful_entries,unique_successful_days,max_entries_per_symbol_london_day,duplicate_successful_days,day_locks_created,day_lock_mismatch; };
+struct E2OBREntryTimeVerification { long attempts_checked,correct_next_bar_attempts,same_bar_violations,late_entry_violations,early_entry_violations,missing_candidate_timestamp,entry_time_violations; };
+struct E2OBREntryGapVerification { long accepted_checked,rejected_checked,false_accepts,false_rejects,atr_mutation_violations,gap_decision_violations; };
 #endif
