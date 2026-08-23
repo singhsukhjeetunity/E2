@@ -1,6 +1,6 @@
 # E2 Core Architecture
 
-E2 OBR is under construction. Sprint 1 leaves a deliberately strategy-agnostic EA: generic production services exist, but no strategy layer is implemented and no path can create an order request.
+E2 OBR is under construction. Sprint 2 adds a candidate-only M15 signal layer. Generic production services remain, but no path creates an order request.
 
 ## Active dependency graph
 
@@ -16,7 +16,14 @@ E2 OBR is under construction. Sprint 1 leaves a deliberately strategy-agnostic E
 - deal-authoritative trade reporting, logging and CSV utilities;
 - zero-strategy tester verification and generic visual cleanup.
 
-`OnTick` is intentionally empty of strategy work. The order executor has no caller. `OnTradeTransaction` forwards deal additions to the generic reporter, and deinitialization reconciles history and emits verification.
+`OnTick` calls only `E2OBREngine::Evaluate` and visualization. The order executor still has no caller. `OnTradeTransaction` forwards deal additions to the generic reporter, and deinitialization reconciles history and emits core/OBR verification.
+
+## OBR signal modules
+
+- `E2OBRTypes.mqh`: opening-range, candidate and verification records.
+- `E2OBREngine.mqh`: London-time conversion, four-bar OR reconstruction/freeze, M15 ATR/ADX sampling, filters, deterministic candidate identity and duplicate protection.
+
+The engine emits metadata only. It does not include order requests, risk sizing, execution or position registration.
 
 ## Generic contracts
 
@@ -34,4 +41,4 @@ Magic number plus symbol identify E2-owned positions and orders. The guard preve
 
 The active tree contains no TC, RMR, RB, H4 regime, H1 zone/range, M15 confirmation, multi-strategy planner, strategy session filter, V2 execution adapter, or V2 position manager. Git history preserves the former implementation.
 
-The frozen future strategy specification is [OBR_STRATEGY.md](OBR_STRATEGY.md). OBR implementation begins after Sprint 1.
+The frozen specification is [OBR_STRATEGY.md](OBR_STRATEGY.md). Execution begins in a later sprint only after signal parity is accepted.

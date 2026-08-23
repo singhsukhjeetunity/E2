@@ -17,6 +17,7 @@
 #include "include\\reporting\\E2TradeReporter.mqh"
 #include "include\\reporting\\E2BacktestSummary.mqh"
 #include "include\\visualization\\E2Visualizer.mqh"
+#include "include\\strategy\\E2OBREngine.mqh"
 
 E2Config g_configuration;
 E2Environment g_environment;
@@ -32,6 +33,7 @@ E2OrderExecutor g_order_executor;
 E2TradeReporter g_trade_reporter;
 E2BacktestSummary g_backtest_summary;
 E2Visualizer g_visualizer;
+E2OBREngine g_obr_engine;
 
 bool g_initialized=false;
 int g_strategy_candidates=0;
@@ -44,7 +46,8 @@ void E2EmitVerification(void)
   {
    if(!g_configuration.core_verification_enabled)return;
    const int unknown_positions=g_trade_reporter.UnknownE2Positions(_Symbol);
-   g_backtest_summary.CoreVerify(g_initialized,g_strategy_candidates,g_trade_requests,g_execution_attempts,g_execution_successes,g_trade_reporter.RegisteredCount(),g_trade_reporter.FinalizedCount(),g_trade_reporter.DuplicateExecutionIds(),g_trade_reporter.DuplicateFinalizedTrades(),g_trade_reporter.CausalityViolations(),g_ownership_violations,unknown_positions);
+   const E2OBRVerification obr=g_obr_engine.Verification();g_strategy_candidates=(int)obr.total_candidates;
+   g_backtest_summary.CoreVerify(g_initialized,g_strategy_candidates,g_trade_requests,g_execution_attempts,g_execution_successes,g_trade_reporter.RegisteredCount(),g_trade_reporter.FinalizedCount(),g_trade_reporter.DuplicateExecutionIds(),g_trade_reporter.DuplicateFinalizedTrades(),g_trade_reporter.CausalityViolations()+(int)obr.causality_violations,g_ownership_violations,unknown_positions);
    g_logger.Info("totalExposedInputs="+IntegerToString(E2ExposedInputCount())+", deadInputs="+IntegerToString(E2DeadInputCount())+", duplicateInputs="+IntegerToString(E2DuplicateInputCount())+", invalidMappings="+IntegerToString(E2InvalidInputMappingCount())+".","E2_INPUT_VERIFY");
   }
 
@@ -66,15 +69,18 @@ int OnInit()
    if(!g_trade_reporter.Initialize(g_configuration.csv_export_enabled,g_configuration.expert_magic_number,_Symbol,g_logger))return(INIT_FAILED);
    g_backtest_summary.Initialize(g_logger);
    g_visualizer.Initialize(g_configuration,g_logger);
+   if(!g_obr_engine.Initialize(_Symbol,g_configuration,g_market_data,g_logger)){g_logger.Error("OBR indicator initialization failed.","Initialization");return(INIT_FAILED);}
    g_initialized=true;
-   g_logger.Info("Initialized in "+g_environment.Name()+". Strategy layer=NONE; no candidate, request, or execution route exists.","Core");
+   g_logger.Info("Initialized in "+g_environment.Name()+". Strategy layer=OBR_SIGNAL_ONLY; execution route disconnected.","Core");
    return(INIT_SUCCEEDED);
   }
 
 void OnTick()
   {
-   // Sprint 1 intentionally has no strategy layer. Generic services remain
-   // initialized, but no candidate, request, or execution can be produced.
+   E2OBRCandidate candidates[];
+   if(!g_obr_engine.Evaluate(candidates))return;
+   const E2OBRVerification verification=g_obr_engine.Verification();g_strategy_candidates=(int)verification.total_candidates;
+   g_visualizer.UpdateOBR(g_obr_engine.CurrentRange(),candidates);
   }
 
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result)
@@ -85,7 +91,9 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
 void OnDeinit(const int reason)
   {
    g_trade_reporter.Reconcile();
+   const E2OBRVerification obr_verify=g_obr_engine.Verification();const E2OBRTimeVerification time_verify=g_obr_engine.TimeVerification();g_backtest_summary.OBRVerify(obr_verify);g_backtest_summary.OBRTimeVerify(time_verify);
    E2EmitVerification();
+   g_obr_engine.Shutdown();
    g_visualizer.Cleanup();
    g_trade_reporter.Close();
    g_initialized=false;

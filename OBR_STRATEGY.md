@@ -1,6 +1,17 @@
 # E2 OBR Canonical Strategy Specification
 
-Status: Sprint 0 specification lock. OBR is not implemented. This document defines the research baseline and records decisions that must be made before implementation.
+Status: Sprint 2 signal-model lock. Candidate discovery is implemented; execution remains disconnected.
+
+## Sprint 2 decisions locked
+
+- Decision timeframe: M15.
+- Trading day and opening-range clock: Europe/London civil time with statutory GMT/BST transitions.
+- Opening range: exactly the completed 08:00, 08:15, 08:30 and 08:45 London M15 bars; 09:00 is first eligible breakout bar.
+- Eligibility continues through the London calendar day with no intraday cutoff.
+- ADX(14), ATR(14), range qualification and gap qualification are evaluated anew on each completed breakout-eligible bar, including that bar.
+- Failed ADX, range-size or breakout-gap checks do not consume the day. Multiple unique candidates are permitted; only a future successful trade consumes the day.
+- Baseline news filtering is disabled for OBR candidates. Spread is an execution-only check.
+- Future structural stop: long `OR Low - 0.10 * frozen breakout ATR`; short `OR High + 0.10 * frozen breakout ATR`. Sprint 2 does not calculate executable geometry.
 
 ## Authority and semantic priority
 
@@ -23,9 +34,9 @@ If the Pine behavior and this document conflict, this document controls E2 OBR. 
 - Pine's `time("D")` defines its daily reset from the chart symbol/exchange's daily-bar calendar.
 - All E2 signal decisions must use completed candles. A candle's values become eligible only at or after its close/known-from timestamp.
 
-### Not yet fixed for E2
+### E2 time basis
 
-The E2 implementation timeframe, the authoritative opening-range timezone, trading-day boundary, and DST rule are configuration decisions. They must be decided before implementation. E2 must not silently substitute H4, H1, M15, broker time, local PC time, or UTC. The eventual implementation must expose or centrally define one authoritative decision timeframe used consistently for OR bars, ADX(14), ATR(14), breakout confirmation, and next-candle execution unless a later specification explicitly locks separate timeframes.
+E2 uses M15 and the Europe/London calendar. London DST begins at 01:00 UTC on the last Sunday in March and ends at 01:00 UTC on the last Sunday in October. Broker bar timestamps are converted explicitly through configured broker standard/summer UTC offsets; they are never interpreted using the computer timezone or news-file offset.
 
 ## Daily state and opening range
 
@@ -89,14 +100,14 @@ Whether a delayed fill still counts as the next-candle entry, and when a pending
 
 Long:
 
-- strategy-intended structural stop: `OR Low`;
-- Original R price distance: `actual fill - OR Low`;
+- strategy-intended structural stop: `OR Low - 0.10 * frozen breakout ATR`;
+- Original R price distance: `actual fill - submitted protective SL`;
 - baseline target: `actual fill + 2 * Original R price distance`.
 
 Short:
 
-- strategy-intended structural stop: `OR High`;
-- Original R price distance: `OR High - actual fill`;
+- strategy-intended structural stop: `OR High + 0.10 * frozen breakout ATR`;
+- Original R price distance: `submitted protective SL - actual fill`;
 - baseline target: `actual fill - 2 * Original R price distance`.
 
 The geometry must be directionally valid and Original R must be positive. Original R becomes immutable after execution. Stop movement, broker adjustment, partial history, restart, or later management must never redefine it.
@@ -156,24 +167,13 @@ The following are deliberately not inferred: whether a valid but failed executio
 
 The following cannot be determined objectively for E2 from the supplied Pine source or current repository. Pine behavior is recorded where it is objective; no E2 choice is made here.
 
-1. **Decision/chart timeframe.** Pine uses the chart timeframe for OR construction, ADX, ATR, breakout, and evaluation. Which MT5 timeframe will E2 use?
-2. **Opening-range timezone.** Pine uses the symbol's exchange timezone. Which named timezone or fixed offset is authoritative in E2?
-3. **Trading-day definition.** Pine resets on the chart symbol's daily-bar boundary. Define the E2 day boundary and its relationship to the OR timezone and broker server day.
-4. **DST behavior.** If a named market timezone is used, define DST source/rules; if a fixed UTC or broker offset is used, explicitly accept that behavior.
-5. **Session boundary bars.** Define inclusion when a candle straddles 08:00 or 09:00, or require a timeframe that divides both boundaries.
-6. **Indicator sampling.** Confirm that ADX/ATR come from the breakout candle's completed sample and lock Pine/MT5 smoothing and warm-up parity.
-7. **Post-09:00 eligibility span.** Pine permits a breakout at any later chart bar that day. Confirm whether E2 does the same.
-8. **End-of-day cutoff.** Pine has no separate entry cutoff before its daily reset. Define whether E2 needs one and what happens to a candidate at cutoff/day rollover.
-9. **First-breakout versus later-breakout policy.** Pine can accept a later qualifying candle after an earlier non-qualifying or overextended candle because only an entry sets `tradedToday`. Confirm E2 behavior.
-10. **Overextended breakout consumption.** Pine rejects that bar without consuming the day. Confirm whether later candles may qualify, including candles that close back within the 0.5 ATR guard while still outside the range.
+1. **Broker timestamp schedule.** Confirm the configured standard/summer server UTC offsets and whether the broker follows the European transition schedule for every tested historical period.
+2. **Indicator parity evidence.** M15 `iATR(14)` and `iADX(14)` use MT5 Wilder indicators and include the completed breakout candle. Complete numerical TradingView comparison before execution is authorized.
 11. **Candidate lifetime.** Define whether a valid candidate is executable only at the immediately following candle open and exactly when it expires.
 12. **Execution failure.** Define retry/no-retry behavior for market closed, stale quote, excessive deviation, broker rejection, invalid volume, margin, trade-context, or other failure.
 13. **Daily-limit event.** The canonical minimum is one successful entry. Confirm whether an attempted signal, accepted candidate, submitted request, partial fill, or recovered existing position also consumes the day.
 14. **Simultaneous long/short handling.** Unlikely with a valid positive range on one close, but define deterministic precedence for malformed/edge data and multiple-symbol operation.
-15. **Spread filter.** The Pine baseline has none. Decide whether E2's existing maximum-spread gate applies to OBR and, if so, whether rejection is retryable.
 16. **Entry deviation/slippage policy.** Define acceptable distance from nominal next-candle open, whether the plan is recalculated from the actual fill, and when excessive movement cancels the opportunity.
-17. **News filter.** Pine has none. Decide whether E2's generic news filter applies, at which timestamp/currencies, and whether a block consumes or merely defers the opportunity.
-18. **Session filter interaction.** Existing London/New York filters are not the OR definition. Decide whether any separate post-range entry-session filter exists.
 19. **Broker-adjusted stop and TP.** Define stop-normalization direction, maximum acceptable adjustment, target basis after adjustment, and reject behavior if the structural stop violates broker constraints.
 20. **Volume normalization.** Lock round-down/reject/minimum-volume behavior when exact requested cash risk is unavailable.
 21. **Gap at entry.** The 0.5 ATR guard tests the breakout close, not the next open/fill. Decide whether an additional entry-fill gap/geometry guard exists.
