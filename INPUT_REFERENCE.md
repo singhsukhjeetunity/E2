@@ -1,6 +1,6 @@
 # E2 OBR Input Reference
 
-E2 exposes 32 inputs. Every declaration is copied once into `E2Config`, validated where applicable, and consumed. There are no compatibility-only inputs.
+E2 OBR v1.1.0 exposes 37 inputs. Every declaration is copied once into `E2Config`, validated where applicable, and consumed. There are no compatibility-only inputs.
 
 The canonical controlled-demo values are provided in [E2_OBR_FORWARD_DEMO.set](presets/E2_OBR_FORWARD_DEMO.set). Its `$1,000` fixed-risk value reproduces the engineering baseline and must be reviewed for the target account.
 
@@ -14,6 +14,11 @@ The canonical controlled-demo values are provided in [E2_OBR_FORWARD_DEMO.set](p
 | `InpOBRMaximumBreakoutGapAtr` | `0.5` | OBR | Maximum breakout-close distance divided by breakout-bar ATR. |
 | `InpOBRStopBufferAtr` | `0.10` | OBR execution | Structural stop buffer beyond the opposite OR boundary, using frozen breakout ATR. |
 | `InpOBRTargetR` | `2.0` | OBR execution | Fixed target multiple of fill-to-submitted-SL Original R. |
+| `InpOBRTradeMonday` | `true` | OBR weekday | Allows otherwise-valid candidates on Europe/London Mondays. |
+| `InpOBRTradeTuesday` | `true` | OBR weekday | Allows otherwise-valid candidates on Europe/London Tuesdays. |
+| `InpOBRTradeWednesday` | `true` | OBR weekday | Allows otherwise-valid candidates on Europe/London Wednesdays. |
+| `InpOBRTradeThursday` | `true` | OBR weekday | Allows otherwise-valid candidates on Europe/London Thursdays. |
+| `InpOBRTradeFriday` | `true` | OBR weekday | Allows otherwise-valid candidates on Europe/London Fridays. |
 | `InpOBRServerUtcOffsetStandardHours` | `2` | OBR time | Broker server standard-time offset used to convert bar opens to UTC. |
 | `InpOBRServerUtcOffsetSummerHours` | `3` | OBR time | Broker server summer-time offset. |
 | `InpOBRServerUsesEuropeanDst` | `true` | OBR time | Applies summer offset during the Europe/London last-Sunday DST interval. |
@@ -39,4 +44,4 @@ The canonical controlled-demo values are provided in [E2_OBR_FORWARD_DEMO.set](p
 | `InpVisualModeEnabled` | `true` | Visual | Enables generic tester visual lifecycle. |
 | `InpVisualCleanupOnDeinit` | `true` | Visual | Removes E2-owned chart objects at deinitialization. |
 
-Static verification target: total `32`, dead `0`, duplicates `0`, invalid mappings `0`.
+Static verification target: total `37`, dead `0`, duplicates `0`, invalid mappings `0`.

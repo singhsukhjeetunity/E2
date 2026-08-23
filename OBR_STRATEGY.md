@@ -2,6 +2,8 @@
 
 Status: Sprint 3 end-to-end lock. Sprint 2 candidate semantics are unchanged; planning, execution, recovery and fixed trade management are implemented.
 
+Version 1.1.0 adds one candidate-layer eligibility rule: five Monday–Friday inputs, all enabled by default, select the authoritative Europe/London weekday. OR construction, freezing and daily state continue on disabled days; an otherwise-valid signal is recorded as `DISABLED_WEEKDAY` before candidate construction and does not consume the day.
+
 ## Sprint 2 decisions locked
 
 - Decision timeframe: M15.

@@ -46,3 +46,7 @@ Open position: restart while an OBR trade is open, verify fill, submitted SL, im
 ## Current verification boundary
 
 Compilation and static checks can be completed in-repository. The accepted Sprint 3 fingerprint above is supplied evidence. Determinism, TradingView samples, DST runtime inspection, restart scenarios, balance-percent, trading-disabled and reporting-passivity controls require the identical external tester environment and must not be reported as passed until run.
+
+## v1.1.0 weekday regression matrix
+
+The all-enabled run must reproduce the permanent v1.0.0 fingerprint: 316 candidates (145 long/171 short), 95 requests/attempts/successes/registrations/finalizations/day locks, five entry-gap rejections and Net R 18.730180 under the identical environment. Additional controls are Monday disabled, Wednesday only, and all days disabled. The last must retain OR processing while producing zero candidates and downstream activity. `[OBR_WEEKDAY_VERIFY]` must always show zero `disabledWeekdayCandidatesCreated` and `weekdayMappingViolations`. Runtime DST/midnight sampling must confirm the same Europe/London day conversion owns both OR identity and weekday.

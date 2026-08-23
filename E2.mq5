@@ -46,6 +46,8 @@ int g_execution_successes=0;
 int g_ownership_violations=0;
 bool g_or_recovery_recorded=false;
 
+string E2WeekdayConfiguration(void){string value="";if(g_configuration.obr_trade_monday)value="MON";if(g_configuration.obr_trade_tuesday)value+=(value==""?"":",")+"TUE";if(g_configuration.obr_trade_wednesday)value+=(value==""?"":",")+"WED";if(g_configuration.obr_trade_thursday)value+=(value==""?"":",")+"THU";if(g_configuration.obr_trade_friday)value+=(value==""?"":",")+"FRI";return(value==""?"NONE":value);}
+
 bool E2OwnedPositionState(const ulong position_id,double &stop_loss)
   {
    stop_loss=0.0;for(int i=0;i<PositionsTotal();i++){ulong ticket=PositionGetTicket(i);if(ticket>0&&(ulong)PositionGetInteger(POSITION_MAGIC)==g_configuration.expert_magic_number&&PositionGetString(POSITION_SYMBOL)==_Symbol&&(ulong)PositionGetInteger(POSITION_IDENTIFIER)==position_id){stop_loss=PositionGetDouble(POSITION_SL);return(true);}}return(false);
@@ -104,7 +106,7 @@ int OnInit()
    E2OBRPositionMetadata recovered;if(g_obr_recovery.Load(recovered)){E2ReportEntryData recovered_entry;E2MetadataToReport(recovered,recovered_entry);if(!g_trade_reporter.CaptureEntry(recovered_entry))g_obr_planner.RecordRegistrationFailure();g_position_sizer.RecordOriginalRiskCash(recovered.actual_risk_cash);g_visualizer.DrawOBRExecution(recovered);g_trade_reporter.Reconcile();g_obr_recovery.ClearIfNoOpenPosition();}
    g_initialized=true;
    const string risk_mode=(g_configuration.risk_mode==E2_RISK_FIXED_CASH?"FIXED_CASH":"BALANCE_PERCENT");const double risk_value=(g_configuration.risk_mode==E2_RISK_FIXED_CASH?g_configuration.fixed_cash_risk:g_configuration.balance_risk_percent);g_logger.Info("symbol="+_Symbol+", timeframe=M15, strategy=OBR, tradingEnabled="+IntegerToString((int)g_configuration.trading_enabled)+", riskMode="+risk_mode+", riskValue="+DoubleToString(risk_value,2)+", accountBalance="+DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE),2)+", accountEquity="+DoubleToString(AccountInfoDouble(ACCOUNT_EQUITY),2)+", magicNumber="+StringFormat("%I64u",g_configuration.expert_magic_number)+", londonSession=08:00-09:00, ADX="+IntegerToString(g_configuration.obr_adx_length)+"/"+DoubleToString(g_configuration.obr_minimum_adx,2)+", ATR="+IntegerToString(g_configuration.obr_atr_length)+", minimumRangeATR="+DoubleToString(g_configuration.obr_minimum_range_atr,2)+", maximumGapATR="+DoubleToString(g_configuration.obr_maximum_breakout_gap_atr,2)+", stopBufferATR="+DoubleToString(g_configuration.obr_stop_buffer_atr,2)+", targetR="+DoubleToString(g_configuration.obr_target_r,2)+", newsEnabled="+IntegerToString((int)g_configuration.news_filter_enabled)+", csvEnabled="+IntegerToString((int)g_configuration.csv_export_enabled)+".","E2_PRODUCTION_CONFIG");g_logger.Info(g_obr_engine.ProductionTimeDiagnostic(TimeCurrent())+".","E2_PRODUCTION_TIME");
-   g_logger.Info("Initialized in "+g_environment.Name()+". Strategy layer=OBR_BASELINE; next-M15 execution and fixed broker SL/2R TP enabled.","Core");
+   g_logger.Info("weekdayTrading="+E2WeekdayConfiguration()+".","E2_PRODUCTION_CONFIG");g_logger.Info("Initialized in "+g_environment.Name()+". Strategy layer=OBR_BASELINE; next-M15 execution and fixed broker SL/2R TP enabled.","Core");
    return(INIT_SUCCEEDED);
   }
 
@@ -112,6 +114,7 @@ void OnTick()
   {
    E2OBRCandidate candidates[];
    if(!g_obr_engine.Evaluate(candidates))return;
+   E2OBRSuppressedSignal suppressed[];g_obr_engine.CopySuppressedSignals(suppressed);for(int s=0;s<ArraySize(suppressed);s++)g_obr_planner.AuditWeekdaySuppression(suppressed[s]);
    const E2OBRVerification verification=g_obr_engine.Verification();g_strategy_candidates=(int)verification.total_candidates;
    g_visualizer.UpdateOBR(g_obr_engine.CurrentRange(),candidates);
    if(!g_or_recovery_recorded){E2OBROpeningRange range=g_obr_engine.CurrentRange();const int minute=g_obr_engine.LondonMinuteAtServerTime(TimeCurrent());if(range.complete){g_obr_recovery.RecordORRecovery(true);g_or_recovery_recorded=true;}else if(minute>=540){g_obr_recovery.RecordORRecovery(false);g_or_recovery_recorded=true;}}
@@ -129,7 +132,7 @@ void OnDeinit(const int reason)
    g_trade_reporter.Reconcile();
    const E2OBRVerification obr_verify=g_obr_engine.Verification();const E2OBRTimeVerification time_verify=g_obr_engine.TimeVerification();const E2OBRPlanVerification plan_verify=g_obr_planner.PlanVerification();const E2OBRExecutionVerification exec_verify=g_obr_planner.ExecutionVerification();g_backtest_summary.OBRVerify(obr_verify);g_backtest_summary.OBRTimeVerify(time_verify);g_backtest_summary.OBRPlanVerify(plan_verify);g_backtest_summary.OBRExecVerify(exec_verify);g_backtest_summary.OBRRecoveryVerify(g_obr_recovery.Verification());g_backtest_summary.RiskVerify(g_position_sizer.Verification());
    E2OBRReconcileVerification reconcile=g_trade_reporter.ReconcileVerification(obr_verify.total_candidates,plan_verify.candidates_received,plan_verify.valid_execution_requests,exec_verify.execution_attempts,exec_verify.successful_entries,exec_verify.day_locks_created);reconcile.trade_csv_status=(g_configuration.csv_export_enabled?"CSV_ENABLED":"CSV_DISABLED");reconcile.trade_csv_row_mismatch=(g_configuration.csv_export_enabled&&reconcile.trade_csv_rows!=reconcile.finalized_trade_count?1:0);const E2OBRFinancialVerification financial=g_trade_reporter.FinancialVerification();g_backtest_summary.ReconcileVerify(reconcile);g_backtest_summary.FinancialVerify(financial);g_backtest_summary.RVerify(g_trade_reporter.RVerification());g_backtest_summary.DayVerify(g_trade_reporter.DayVerification(exec_verify.day_locks_created));g_backtest_summary.EntryTimeVerify(g_obr_planner.EntryTimeVerification());g_backtest_summary.EntryGapVerify(g_obr_planner.EntryGapVerification());g_logger.Info("candidates="+IntegerToString((int)obr_verify.total_candidates)+", longCandidates="+IntegerToString((int)obr_verify.long_candidates)+", shortCandidates="+IntegerToString((int)obr_verify.short_candidates)+", validRequests="+IntegerToString((int)plan_verify.valid_execution_requests)+", decisionCsvStatus="+(g_configuration.csv_export_enabled?"CSV_ENABLED":"CSV_DISABLED")+", decisionAuditRows="+IntegerToString((int)g_obr_planner.AuditRows())+", successfulEntries="+IntegerToString((int)exec_verify.successful_entries)+", finalizedTrades="+IntegerToString(g_trade_reporter.FinalizedCount())+", netR="+DoubleToString(financial.net_r,6)+".","OBR_RUN_FINGERPRINT");
-   E2EmitVerification();
+   g_backtest_summary.OBRWeekdayVerify(g_obr_engine.WeekdayVerification());g_logger.Info("weekdayTrading="+E2WeekdayConfiguration()+".","OBR_RUN_FINGERPRINT");E2EmitVerification();
    g_obr_engine.Shutdown();
    g_visualizer.Cleanup();
    g_trade_reporter.Close();

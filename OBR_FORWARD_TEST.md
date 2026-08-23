@@ -7,6 +7,7 @@ This guide prepares E2 OBR for controlled demo testing. It is not authorization 
 1. Copy the E2 source tree under the terminal's `MQL5/Experts/E2` directory and compile `E2.mq5` in MetaEditor. Require zero errors and warnings.
 2. Open the intended broker's EURUSD M15 chart.
 3. Load `presets/E2_OBR_FORWARD_DEMO.set`. Verify every displayed value; MT5 risk-mode value `0` means `FIXED_CASH`.
+   Confirm `weekdayTrading=MON,TUE,WED,THU,FRI` unless the forward-test protocol deliberately excludes specific Europe/London weekdays.
 4. Compare broker server time with independently known UTC in both standard and summer seasons. Replace the preset's +2/+3 values if the broker differs.
 5. Confirm `[E2_PRODUCTION_TIME]` maps London 08:00–09:00 to the expected server interval. Do not proceed if it does not.
 6. Set risk deliberately. The preset's $1,000 fixed cash value reproduces the engineering baseline and may be inappropriate for the demo account. Alternatively choose balance-percent mode and set its percentage.
@@ -23,6 +24,7 @@ This guide prepares E2 OBR for controlled demo testing. It is not authorization 
 14. Confirm the market order initially has the broker-valid protective SL and that the fixed 2R TP is attached immediately after fill.
 15. Confirm calculated volume and actual initial cash risk are conservative relative to requested risk.
 16. Confirm no second successful entry occurs for the symbol during the same Europe/London day.
+    Confirm any disabled weekday still builds its OR but produces only `DISABLED_WEEKDAY` suppression records and no candidate or trade.
 17. Confirm finalized trade reporting reconciles with MT5 deal history.
 18. Perform both restart tests before calling demo operation stable.
 

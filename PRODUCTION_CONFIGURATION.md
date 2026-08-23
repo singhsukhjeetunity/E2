@@ -4,6 +4,8 @@ E2 OBR can place trades when both `InpOBREnabled` and `InpTradingEnabled` are tr
 
 The canonical controlled-demo preset is [E2_OBR_FORWARD_DEMO.set](presets/E2_OBR_FORWARD_DEMO.set). It intentionally makes FIXED_CASH `$1,000` visible to reproduce the accepted engineering baseline; this is not a recommendation for any account. Startup emits `[E2_PRODUCTION_CONFIG]` with risk mode/value, balance, equity, symbol, magic and all frozen OBR settings.
 
+Version 1.1.0 adds five Europe/London weekday switches. The canonical preset enables `MON,TUE,WED,THU,FRI`, reproducing v1.0.0 semantics. Disabling a day suppresses otherwise-valid signals before candidate creation while preserving OR/state processing; startup prints the deterministic `weekdayTrading` list.
+
 ## Configuration categories
 
 - Risk: FIXED_CASH or BALANCE_PERCENT and its selected value.
@@ -24,7 +26,7 @@ At startup `[E2_PRODUCTION_TIME]` reports server time, interpreted UTC, London t
 
 1. Compile `E2.mq5` with zero errors and zero warnings.
 2. Run a basic EURUSD test with default inputs.
-3. Capture `[E2_INPUT_VERIFY]` and confirm `totalExposedInputs=32, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+3. Capture `[E2_INPUT_VERIFY]` and confirm `totalExposedInputs=37, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
 4. Re-run the Sprint 2 baseline period and confirm `[OBR_VERIFY].totalCandidates` remains the accepted candidate count (316 for the locked baseline dataset).
 5. Confirm every valid plan uses the candidate's immediate next M15 window and current Ask/Bid entry gap is at most 0.5 frozen ATR; deliberately start late and confirm expiry without an order.
 6. For long and short fills, verify structural SL, outward broker-valid submitted SL, volume risk, actual fill, immutable Original R and fixed normalized 2R TP in logs/CSV/deals.

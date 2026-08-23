@@ -22,6 +22,7 @@ E2 OBR is an end-to-end M15 strategy prepared for controlled forward/demo testin
 
 - `E2OBRTypes.mqh`: opening-range, candidate, plan, execution, recovery and immutable position records.
 - `E2OBREngine.mqh`: London-time conversion, four-bar OR reconstruction/freeze, M15 ATR/ADX sampling, filters, deterministic candidate identity and duplicate protection.
+- Weekday eligibility is owned by `E2OBREngine.mqh` after all prior signal conditions pass and before candidate construction. It reuses the same London conversion/day state; disabled weekdays still build and freeze their OR.
 - `E2OBRTradePlanner.mqh`: next-window expiry, entry-gap validation, structural/broker stop geometry, risk sizing and request/attempt deduplication.
 - `E2OBRRecovery.mqh`: London-day deal-history lock and small persisted open-position metadata record.
 - `E2TradeReporter.mqh`: passive finalized-trade audit plus independent financial, R, day and chain reconciliation.

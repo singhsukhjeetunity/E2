@@ -2,6 +2,8 @@
 
 ## E2 OBR — controlled forward/demo baseline
 
+Current feature line: **E2 OBR v1.1.0**. Configurable Monday–Friday Europe/London candidate eligibility is implemented; all five defaults are enabled for v1.0.0 parity. No Git tag or release has been created.
+
 Sprint 4 adds passive lifecycle/rejection CSV audits and independent reconciliation summaries without changing the frozen trading rules. Procedures and the accepted baseline are documented in [OBR_VALIDATION.md](OBR_VALIDATION.md).
 
 Sprint 5 prepares release identity **E2 OBR** for controlled forward/demo testing with a canonical preset, one-time production configuration/time diagnostics, corrected missed-window verification semantics, explicit CSV-disabled status, and [OBR_FORWARD_TEST.md](OBR_FORWARD_TEST.md). Proposed future Git tag: `e2-obr-v1.0.0`; no tag or release has been created.
@@ -21,7 +23,7 @@ Sprint 5 prepares release identity **E2 OBR** for controlled forward/demo testin
 
 `[E2_CORE_VERIFY]` must report successful initialization and zeros for all strategy activity, duplicates, causality/ownership violations and unknown positions in a clean test.
 
-`[E2_INPUT_VERIFY]` must report 32 exposed inputs with zero dead inputs, duplicates and invalid mappings.
+`[E2_INPUT_VERIFY]` must report 37 exposed inputs with zero dead inputs, duplicates and invalid mappings.
 
 `[OBR_VERIFY]`, `[OBR_TIME_VERIFY]`, `[OBR_PLAN_VERIFY]`, `[OBR_EXEC_VERIFY]`, `[OBR_RECOVERY_VERIFY]` and `[E2_RISK_VERIFY]` report signal, planning, execution, persistence and risk diagnostics.
 

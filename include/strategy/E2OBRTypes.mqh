@@ -19,6 +19,10 @@ struct E2OBRVerification
   {
    long london_days_observed,opening_ranges_complete,opening_ranges_incomplete,breakout_eligible_candles,long_close_breakouts,short_close_breakouts,adx_pass,range_size_pass,long_gap_pass,short_gap_pass,long_candidates,short_candidates,total_candidates,duplicate_candidates,causality_violations;
   };
+struct E2OBRWeekdayVerification
+  {bool monday_enabled,tuesday_enabled,wednesday_enabled,thursday_enabled,friday_enabled;long otherwise_valid_signals_checked,monday_otherwise_valid,tuesday_otherwise_valid,wednesday_otherwise_valid,thursday_otherwise_valid,friday_otherwise_valid,monday_suppressed,tuesday_suppressed,wednesday_suppressed,thursday_suppressed,friday_suppressed,total_disabled_weekday_suppressed,enabled_weekday_candidates,disabled_weekday_candidates_created,weekday_mapping_violations;};
+struct E2OBRSuppressedSignal
+  {string symbol,london_day,london_weekday;E2TradeDirection direction;datetime breakout_time;double or_high,or_low,breakout_close,atr,adx,or_atr,gap_atr;};
 
 struct E2OBRTimeVerification
   {
