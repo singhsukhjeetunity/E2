@@ -4,11 +4,13 @@ Schema version `ADXBB_REPORT_V1` produces two comma-separated, quoted, MT5-safe 
 
 ## Identity and filenames
 
-Files follow `E2_ADXBB_<SYMBOL>_M5_<MODE>_<PERIOD>_<RUN_ID>_{SIGNALS|TRADES}.csv`. Mode is derived as `TESTER`, `DEMO`, `LIVE`, or `UNKNOWN`. Live/demo periods are `CONTINUOUS`; tester filenames use the effective first/last M5 timestamps observed by E2 because MT5 does not expose authoritative configured tester bounds to the EA.
+Files follow the compact paired convention `E2_<SYMBOL>_<MMDD>_<HASH4>_S.csv` and `E2_<SYMBOL>_<MMDD>_<HASH4>_T.csv`. `MMDD` is the broker/server calendar date at EA initialization. `HASH4` is only a filename abbreviation; it is never used as the authoritative run or configuration identity.
+
+The pair is collision-safe. E2 first tries the unsuffixed pair. If either member already exists, it advances both names together to `_2`, then `_3`, and so on (for example, `..._2_S.csv` and `..._2_T.csv`). It never overwrites or independently advances one member. The full selected paths, collision counts, shared suffix, full run ID, full eight-character configuration hash, and cosmetic four-character hash are logged in `[ADXBB_REPORT_FILES]`.
 
 `RUN_ID` is `YYYYMMDD-HHMMSS_<CONFIG_HASH>`. The eight-character uppercase hexadecimal configuration hash is 32-bit FNV-1a over a canonical pipe-separated string containing strategy/build identity, symbol, M5, all eight numeric ADXBB parameters, `OneTradePerDay`, risk mode and both risk values, magic, trading enabled, and all four execution-safety settings. Timestamps and counters are excluded.
 
-Each EA initialization creates a new run ID. A recovered trade keeps deterministic candidate, execution, deal, and position identities; its `trade_id` is `ADXBB|<position_identifier>`. Thus a restart cannot synthesize another entry identity. The prior interrupted file remains a record of that invocation, while authoritative finalization belongs to the recovering invocation. Rows are buffered by deterministic identity and written once on orderly run close, avoiding duplicate candidate updates, transaction callbacks, partial exits, or repeated reconciliation.
+Each EA initialization creates a new full run ID. The CSV rows retain that full ID and the full eight-character hash regardless of the shorter filename. A recovered trade keeps deterministic candidate, execution, deal, and position identities; its `trade_id` is `ADXBB|<position_identifier>`. Thus a restart cannot synthesize another entry identity. The prior interrupted file remains a record of that invocation, while authoritative finalization belongs to the recovering invocation. Rows are buffered by deterministic identity and written once on orderly run close, avoiding duplicate candidate updates, transaction callbacks, partial exits, or repeated reconciliation.
 
 ## SIGNALS
 

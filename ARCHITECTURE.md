@@ -1,6 +1,6 @@
-# E2 Strategy-Free Core Architecture
+# E2 ADXBB Production Architecture
 
-Sprint 3 connects the validated ADXBB M5 candidate engine to an isolated trade planner, the retained generic sizing/execution core, lifecycle reporting, and strategy-specific restart recovery. Production strategy CSV redesign remains deferred.
+E2 connects the validated ADXBB M5 candidate engine to an isolated trade planner, the retained generic sizing/execution core, production reporting, and strategy-specific restart recovery.
 
 ## Retained modules
 
@@ -8,7 +8,7 @@ Sprint 3 connects the validated ADXBB M5 candidate engine to an isolated trade p
 - `analysis`: causal closed-candle access through explicit `ENUM_TIMEFRAMES`; M5 is explicitly used by the composition root.
 - `risk`: MT5-native monetary risk and volume normalization.
 - `execution`: strategy-neutral order request, position ownership, quote/spread/market/margin safety, and market executor.
-- `reporting`: Journal logging, generic CSV mechanics, inert reporter boundary, and core/risk verification.
+- `reporting`: Journal verification plus 49-column SIGNALS and 62-column finalized-TRADES datasets. Reports use compact collision-safe paired filenames under Common Files `E2\Reports`; full run/configuration identities remain inside the rows.
 
 `E2.mq5` validates M5 and passes completed bars to `E2ADXBBEngine`. Each candidate is consumed once by `E2ADXBBTradePlanner`, which admits only its immediate next-M5 window and creates a strategy-neutral `E2OrderRequest`. The generic executor submits SL-protected market orders; the composition root resolves the authoritative deal, freezes Original R, attaches the fixed target, persists metadata, and registers the position.
 
@@ -16,7 +16,7 @@ Sprint 3 connects the validated ADXBB M5 candidate engine to an isolated trade p
 
 ## Removed architecture
 
-The active tree contains no opening-range strategy, market-session/timezone/DST conversion, weekday eligibility, news runtime/exporter, custom chart visualization, strategy preset, or strategy CSV production. Historical releases remain available through Git history.
+The active runtime contains no opening-range strategy, market-session/timezone/DST conversion, weekday eligibility, news runtime/exporter, custom chart visualization, or temporary restart-test harness. Historical releases remain available through Git history and the OBR tags.
 
 ## Invariants
 
@@ -24,4 +24,5 @@ The active tree contains no opening-range strategy, market-session/timezone/DST 
 - Closed-bar shift zero maps to platform shift one; forming candles are excluded.
 - One E2-owned position per symbol remains the generic ownership rule.
 - Risk sizing and execution economics remain strategy-independent.
-- Sprint 2 may produce signal candidates while trade requests, execution attempts, registrations, and finalizations remain zero.
+- Original R is frozen from authoritative fill and submitted initial SL; TP is a fixed Target-R projection.
+- Reporting is observational and cannot change trading eligibility or economics.

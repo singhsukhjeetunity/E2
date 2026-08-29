@@ -1,6 +1,6 @@
-# E2 ADXBB Sprint 3 Input Reference
+# E2 ADXBB Production Input Reference
 
-Sprint 3 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input is mapped once and consumed.
+E2 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input is mapped once and consumed.
 
 | Input | Default | Purpose |
 |---|---:|---|
@@ -11,13 +11,13 @@ Sprint 3 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input
 | `InpADXBB_BB_StdDev` | `2.0` | Bollinger standard-deviation multiplier. |
 | `InpADXBB_ATR_Length` | `14` | Pine-style TR RMA length. |
 | `InpADXBB_ATR_Multiplier` | `1.0` | Candidate risk-distance multiplier. |
-| `InpADXBB_TargetR` | `1.1` | Frozen future target multiple; stored configuration only because execution is absent. |
+| `InpADXBB_TargetR` | `1.1` | Fixed target multiple applied to immutable Original R after the authoritative fill. |
 | `InpOneTradePerDay` | `false` | When true, permits only one successful entry per symbol and broker/server calendar day. |
 | `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent monetary sizing. |
-| `InpFixedCashRisk` | `1000.0` | Requested cash risk in fixed mode. No sizing occurs without a strategy request. |
+| `InpFixedCashRisk` | `1000.0` | Requested cash risk in fixed mode. |
 | `InpBalanceRiskPercent` | `1.0` | Requested balance percentage in percent mode. |
 | `InpExpertMagicNumber` | `2026001` | E2 order/position ownership identity. |
-| `InpTradingEnabled` | `true` | Generic executor master gate; Sprint 1 has no execution caller. |
+| `InpTradingEnabled` | `true` | Generic executor master gate. |
 | `InpMaxSpreadPips` | `3.0` | Maximum spread accepted by execution safety. |
 | `InpMaxEntryDeviationPips` | `2.0` | Maximum planned-to-current entry deviation. |
 | `InpMaxQuoteAgeSeconds` | `10` | Maximum quote age. |
@@ -25,6 +25,6 @@ Sprint 3 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input
 | `InpDebugMode` | `false` | Enables debug Journal messages. |
 | `InpCoreVerificationEnabled` | `true` | Emits generic input/core/risk verification. |
 | `InpLoggingEnabled` | `true` | Enables E2 Journal logging. |
-| `InpCsvExportEnabled` | `false` | Enables the Sprint 2 indicator-equivalence validation CSV; no production strategy CSV exists. |
+| `InpCsvExportEnabled` | `false` | Enables paired production SIGNALS/TRADES CSV output under Common Files `E2\Reports`. |
 
 Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=22, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
