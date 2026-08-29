@@ -15,11 +15,11 @@ private:
 public:
    E2OBRRecovery(void):m_symbol(""),m_file(""),m_logger(NULL){ZeroMemory(m_verify);}
    void Initialize(const string symbol,const E2Config &config,E2Logger &logger)
-     {m_symbol=symbol;m_config=config;m_logger=&logger;m_file="E2_OBR_STATE_"+StringFormat("%I64u",config.expert_magic_number)+"_"+symbol+".csv";StringReplace(m_file,"/","_");StringReplace(m_file,"\\","_");ArrayResize(m_locked_days,0);ZeroMemory(m_verify);m_verify.initializations++;}
+     {m_symbol=symbol;m_config=config;m_logger=&logger;m_file="E2_OBR_STATE_"+StringFormat("%I64u",config.expert_magic_number)+"_"+symbol+(config.obr_session==E2_OBR_SESSION_NEW_YORK?"_NEW_YORK":"")+".csv";StringReplace(m_file,"/","_");StringReplace(m_file,"\\","_");ArrayResize(m_locked_days,0);ZeroMemory(m_verify);m_verify.initializations++;}
    bool DayConsumed(const string day)
      {
       if(LockedCached(day))return(true);if(!HistorySelect(TimeCurrent()-7*86400,TimeCurrent()))return(false);int matches=0;
-      const string prefix="E2OBR|"+day;for(int i=0;i<HistoryDealsTotal();i++){ulong deal=HistoryDealGetTicket(i);if(deal==0||(ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=m_config.expert_magic_number||HistoryDealGetString(deal,DEAL_SYMBOL)!=m_symbol||HistoryDealGetInteger(deal,DEAL_ENTRY)!=DEAL_ENTRY_IN)continue;if(StringFind(HistoryDealGetString(deal,DEAL_COMMENT),prefix)==0)matches++;}
+      const string prefix=(m_config.obr_session==E2_OBR_SESSION_NEW_YORK?"E2OBRNY|":"E2OBR|")+day;for(int i=0;i<HistoryDealsTotal();i++){ulong deal=HistoryDealGetTicket(i);if(deal==0||(ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=m_config.expert_magic_number||HistoryDealGetString(deal,DEAL_SYMBOL)!=m_symbol||HistoryDealGetInteger(deal,DEAL_ENTRY)!=DEAL_ENTRY_IN)continue;if(StringFind(HistoryDealGetString(deal,DEAL_COMMENT),prefix)==0)matches++;}
       if(matches>0){CacheLock(day);m_verify.day_lock_recoveries++;if(matches>1)m_verify.duplicate_day_entry_violations++;return(true);}return(false);
      }
    void RecordSuccessfulEntry(const string day){CacheLock(day);}

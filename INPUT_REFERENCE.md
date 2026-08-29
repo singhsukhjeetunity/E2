@@ -1,12 +1,13 @@
 # E2 OBR Input Reference
 
-E2 OBR v1.1.0 exposes 37 inputs. Every declaration is copied once into `E2Config`, validated where applicable, and consumed. There are no compatibility-only inputs.
+E2 OBR v1.2.0 exposes 38 inputs. Every declaration is copied once into `E2Config`, validated where applicable, and consumed. There are no compatibility-only inputs.
 
 The canonical controlled-demo values are provided in [E2_OBR_FORWARD_DEMO.set](presets/E2_OBR_FORWARD_DEMO.set). Its `$1,000` fixed-risk value reproduces the engineering baseline and must be reviewed for the target account.
 
 | Input | Default | Category | Consumer and purpose |
 |---|---:|---|---|
 | `InpOBREnabled` | `true` | OBR | Enables completed-M15 OBR market-model evaluation. |
+| `InpOBRSession` | `LONDON` (`0`) | OBR | Selects either the 08:00–09:00 Europe/London OR or the 09:30–10:30 America/New_York OR. It does not alter broker clock conversion. |
 | `InpOBRAdxLength` | `14` | OBR | M15 `iADX` DI/ADX length. |
 | `InpOBRMinimumAdx` | `20.0` | OBR | Inclusive candidate trend-strength threshold. |
 | `InpOBRAtrLength` | `14` | OBR | M15 Wilder ATR length. |

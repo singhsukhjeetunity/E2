@@ -1,4 +1,5 @@
 InpOBREnabled=true
+InpOBRSession=0
 InpOBRAdxLength=14
 InpOBRMinimumAdx=20.0
 InpOBRAtrLength=14

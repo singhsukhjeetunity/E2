@@ -1,5 +1,9 @@
 # E2 Core Architecture
 
+## OBR session-time authority
+
+The OBR engine owns the deterministic conversion chain server time → UTC → selected session local time. Broker standard/summer UTC inputs remain exclusively server-clock metadata. The London adapter applies UK DST; the New York adapter separately applies US DST. The resulting selected-session day is shared by range construction, weekday eligibility, candidate identity, day locks, recovery and reporting. London retains its existing recovery/comment namespace; New York uses a distinct namespace to prevent cross-session state reuse.
+
 E2 OBR is an end-to-end M15 strategy prepared for controlled forward/demo testing. The validated market model remains the sole candidate authority; planning, execution and recovery consume its frozen candidates without recalculating them.
 
 ## Active dependency graph

@@ -1,5 +1,13 @@
 # E2 OBR Canonical Strategy Specification
 
+## Selectable opening-range session (v1.2.0)
+
+`InpOBRSession` selects one authoritative market clock. `LONDON` uses Europe/London 08:00 inclusive to 09:00 exclusive (08:00, 08:15, 08:30, 08:45); `NEW_YORK` uses America/New_York 09:30 inclusive to 10:30 exclusive (09:30, 09:45, 10:00, 10:15). In both modes the range freezes after exactly four completed M15 bars and later completed bars remain breakout-eligible until the end of that selected-session local day.
+
+The conversion authority is broker/server timestamp → UTC → selected market timezone. London DST is the last Sunday in March 01:00 UTC through the last Sunday in October 01:00 UTC. New York DST is calculated independently: the second Sunday in March at 07:00 UTC through the first Sunday in November at 06:00 UTC, using UTC-5 standard and UTC-4 daylight time. Computer timezone and broker DST are never proxies for the market session.
+
+Weekday switches and the one-successful-fill lock use the selected session's local weekday/day. Changing `InpOBRSession` while an E2-owned position is open is rejected at initialization because recovery identity must remain stable.
+
 Status: Sprint 3 end-to-end lock. Sprint 2 candidate semantics are unchanged; planning, execution, recovery and fixed trade management are implemented.
 
 Version 1.1.0 adds one candidate-layer eligibility rule: five Monday–Friday inputs, all enabled by default, select the authoritative Europe/London weekday. OR construction, freezing and daily state continue on disabled days; an otherwise-valid signal is recorded as `DISABLED_WEEKDAY` before candidate construction and does not consume the day.

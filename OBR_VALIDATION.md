@@ -1,5 +1,11 @@
 # E2 OBR Sprint 4 Validation
 
+## v1.2.0 session validation
+
+For London regression, select `LONDON` and repeat the identical accepted v1.1.0 environment and parameters; equality under identical conditions is the criterion. For New York, sample the 09:30, 09:45, 10:00 and 10:15 America/New_York bars, verify freeze at 10:30, and confirm no OR-building bar becomes a breakout candidate. Validate periods before, between and after the differing US/UK spring and autumn transitions. With a New York weekday disabled, confirm the OR still builds, otherwise-valid signals are audited as `SUPPRESS / DISABLED_WEEKDAY`, and no candidate/trade is created on that New York local weekday.
+
+`[OBR_SESSION_VERIFY]` must identify the selected session and report zero time/day/weekday mapping, bar-count, OR-boundary/mutation and DST-transition violations. Decision and trade CSVs now include `selected_session`, `session_day`, and `session_weekday`. Runtime controls require the external Strategy Tester environment and must not be inferred from compilation.
+
 ## Canonical accepted baseline
 
 The controlling reference is the accepted Sprint 3 EURUSD M15 run: 202 London days, 167 complete ranges, 316 candidates (145 long, 171 short), 95 valid requests, 95 attempts, 95 successful entries, 95 registered/finalized trades, five entry-gap rejections and zero duplicate, causality, ownership, recovery, registration or protection violations.

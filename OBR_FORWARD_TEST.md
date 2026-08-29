@@ -1,5 +1,9 @@
 # E2 OBR Forward/Demo Test Guide
 
+## Session selection
+
+Record `InpOBRSession` before each run. London is 08:00–09:00 Europe/London; New York is 09:30–10:30 America/New_York. Confirm startup diagnostics map the chosen local OR through UTC into the broker clock, and confirm weekday suppression/day locking use that same local calendar. Do not change the session while an E2-owned position remains open.
+
 This guide prepares E2 OBR for controlled demo testing. It is not authorization to trade real capital.
 
 ## Installation and startup

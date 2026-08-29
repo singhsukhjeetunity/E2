@@ -4,13 +4,13 @@
 
 struct E2OBROpeningRange
   {
-   bool complete,frozen; string symbol,london_day; datetime start_time,end_time,known_from;
+   bool complete,frozen; string symbol,london_day,session; datetime start_time,end_time,known_from;
    double high,low; int bars_collected;
   };
 
 struct E2OBRCandidate
   {
-   string candidate_id,symbol,london_day; E2TradeDirection direction;
+   string candidate_id,symbol,london_day,session; E2TradeDirection direction;
    double or_high,or_low,breakout_close,atr,adx,or_size,or_size_atr_ratio,breakout_distance,breakout_distance_atr_ratio;
    datetime or_start,or_end,or_known_from,breakout_candle_time,breakout_known_from,candidate_known_from;
   };
@@ -22,12 +22,14 @@ struct E2OBRVerification
 struct E2OBRWeekdayVerification
   {bool monday_enabled,tuesday_enabled,wednesday_enabled,thursday_enabled,friday_enabled;long otherwise_valid_signals_checked,monday_otherwise_valid,tuesday_otherwise_valid,wednesday_otherwise_valid,thursday_otherwise_valid,friday_otherwise_valid,monday_suppressed,tuesday_suppressed,wednesday_suppressed,thursday_suppressed,friday_suppressed,total_disabled_weekday_suppressed,enabled_weekday_candidates,disabled_weekday_candidates_created,weekday_mapping_violations;};
 struct E2OBRSuppressedSignal
-  {string symbol,london_day,london_weekday;E2TradeDirection direction;datetime breakout_time;double or_high,or_low,breakout_close,atr,adx,or_atr,gap_atr;};
+  {string symbol,london_day,london_weekday,session;E2TradeDirection direction;datetime breakout_time;double or_high,or_low,breakout_close,atr,adx,or_atr,gap_atr;};
 
 struct E2OBRTimeVerification
   {
    long gmt_days,bst_days,dst_transition_observations,or_reconstruction_successes,or_reconstruction_failures,or_mutation_violations,invalid_or_bars,day_reset_violations;
   };
+struct E2OBRSessionVerification
+  {string selected_session;long session_days_observed,opening_ranges_complete,opening_ranges_incomplete,session_time_conversion_violations,session_day_mapping_violations,session_weekday_mapping_violations,or_bar_count_violations,or_start_violations,or_end_violations,or_mutation_violations,dst_transition_observations,dst_transition_violations;};
 
 struct E2OBRPlanContext
   {
