@@ -1,5 +1,9 @@
 # E2 Status
 
+## ADXBB strategy replacement — Sprint 0
+
+The ADX Regime + Bollinger Band Mean Reversion (`ADXBB`) M5 mechanical specification and architecture audit are complete in [ADXBB_STRATEGY.md](ADXBB_STRATEGY.md) and [ADXBB_ARCHITECTURE_AUDIT.md](ADXBB_ARCHITECTURE_AUDIT.md). This sprint is documentation-only: ADXBB is not implemented, and the frozen OBR runtime/source behavior remains unchanged. The audit defines the future OBR/session/weekday/news/visual removal boundary, indicator-equivalence validation, streamlined reporting/recovery contracts, and strategy-agnostic Sprint 1 strip-down.
+
 ## E2 OBR — controlled forward/demo baseline
 
 Current feature line: **E2 OBR v1.2.0**. The opening range is selectable between LONDON and NEW_YORK; LONDON remains the default. Configurable Monday–Friday eligibility follows the selected session's local calendar day. No Git tag or release has been created.
