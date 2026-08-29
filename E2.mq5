@@ -79,13 +79,13 @@ int OnInit()
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_logger);
    if(!g_trade_reporter.Initialize(g_configuration,_Symbol,g_logger))return(INIT_FAILED);
    g_backtest_summary.Initialize(g_logger);
-   if(!g_adxbb_engine.Initialize(_Symbol,g_configuration,g_market_data,g_logger)){g_logger.Error("ADXBB signal engine initialization failed.","Initialization");return(INIT_FAILED);}
+   if(!g_adxbb_engine.Initialize(_Symbol,g_configuration,g_symbol_info.PipSize(),g_market_data,g_logger)){g_logger.Error("ADXBB signal engine initialization failed.","Initialization");return(INIT_FAILED);}
    E2ADXBBPositionMetadata recovered;bool has_recovered=false;if(!g_adxbb_recovery.Initialize(g_configuration,_Symbol,g_logger,recovered,has_recovered))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day)g_adxbb_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
    g_adxbb_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_adxbb_recovery,g_logger);
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");
    g_initialized=true;
    const string risk_mode=(g_configuration.risk_mode==E2_RISK_FIXED_CASH?"FIXED_CASH":"BALANCE_PERCENT");
-   g_logger.Info("symbol="+_Symbol+", timeframe=M5, strategy=ADXBB, targetR="+DoubleToString(g_configuration.adxbb_target_r,2)+", oneTradePerDay="+IntegerToString((int)g_configuration.one_trade_per_day)+", tradingEnabled="+IntegerToString((int)g_configuration.trading_enabled)+", riskMode="+risk_mode+", magicNumber="+StringFormat("%I64u",g_configuration.expert_magic_number)+".","E2_PRODUCTION_CONFIG");
+   g_logger.Info("symbol="+_Symbol+", timeframe=M5, strategy=ADXBB, bbBufferPips="+DoubleToString(g_configuration.adxbb_bb_buffer_pips,3)+", bbBufferPrice="+DoubleToString(g_configuration.adxbb_bb_buffer_pips*g_symbol_info.PipSize(),_Digits)+", targetR="+DoubleToString(g_configuration.adxbb_target_r,2)+", oneTradePerDay="+IntegerToString((int)g_configuration.one_trade_per_day)+", tradingEnabled="+IntegerToString((int)g_configuration.trading_enabled)+", riskMode="+risk_mode+", magicNumber="+StringFormat("%I64u",g_configuration.expert_magic_number)+".","E2_PRODUCTION_CONFIG");
    g_logger.Info("Initialized in "+g_environment.Name()+". ADXBB planning, execution, fixed-R protection, lifecycle reporting, and recovery are active.","Core");
    return(INIT_SUCCEEDED);
   }

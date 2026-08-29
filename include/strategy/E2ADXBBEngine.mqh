@@ -22,7 +22,7 @@ private:
    string m_symbol,m_candidate_ids[];
    datetime m_last_processed_bar;
    bool m_have_previous;
-   double m_previous_high,m_previous_low,m_previous_close,m_closes[];
+   double m_previous_high,m_previous_low,m_previous_close,m_bb_buffer_price,m_closes[];
    E2ADXRmaState m_tr_di,m_plus_dm,m_minus_dm,m_dx,m_atr;
    E2ADXBBSignalVerification m_signal_verify;
    E2ADXBBIndicatorVerification m_indicator_verify;
@@ -62,7 +62,7 @@ private:
      {
       if(!m_validation_csv.IsInitialized())return;string row[]={TimeToString(bar.time,TIME_DATE|TIME_MINUTES),Number(bar.open),Number(bar.high),Number(bar.low),Number(bar.close),(di_valid?Number(di_plus):""),(di_valid?Number(di_minus):""),(adx_valid?Number(adx):""),(bb_valid?Number(basis):""),(bb_valid?Number(upper):""),(bb_valid?Number(lower):""),(atr_valid?Number(atr):""),BoolText(di_valid),BoolText(adx_valid),BoolText(bb_valid),BoolText(atr_valid),BoolText(ranging),BoolText(long_signal),BoolText(short_signal)};m_validation_csv.WriteRow(row);
      }
-   void DebugDecision(const MqlRates &bar,const string result)const{if(m_logger!=NULL&&m_config.debug_mode)m_logger.Debug("bar="+TimeToString(bar.time,TIME_DATE|TIME_MINUTES)+", result="+result+".","ADXBB_SIGNAL");}
+   void DebugDecision(const MqlRates &bar,const string result,const double lower=0.0,const double upper=0.0)const{if(m_logger!=NULL&&m_config.debug_mode)m_logger.Debug("bar="+TimeToString(bar.time,TIME_DATE|TIME_MINUTES)+", result="+result+", bbBufferPips="+Number(m_config.adxbb_bb_buffer_pips)+", bbBufferPrice="+Number(m_bb_buffer_price)+", effectiveLongThreshold="+Number(lower-m_bb_buffer_price)+", effectiveShortThreshold="+Number(upper+m_bb_buffer_price)+".","ADXBB_SIGNAL");}
    void ProcessBar(const MqlRates &bar,E2ADXBBCandidate &candidates[])
      {
       m_signal_verify.bars_observed++;m_indicator_verify.bars_checked++;
@@ -87,26 +87,26 @@ private:
       if(adx_valid){m_indicator_verify.adx_valid_bars++;if(m_indicator_verify.adx_valid_bars==1){m_indicator_verify.adx_min=adx;m_indicator_verify.adx_max=adx;}else{m_indicator_verify.adx_min=MathMin(m_indicator_verify.adx_min,adx);m_indicator_verify.adx_max=MathMax(m_indicator_verify.adx_max,adx);}}
       if(bb_valid)m_indicator_verify.bb_valid_bars++;
       if(atr_valid){m_indicator_verify.atr_valid_bars++;if(m_indicator_verify.atr_valid_bars==1){m_indicator_verify.atr_min=atr;m_indicator_verify.atr_max=atr;}else{m_indicator_verify.atr_min=MathMin(m_indicator_verify.atr_min,atr);m_indicator_verify.atr_max=MathMax(m_indicator_verify.atr_max,atr);}}
-      const bool di_valid=(tr_di_valid&&plus_valid&&minus_valid&&m_tr_di.value>0.0);const bool all_valid=(adx_valid&&bb_valid&&atr_valid);const bool ranging=(all_valid&&adx<m_config.adxbb_adx_threshold);const bool long_signal=(all_valid&&ranging&&bar.close<lower),short_signal=(all_valid&&ranging&&bar.close>upper);ExportRow(bar,di_plus,di_minus,adx,basis,upper,lower,atr,di_valid,adx_valid,bb_valid,atr_valid,ranging,long_signal,short_signal);
-      if(!adx_valid||!bb_valid||!atr_valid){m_signal_verify.indicator_warmup_bars++;DebugDecision(bar,"INDICATOR_WARMUP");return;}
+      const double effective_long_threshold=lower-m_bb_buffer_price,effective_short_threshold=upper+m_bb_buffer_price;const bool di_valid=(tr_di_valid&&plus_valid&&minus_valid&&m_tr_di.value>0.0);const bool all_valid=(adx_valid&&bb_valid&&atr_valid);const bool ranging=(all_valid&&adx<m_config.adxbb_adx_threshold);const bool long_signal=(all_valid&&ranging&&bar.close<effective_long_threshold),short_signal=(all_valid&&ranging&&bar.close>effective_short_threshold);ExportRow(bar,di_plus,di_minus,adx,basis,upper,lower,atr,di_valid,adx_valid,bb_valid,atr_valid,ranging,long_signal,short_signal);
+      if(!adx_valid||!bb_valid||!atr_valid){m_signal_verify.indicator_warmup_bars++;DebugDecision(bar,"INDICATOR_WARMUP",lower,upper);return;}
       m_signal_verify.completed_bars_processed++;
-      if(!MathIsValidNumber(adx)||!MathIsValidNumber(di_plus)||!MathIsValidNumber(di_minus)||!MathIsValidNumber(basis)||!MathIsValidNumber(upper)||!MathIsValidNumber(lower)||!MathIsValidNumber(atr)){m_signal_verify.invalid_indicator_bars++;DebugDecision(bar,"INVALID_INDICATOR");return;}
-      if(!(lower<=basis&&basis<=upper)){m_signal_verify.invalid_band_geometry++;m_indicator_verify.bb_geometry_violations++;DebugDecision(bar,"INVALID_BAND_GEOMETRY");return;}
-      const double risk_distance=atr*m_config.adxbb_atr_multiplier;if(!MathIsValidNumber(risk_distance)||risk_distance<=0.0){m_signal_verify.invalid_atr_bars++;DebugDecision(bar,"INVALID_ATR");return;}
+      if(!MathIsValidNumber(adx)||!MathIsValidNumber(di_plus)||!MathIsValidNumber(di_minus)||!MathIsValidNumber(basis)||!MathIsValidNumber(upper)||!MathIsValidNumber(lower)||!MathIsValidNumber(atr)){m_signal_verify.invalid_indicator_bars++;DebugDecision(bar,"INVALID_INDICATOR",lower,upper);return;}
+      if(!(lower<=basis&&basis<=upper)){m_signal_verify.invalid_band_geometry++;m_indicator_verify.bb_geometry_violations++;DebugDecision(bar,"INVALID_BAND_GEOMETRY",lower,upper);return;}
+      const double risk_distance=atr*m_config.adxbb_atr_multiplier;if(!MathIsValidNumber(risk_distance)||risk_distance<=0.0){m_signal_verify.invalid_atr_bars++;DebugDecision(bar,"INVALID_ATR",lower,upper);return;}
       if(ranging)m_signal_verify.ranging_bars++;else m_signal_verify.trending_bars++;
-      const bool below=(bar.close<lower),above=(bar.close>upper);if(below)m_signal_verify.close_below_lower_band++;if(above)m_signal_verify.close_above_upper_band++;
-      if(!ranging){DebugDecision(bar,"ADX_NOT_RANGING");return;}if(!below&&!above){DebugDecision(bar,"CLOSE_INSIDE_BANDS");return;}
-      if(long_signal&&short_signal){m_signal_verify.invalid_band_geometry++;m_indicator_verify.bb_geometry_violations++;DebugDecision(bar,"AMBIGUOUS_DIRECTION");return;}
+      const bool below=(bar.close<effective_long_threshold),above=(bar.close>effective_short_threshold);if(below)m_signal_verify.close_below_lower_band++;if(above)m_signal_verify.close_above_upper_band++;
+      if(!ranging){DebugDecision(bar,"ADX_NOT_RANGING",lower,upper);return;}if(!below&&!above){DebugDecision(bar,"CLOSE_INSIDE_BANDS",lower,upper);return;}
+      if(long_signal&&short_signal){m_signal_verify.invalid_band_geometry++;m_indicator_verify.bb_geometry_violations++;DebugDecision(bar,"AMBIGUOUS_DIRECTION",lower,upper);return;}
       E2TradeDirection direction=(long_signal?E2_DIRECTION_LONG:(short_signal?E2_DIRECTION_SHORT:E2_DIRECTION_NONE));if(direction==E2_DIRECTION_NONE)return;
       const datetime known=bar.time+PeriodSeconds(PERIOD_M5);if(known<=bar.time){m_signal_verify.causality_violations++;return;}
       E2ADXBBCandidate candidate;ZeroMemory(candidate);candidate.symbol=m_symbol;candidate.timeframe="M5";candidate.signal_bar_time=bar.time;candidate.signal_known_time=known;candidate.direction=direction;candidate.signal_close=bar.close;candidate.adx=adx;candidate.di_plus=di_plus;candidate.di_minus=di_minus;candidate.bb_basis=basis;candidate.bb_upper=upper;candidate.bb_lower=lower;candidate.atr=atr;candidate.atr_multiplier=m_config.adxbb_atr_multiplier;candidate.risk_distance=risk_distance;candidate.execution_window_start=known;candidate.execution_window_end=known+PeriodSeconds(PERIOD_M5);candidate.candidate_id="ADXBB|"+m_symbol+"|M5|"+IntegerToString((int)bar.time)+"|"+E2TradeDirectionName(direction);
-      if(Seen(candidate.candidate_id)){m_signal_verify.duplicate_candidates++;DebugDecision(bar,"DUPLICATE_CANDIDATE");return;}Remember(candidate.candidate_id);Append(candidates,candidate);m_signal_verify.total_candidates++;if(direction==E2_DIRECTION_LONG){m_signal_verify.long_candidates++;DebugDecision(bar,"LONG_SIGNAL");}else{m_signal_verify.short_candidates++;DebugDecision(bar,"SHORT_SIGNAL");}
+      if(Seen(candidate.candidate_id)){m_signal_verify.duplicate_candidates++;DebugDecision(bar,"DUPLICATE_CANDIDATE",lower,upper);return;}Remember(candidate.candidate_id);Append(candidates,candidate);m_signal_verify.total_candidates++;if(direction==E2_DIRECTION_LONG){m_signal_verify.long_candidates++;DebugDecision(bar,"LONG_SIGNAL",lower,upper);}else{m_signal_verify.short_candidates++;DebugDecision(bar,"SHORT_SIGNAL",lower,upper);}
      }
 public:
-   E2ADXBBEngine(void):m_market(NULL),m_logger(NULL),m_symbol(""),m_last_processed_bar(0),m_have_previous(false),m_previous_high(0.0),m_previous_low(0.0),m_previous_close(0.0){ZeroMemory(m_signal_verify);ZeroMemory(m_indicator_verify);ResetRma(m_tr_di);ResetRma(m_plus_dm);ResetRma(m_minus_dm);ResetRma(m_dx);ResetRma(m_atr);}
-   bool Initialize(const string symbol,const E2Config &config,E2MarketData &market,E2Logger &logger)
+   E2ADXBBEngine(void):m_market(NULL),m_logger(NULL),m_symbol(""),m_last_processed_bar(0),m_have_previous(false),m_previous_high(0.0),m_previous_low(0.0),m_previous_close(0.0),m_bb_buffer_price(0.0){ZeroMemory(m_signal_verify);ZeroMemory(m_indicator_verify);ResetRma(m_tr_di);ResetRma(m_plus_dm);ResetRma(m_minus_dm);ResetRma(m_dx);ResetRma(m_atr);}
+   bool Initialize(const string symbol,const E2Config &config,const double pip_size,E2MarketData &market,E2Logger &logger)
      {
-      m_symbol=symbol;m_config=config;m_market=&market;m_logger=&logger;m_last_processed_bar=0;m_have_previous=false;ArrayResize(m_closes,0);ArrayResize(m_candidate_ids,0);ZeroMemory(m_signal_verify);ZeroMemory(m_indicator_verify);ResetRma(m_tr_di);ResetRma(m_plus_dm);ResetRma(m_minus_dm);ResetRma(m_dx);ResetRma(m_atr);
+      m_symbol=symbol;m_config=config;m_market=&market;m_logger=&logger;m_last_processed_bar=0;m_have_previous=false;m_bb_buffer_price=config.adxbb_bb_buffer_pips*pip_size;if(pip_size<=0.0||!MathIsValidNumber(m_bb_buffer_price)||m_bb_buffer_price<0.0)return(false);ArrayResize(m_closes,0);ArrayResize(m_candidate_ids,0);ZeroMemory(m_signal_verify);ZeroMemory(m_indicator_verify);ResetRma(m_tr_di);ResetRma(m_plus_dm);ResetRma(m_minus_dm);ResetRma(m_dx);ResetRma(m_atr);
       if(config.csv_export_enabled){string safe=symbol;StringReplace(safe,"/","_");StringReplace(safe,"\\","_");if(!m_validation_csv.Initialize("E2_ADXBB_"+safe+"_M5_INDICATOR_VALIDATION.csv",logger))return(false);string header[]={"timestamp","open","high","low","close","di_plus","di_minus","adx","bb_basis","bb_upper","bb_lower","atr","di_valid","adx_valid","bb_valid","atr_valid","is_ranging","long_signal","short_signal"};if(!m_validation_csv.WriteHeader(header))return(false);}return(true);
      }
    bool Evaluate(E2ADXBBCandidate &new_candidates[])
