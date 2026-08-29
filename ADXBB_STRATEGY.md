@@ -1,6 +1,6 @@
 # E2 ADXBB Mechanical Strategy Specification
 
-Status: Sprint 2 signal-engine implementation. Indicator calculations and observational candidates exist; planning and execution do not.
+Status: Sprint 3 implementation. Validated indicators/signals, planning, execution, fixed-R protection, daily limiting, reporting, and recovery exist.
 
 ## Identity and timeframe
 
@@ -24,7 +24,7 @@ Status: Sprint 2 signal-engine implementation. Indicator calculations and observ
 | `InpADXBB_ATR_Multiplier` | double | 1.0 | Frozen ATR distance multiplier. |
 | `InpADXBB_TargetR` | double | 1.1 | Future fixed reward multiple; execution is not implemented in Sprint 2. |
 
-`InpOneTradePerDay` is intentionally deferred. No point-value, session, timezone, weekday, opening-range, news, volume, band-distance, minimum-ATR, confirmation, trailing, breakeven, partial-exit, or dynamic-exit strategy input is authorized.
+`InpOneTradePerDay` is implemented with default `false`. No point-value, session, timezone, weekday, opening-range, news, volume, band-distance, minimum-ATR, confirmation, trailing, breakeven, partial-exit, or dynamic-exit strategy input is authorized.
 
 ## Indicator contract
 

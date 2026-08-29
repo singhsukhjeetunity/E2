@@ -1,6 +1,6 @@
 # E2 Strategy-Free Core Architecture
 
-Sprint 2 adds the observational ADXBB M5 indicator and signal engine. It creates deterministic candidates and an optional indicator-validation export, but no planner, recovery schema, sizing request, execution request, order, or production strategy CSV exists.
+Sprint 3 connects the validated ADXBB M5 candidate engine to an isolated trade planner, the retained generic sizing/execution core, lifecycle reporting, and strategy-specific restart recovery. Production strategy CSV redesign remains deferred.
 
 ## Retained modules
 
@@ -10,9 +10,9 @@ Sprint 2 adds the observational ADXBB M5 indicator and signal engine. It creates
 - `execution`: strategy-neutral order request, position ownership, quote/spread/market/margin safety, and market executor.
 - `reporting`: Journal logging, generic CSV mechanics, inert reporter boundary, and core/risk verification.
 
-`E2.mq5` validates M5 and passes only completed M5 bars to `E2ADXBBEngine`. The engine performs custom Pine-style DMI/ADX, ATR, and population-standard-deviation Bollinger calculations and emits observational candidates. The generic executor remains available but has no caller capable of generating an order request.
+`E2.mq5` validates M5 and passes completed bars to `E2ADXBBEngine`. Each candidate is consumed once by `E2ADXBBTradePlanner`, which admits only its immediate next-M5 window and creates a strategy-neutral `E2OrderRequest`. The generic executor submits SL-protected market orders; the composition root resolves the authoritative deal, freezes Original R, attaches the fixed target, persists metadata, and registers the position.
 
-There is no strategy-specific recovery during Sprint 1 because the core cannot open positions. Existing owned positions are detected and warned about but are not managed or modified. Future ADXBB recovery will be introduced only in its authorized sprint.
+`E2ADXBBRecovery` persists open-position metadata in Common Files. Startup fails safely when an owned live position has missing, corrupt, or mismatched state. Successful-entry deal history is the authority for the optional broker/server-day lock.
 
 ## Removed architecture
 

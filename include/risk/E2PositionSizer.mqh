@@ -33,7 +33,7 @@ struct E2PositionSizingResult
    double            monetary_loss_per_lot;
   };
 struct E2RiskModeVerification
-  {int trades_sized,fixed_cash_requests,balance_percent_requests,invalid_risk_requests,non_positive_balance,risk_mode_mismatch,invalid_volume_after_sizing,actual_risk_above_requested;double requested_min,requested_max,requested_sum,original_min,original_max,original_sum,difference_min,difference_max,difference_sum;};
+  {int trades_sized,actual_risk_observations,fixed_cash_requests,balance_percent_requests,invalid_risk_requests,non_positive_balance,risk_mode_mismatch,invalid_volume_after_sizing,actual_risk_above_requested;double requested_min,requested_max,requested_sum,original_min,original_max,original_sum,difference_min,difference_max,difference_sum;};
 
 string E2SizingStatusName(const E2SizingStatus status)
   {
@@ -213,7 +213,7 @@ public:
 
    // The historical name remains only to keep planning call sites source-compatible.
    // Risk is always resolved from the configured mode and current account balance.
-   void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}double difference=value-m_last_requested_risk;m_verify.original_sum+=value;m_verify.difference_sum+=difference;if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;m_verify.difference_min=difference;m_verify.difference_max=difference;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);m_verify.difference_min=MathMin(m_verify.difference_min,difference);m_verify.difference_max=MathMax(m_verify.difference_max,difference);}if(m_last_requested_risk>0.0&&value>m_last_requested_risk+MathMax(0.01,m_last_requested_risk*1e-8))m_verify.actual_risk_above_requested++;}
+   void RecordOriginalRiskCash(const double value){if(!MathIsValidNumber(value)||value<=0.0){m_verify.invalid_risk_requests++;return;}m_verify.actual_risk_observations++;double difference=value-m_last_requested_risk;m_verify.original_sum+=value;m_verify.difference_sum+=difference;if(m_verify.original_min<=0.0){m_verify.original_min=value;m_verify.original_max=value;m_verify.difference_min=difference;m_verify.difference_max=difference;}else{m_verify.original_min=MathMin(m_verify.original_min,value);m_verify.original_max=MathMax(m_verify.original_max,value);m_verify.difference_min=MathMin(m_verify.difference_min,difference);m_verify.difference_max=MathMax(m_verify.difference_max,difference);}if(m_last_requested_risk>0.0&&value>m_last_requested_risk+MathMax(0.01,m_last_requested_risk*1e-8))m_verify.actual_risk_above_requested++;}
    E2RiskModeVerification Verification()const{return(m_verify);}
    bool CalculateActualRisk(const string symbol,const E2TradeDirection direction,const double volume,const double entry_price,const double stop_price,double &risk){return(CalculateLoss(symbol,direction,volume,entry_price,stop_price,risk));}
 

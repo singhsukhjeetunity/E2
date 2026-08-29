@@ -12,6 +12,7 @@ input double InpADXBB_BB_StdDev = 2.0;
 input int InpADXBB_ATR_Length = 14;
 input double InpADXBB_ATR_Multiplier = 1.0;
 input double InpADXBB_TargetR = 1.1;
+input bool InpOneTradePerDay = false;
 
 input group "=== RISK ==="
 input E2RiskMode InpRiskMode = E2_RISK_FIXED_CASH;
@@ -40,6 +41,7 @@ struct E2Config
    double adxbb_bb_stddev;
    int adxbb_atr_length;
    double adxbb_atr_multiplier,adxbb_target_r;
+   bool one_trade_per_day;
    E2RiskMode risk_mode;
    double fixed_cash_risk,balance_risk_percent;
    ulong expert_magic_number;
@@ -51,7 +53,7 @@ struct E2Config
 
 void E2LoadConfiguration(E2Config &c)
   {
-   c.adxbb_di_length=InpADXBB_DI_Length;c.adxbb_adx_length=InpADXBB_ADX_Length;c.adxbb_adx_threshold=InpADXBB_ADX_Threshold;c.adxbb_bb_length=InpADXBB_BB_Length;c.adxbb_bb_stddev=InpADXBB_BB_StdDev;c.adxbb_atr_length=InpADXBB_ATR_Length;c.adxbb_atr_multiplier=InpADXBB_ATR_Multiplier;c.adxbb_target_r=InpADXBB_TargetR;
+   c.adxbb_di_length=InpADXBB_DI_Length;c.adxbb_adx_length=InpADXBB_ADX_Length;c.adxbb_adx_threshold=InpADXBB_ADX_Threshold;c.adxbb_bb_length=InpADXBB_BB_Length;c.adxbb_bb_stddev=InpADXBB_BB_StdDev;c.adxbb_atr_length=InpADXBB_ATR_Length;c.adxbb_atr_multiplier=InpADXBB_ATR_Multiplier;c.adxbb_target_r=InpADXBB_TargetR;c.one_trade_per_day=InpOneTradePerDay;
    c.risk_mode=InpRiskMode;c.fixed_cash_risk=InpFixedCashRisk;c.balance_risk_percent=InpBalanceRiskPercent;
    c.expert_magic_number=InpExpertMagicNumber;c.trading_enabled=InpTradingEnabled;c.max_spread_pips=InpMaxSpreadPips;c.max_entry_deviation_pips=InpMaxEntryDeviationPips;c.max_quote_age_seconds=InpMaxQuoteAgeSeconds;c.minimum_seconds_between_executions=InpMinimumSecondsBetweenExecutions;
    c.debug_mode=InpDebugMode;c.core_verification_enabled=InpCoreVerificationEnabled;c.logging_enabled=InpLoggingEnabled;c.csv_export_enabled=InpCsvExportEnabled;
@@ -69,7 +71,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
    return(true);
   }
 
-int E2ExposedInputCount(void){return(21);}
+int E2ExposedInputCount(void){return(22);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}

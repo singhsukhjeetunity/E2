@@ -1,0 +1,20 @@
+#ifndef E2_STRATEGY_E2ADXBBTRADEPLANNER_MQH
+#define E2_STRATEGY_E2ADXBBTRADEPLANNER_MQH
+#include "E2ADXBBTypes.mqh"
+#include "E2ADXBBRecovery.mqh"
+#include "..\\risk\\E2PositionSizer.mqh"
+
+class E2ADXBBTradePlanner
+  {
+private:E2Config m_config;E2SymbolInfo *m_symbol;E2PositionSizer *m_sizer;E2PositionGuard *m_guard;E2ADXBBRecovery *m_recovery;E2Logger *m_logger;string m_consumed[];E2ADXBBPlanVerification m_verify;
+   bool Consumed(const string id){for(int i=0;i<ArraySize(m_consumed);i++)if(m_consumed[i]==id)return(true);int n=ArraySize(m_consumed);ArrayResize(m_consumed,n+1);m_consumed[n]=id;return(false);}
+   double FloorTick(const double v,const E2SymbolSpecification &s){return(NormalizeDouble(MathFloor(v/s.tick_size+1e-10)*s.tick_size,s.digits));}
+   double CeilTick(const double v,const E2SymbolSpecification &s){return(NormalizeDouble(MathCeil(v/s.tick_size-1e-10)*s.tick_size,s.digits));}
+public:
+   E2ADXBBTradePlanner(void):m_symbol(NULL),m_sizer(NULL),m_guard(NULL),m_recovery(NULL),m_logger(NULL){ZeroMemory(m_verify);}
+   void Initialize(const E2Config &c,E2SymbolInfo &symbol,E2PositionSizer &sizer,E2PositionGuard &guard,E2ADXBBRecovery &recovery,E2Logger &logger){m_config=c;m_symbol=&symbol;m_sizer=&sizer;m_guard=&guard;m_recovery=&recovery;m_logger=&logger;ZeroMemory(m_verify);ArrayResize(m_consumed,0);}
+   bool Build(const E2ADXBBCandidate &c,E2OrderRequest &r)
+     {E2ResetOrderRequest(r);m_verify.candidates_received++;if(Consumed(c.candidate_id)){m_verify.duplicate_candidates++;return(false);}datetime now=TimeCurrent();datetime bar=iTime(c.symbol,PERIOD_M5,0);if(now<c.execution_window_start||now>=c.execution_window_end||bar!=c.execution_window_start){m_verify.expired_candidates++;return(false);}if(c.symbol==""||c.direction==E2_DIRECTION_NONE||c.risk_distance<=0.0||!MathIsValidNumber(c.risk_distance)){m_verify.invalid_candidates++;return(false);}if(m_recovery.DayConsumed(now)){m_verify.day_rejections++;m_recovery.RecordSuppressed();return(false);}if(m_guard.HasOpenE2Position(c.symbol)||m_guard.HasPendingE2Order(c.symbol)){m_verify.position_rejections++;return(false);}MqlTick tick;if(!SymbolInfoTick(c.symbol,tick)||tick.ask<=0.0||tick.bid<=0.0){m_verify.quote_rejections++;return(false);}E2SymbolSpecification s=m_symbol.Specification();double entry=(c.direction==E2_DIRECTION_LONG?tick.ask:tick.bid);double raw=(c.direction==E2_DIRECTION_LONG?entry-c.risk_distance:entry+c.risk_distance);double min_dist=MathMax((double)SymbolInfoInteger(c.symbol,SYMBOL_TRADE_STOPS_LEVEL),(double)SymbolInfoInteger(c.symbol,SYMBOL_TRADE_FREEZE_LEVEL))*s.point;double stop;if(c.direction==E2_DIRECTION_LONG)stop=FloorTick(MathMin(raw,tick.bid-min_dist),s);else stop=CeilTick(MathMax(raw,tick.ask+min_dist),s);E2PositionSizingResult z;if(!m_sizer.CalculateRequestedRisk(c.symbol,c.direction,entry,stop,z,true)){m_verify.sizing_rejections++;return(false);}r.status=E2_ORDER_REQUEST_VALID;r.symbol=c.symbol;r.setup_id=c.candidate_id;r.signal_id=c.candidate_id;r.execution_id=c.candidate_id+"|"+IntegerToString((int)now);r.direction=c.direction;r.signal_time=c.signal_bar_time;r.signal_known_from=c.signal_known_time;r.request_time=now;r.requested_entry_price=entry;r.structural_stop_price=raw;r.submitted_stop_price=stop;r.take_profit_price=0.0;r.requested_risk_cash=z.target_risk_money;r.volume=z.volume;m_verify.requests_created++;return(true);}
+   E2ADXBBPlanVerification Verification()const{return(m_verify);}
+  };
+#endif

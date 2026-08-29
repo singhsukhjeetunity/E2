@@ -1,6 +1,6 @@
-# E2 ADXBB Sprint 2 Input Reference
+# E2 ADXBB Sprint 3 Input Reference
 
-Sprint 2 exposes 21 inputs: eight ADXBB signal inputs and 13 generic inputs. Every input is mapped once and consumed. `InpOneTradePerDay` does not exist yet.
+Sprint 3 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input is mapped once and consumed.
 
 | Input | Default | Purpose |
 |---|---:|---|
@@ -12,6 +12,7 @@ Sprint 2 exposes 21 inputs: eight ADXBB signal inputs and 13 generic inputs. Eve
 | `InpADXBB_ATR_Length` | `14` | Pine-style TR RMA length. |
 | `InpADXBB_ATR_Multiplier` | `1.0` | Candidate risk-distance multiplier. |
 | `InpADXBB_TargetR` | `1.1` | Frozen future target multiple; stored configuration only because execution is absent. |
+| `InpOneTradePerDay` | `false` | When true, permits only one successful entry per symbol and broker/server calendar day. |
 | `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent monetary sizing. |
 | `InpFixedCashRisk` | `1000.0` | Requested cash risk in fixed mode. No sizing occurs without a strategy request. |
 | `InpBalanceRiskPercent` | `1.0` | Requested balance percentage in percent mode. |
@@ -26,4 +27,4 @@ Sprint 2 exposes 21 inputs: eight ADXBB signal inputs and 13 generic inputs. Eve
 | `InpLoggingEnabled` | `true` | Enables E2 Journal logging. |
 | `InpCsvExportEnabled` | `false` | Enables the Sprint 2 indicator-equivalence validation CSV; no production strategy CSV exists. |
 
-Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=21, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=22, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
