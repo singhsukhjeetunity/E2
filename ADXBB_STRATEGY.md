@@ -1,6 +1,6 @@
 # E2 ADXBB Mechanical Strategy Specification
 
-Status: Sprint 0 specification lock. This document defines future behavior; no ADXBB runtime implementation exists yet.
+Status: Sprint 2 signal-engine implementation. Indicator calculations and observational candidates exist; planning and execution do not.
 
 ## Identity and timeframe
 
@@ -15,17 +15,16 @@ Status: Sprint 0 specification lock. This document defines future behavior; no A
 | Input | Type | Default | Contract |
 |---|---|---:|---|
 | `InpADXBBEnabled` | bool | true | Enables ADXBB signal evaluation. |
-| `InpADXBBDILength` | int | 7 | Wilder smoothing length for +DM, -DM, and true range used by DI. |
-| `InpADXBBADXSmoothingLength` | int | 7 | Wilder/RMA smoothing length applied to DX. |
-| `InpADXBBADXThreshold` | double | 20.0 | Ranging condition is strictly `ADX < threshold`. |
-| `InpADXBBBollingerLength` | int | 20 | Close-price SMA and standard-deviation window. |
-| `InpADXBBBollingerMultiplier` | double | 2.0 | Standard-deviation multiplier. |
-| `InpADXBBATRLength` | int | 14 | Signal-candle ATR length. |
-| `InpADXBBATRMultiplier` | double | 1.0 | Frozen ATR distance multiplier. |
-| `InpADXBBTargetR` | double | 1.1 | Fixed reward multiple of immutable Original R. |
-| `InpOneTradePerDay` | bool | false | Optional successful-fill lock by broker/server calendar day. |
+| `InpADXBB_DI_Length` | int | 7 | Wilder smoothing length for +DM, -DM, and true range used by DI. |
+| `InpADXBB_ADX_Length` | int | 7 | Wilder/RMA smoothing length applied to DX. |
+| `InpADXBB_ADX_Threshold` | double | 20.0 | Ranging condition is strictly `ADX < threshold`. |
+| `InpADXBB_BB_Length` | int | 20 | Close-price SMA and population-standard-deviation window. |
+| `InpADXBB_BB_StdDev` | double | 2.0 | Standard-deviation multiplier. |
+| `InpADXBB_ATR_Length` | int | 14 | Signal-candle ATR length. |
+| `InpADXBB_ATR_Multiplier` | double | 1.0 | Frozen ATR distance multiplier. |
+| `InpADXBB_TargetR` | double | 1.1 | Future fixed reward multiple; execution is not implemented in Sprint 2. |
 
-No point-value, session, timezone, weekday, opening-range, news, volume, band-distance, minimum-ATR, confirmation, trailing, breakeven, partial-exit, or dynamic-exit strategy input is authorized.
+`InpOneTradePerDay` is intentionally deferred. No point-value, session, timezone, weekday, opening-range, news, volume, band-distance, minimum-ATR, confirmation, trailing, breakeven, partial-exit, or dynamic-exit strategy input is authorized.
 
 ## Indicator contract
 

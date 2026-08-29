@@ -1,6 +1,6 @@
 # E2 Strategy-Free Core Architecture
 
-Sprint 1 leaves E2 as a compiling, runnable, non-trading core. ADXBB implementation begins in Sprint 2; no strategy engine, candidate type, planner, recovery schema, or strategy CSV currently exists.
+Sprint 2 adds the observational ADXBB M5 indicator and signal engine. It creates deterministic candidates and an optional indicator-validation export, but no planner, recovery schema, sizing request, execution request, order, or production strategy CSV exists.
 
 ## Retained modules
 
@@ -10,7 +10,7 @@ Sprint 1 leaves E2 as a compiling, runnable, non-trading core. ADXBB implementat
 - `execution`: strategy-neutral order request, position ownership, quote/spread/market/margin safety, and market executor.
 - `reporting`: Journal logging, generic CSV mechanics, inert reporter boundary, and core/risk verification.
 
-`E2.mq5` validates M5, initializes these foundations, observes completed M5 candles, and deliberately creates zero candidates, requests, attempts, or orders. The generic executor remains available but has no caller capable of generating an order request.
+`E2.mq5` validates M5 and passes only completed M5 bars to `E2ADXBBEngine`. The engine performs custom Pine-style DMI/ADX, ATR, and population-standard-deviation Bollinger calculations and emits observational candidates. The generic executor remains available but has no caller capable of generating an order request.
 
 There is no strategy-specific recovery during Sprint 1 because the core cannot open positions. Existing owned positions are detected and warned about but are not managed or modified. Future ADXBB recovery will be introduced only in its authorized sprint.
 
@@ -24,4 +24,4 @@ The active tree contains no opening-range strategy, market-session/timezone/DST 
 - Closed-bar shift zero maps to platform shift one; forming candles are excluded.
 - One E2-owned position per symbol remains the generic ownership rule.
 - Risk sizing and execution economics remain strategy-independent.
-- Sprint 1 runtime is inert.
+- Sprint 2 may produce signal candidates while trade requests, execution attempts, registrations, and finalizations remain zero.

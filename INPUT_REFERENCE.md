@@ -1,9 +1,17 @@
-# E2 Strategy-Free Core Input Reference
+# E2 ADXBB Sprint 2 Input Reference
 
-Sprint 1 exposes 13 generic inputs. Every input is mapped once and consumed by retained infrastructure. ADXBB inputs and `InpOneTradePerDay` do not exist yet.
+Sprint 2 exposes 21 inputs: eight ADXBB signal inputs and 13 generic inputs. Every input is mapped once and consumed. `InpOneTradePerDay` does not exist yet.
 
 | Input | Default | Purpose |
 |---|---:|---|
+| `InpADXBB_DI_Length` | `7` | RMA length for directional movement and true range used by DI. |
+| `InpADXBB_ADX_Length` | `7` | RMA smoothing length for DX into ADX. |
+| `InpADXBB_ADX_Threshold` | `20.0` | Strict ranging test: ADX must be less than this value. |
+| `InpADXBB_BB_Length` | `20` | Close-price SMA/population-standard-deviation window. |
+| `InpADXBB_BB_StdDev` | `2.0` | Bollinger standard-deviation multiplier. |
+| `InpADXBB_ATR_Length` | `14` | Pine-style TR RMA length. |
+| `InpADXBB_ATR_Multiplier` | `1.0` | Candidate risk-distance multiplier. |
+| `InpADXBB_TargetR` | `1.1` | Frozen future target multiple; stored configuration only because execution is absent. |
 | `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent monetary sizing. |
 | `InpFixedCashRisk` | `1000.0` | Requested cash risk in fixed mode. No sizing occurs without a strategy request. |
 | `InpBalanceRiskPercent` | `1.0` | Requested balance percentage in percent mode. |
@@ -16,6 +24,6 @@ Sprint 1 exposes 13 generic inputs. Every input is mapped once and consumed by r
 | `InpDebugMode` | `false` | Enables debug Journal messages. |
 | `InpCoreVerificationEnabled` | `true` | Emits generic input/core/risk verification. |
 | `InpLoggingEnabled` | `true` | Enables E2 Journal logging. |
-| `InpCsvExportEnabled` | `false` | Retained reporting capability flag; no strategy CSV is produced in Sprint 1. |
+| `InpCsvExportEnabled` | `false` | Enables the Sprint 2 indicator-equivalence validation CSV; no production strategy CSV exists. |
 
-Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=13, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=21, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
