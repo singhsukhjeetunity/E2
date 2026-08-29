@@ -1,30 +1,37 @@
 # E2 ADXBB Production Input Reference
 
-E2 exposes 22 inputs: nine ADXBB inputs and 13 generic inputs. Every input is mapped once and consumed.
+E2 exposes 11 operator-facing inputs. The validated HYBRID_V1_Q50 strategy methodology is fixed internally to prevent accidental live strategy drift.
+
+## E2 Production
 
 | Input | Default | Purpose |
 |---|---:|---|
-| `InpADXBB_DI_Length` | `7` | RMA length for directional movement and true range used by DI. |
-| `InpADXBB_ADX_Length` | `7` | RMA smoothing length for DX into ADX. |
-| `InpADXBB_ADX_Threshold` | `20.0` | Strict ranging test: ADX must be less than this value. |
-| `InpADXBB_BB_Length` | `20` | Close-price SMA/population-standard-deviation window. |
-| `InpADXBB_BB_StdDev` | `2.0` | Bollinger standard-deviation multiplier. |
-| `InpADXBB_ATR_Length` | `14` | Pine-style TR RMA length. |
-| `InpADXBB_ATR_Multiplier` | `1.0` | Candidate risk-distance multiplier. |
-| `InpADXBB_TargetR` | `1.1` | Fixed target multiple applied to immutable Original R after the authoritative fill. |
-| `InpOneTradePerDay` | `false` | When true, permits only one successful entry per symbol and broker/server calendar day. |
-| `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent monetary sizing. |
-| `InpFixedCashRisk` | `1000.0` | Requested cash risk in fixed mode. |
+| `InpTradingEnabled` | `true` | Master execution gate. |
+| `InpExpertMagicNumber` | `2026001` | E2 order, position, history, and recovery ownership identity. |
+| `InpLoggingEnabled` | `true` | Enables operational Journal logging. |
+| `InpCsvExportEnabled` | `false` | Enables paired production SIGNALS/TRADES CSV output. |
+
+## Risk Management
+
+| Input | Default | Purpose |
+|---|---:|---|
+| `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent sizing. |
+| `InpFixedCashRisk` | `1000.0` | Requested account-currency risk in fixed mode. |
 | `InpBalanceRiskPercent` | `1.0` | Requested balance percentage in percent mode. |
-| `InpExpertMagicNumber` | `2026001` | E2 order/position ownership identity. |
-| `InpTradingEnabled` | `true` | Generic executor master gate. |
-| `InpMaxSpreadPips` | `3.0` | Maximum spread accepted by execution safety. |
+
+## Execution Safety
+
+| Input | Default | Purpose |
+|---|---:|---|
+| `InpMaxSpreadPips` | `3.0` | Maximum accepted spread. |
 | `InpMaxEntryDeviationPips` | `2.0` | Maximum planned-to-current entry deviation. |
 | `InpMaxQuoteAgeSeconds` | `10` | Maximum quote age. |
-| `InpMinimumSecondsBetweenExecutions` | `5` | Cooldown after a successful generic execution. |
-| `InpDebugMode` | `false` | Enables debug Journal messages. |
-| `InpCoreVerificationEnabled` | `true` | Emits generic input/core/risk verification. |
-| `InpLoggingEnabled` | `true` | Enables E2 Journal logging. |
-| `InpCsvExportEnabled` | `false` | Enables paired production SIGNALS/TRADES CSV output under Common Files `E2\Reports`. |
+| `InpMinimumSecondsBetweenExecutions` | `5` | Cooldown following successful execution. |
 
-Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=22, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+## Fixed production methodology
+
+HYBRID_V1_Q50 uses DI 7, ADX 7 with threshold 20, Bollinger 20/2 with a 1-pip buffer, no BB re-entry confirmation, ATR 14 with multiplier 2, target 1.5R, one successful trade per broker day, maturity threshold 0.50 ATR, Q50 quality threshold, and a 250-bar causal percentile lookback. Legacy inversion is fixed off and hybrid mode is fixed on.
+
+Debug mode and REGIME research export are internal development settings and default off. Core verification remains internally enabled.
+
+Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=11, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
