@@ -3,8 +3,9 @@
 Before modifying E2, always read:
 
 - `ARCHITECTURE.md`
-- `ROADMAP.md`
-- `STRATEGY.md`
+- `STATUS.md`
+- `ADXBB_STRATEGY.md`
+- `ADXBB_ARCHITECTURE_AUDIT.md`
 - `CONTRIBUTING.md`
 
 These files are authoritative.

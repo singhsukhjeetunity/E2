@@ -1,55 +1,27 @@
-# E2 Core Architecture
+# E2 Strategy-Free Core Architecture
 
-## OBR session-time authority
+Sprint 1 leaves E2 as a compiling, runnable, non-trading core. ADXBB implementation begins in Sprint 2; no strategy engine, candidate type, planner, recovery schema, or strategy CSV currently exists.
 
-The OBR engine owns the deterministic conversion chain server time → UTC → selected session local time. Broker standard/summer UTC inputs remain exclusively server-clock metadata. The London adapter applies UK DST; the New York adapter separately applies US DST. The resulting selected-session day is shared by range construction, weekday eligibility, candidate identity, day locks, recovery and reporting. London retains its existing recovery/comment namespace; New York uses a distinct namespace to prevent cross-session state reuse.
+## Retained modules
 
-E2 OBR is an end-to-end M15 strategy prepared for controlled forward/demo testing. The validated market model remains the sole candidate authority; planning, execution and recovery consume its frozen candidates without recalculating them.
+- `core`: environment, symbol/account metadata, generic direction types, and configuration.
+- `analysis`: causal closed-candle access through explicit `ENUM_TIMEFRAMES`; M5 is explicitly used by the composition root.
+- `risk`: MT5-native monetary risk and volume normalization.
+- `execution`: strategy-neutral order request, position ownership, quote/spread/market/margin safety, and market executor.
+- `reporting`: Journal logging, generic CSV mechanics, inert reporter boundary, and core/risk verification.
 
-## Active dependency graph
+`E2.mq5` validates M5, initializes these foundations, observes completed M5 candles, and deliberately creates zero candidates, requests, attempts, or orders. The generic executor remains available but has no caller capable of generating an order request.
 
-`E2.mq5` owns the lifecycle and initializes:
-
-- configuration and validation;
-- runtime environment, symbol and account specifications;
-- completed-candle/as-of market-data access;
-- retained news CSV infrastructure;
-- FIXED_CASH/BALANCE_PERCENT sizing;
-- position ownership guard and broker execution safety;
-- generic market-order submission foundation;
-- deal-authoritative trade reporting, logging and CSV utilities;
-- zero-strategy tester verification and generic visual cleanup.
-
-`OnTick` evaluates completed-bar candidates, plans only the immediately following M15 window, submits eligible market orders, attaches the fill-based 2R target, reconciles deals and updates visualization. `OnTradeTransaction` remains the deal-authoritative reporting path.
-
-## OBR signal modules
-
-- `E2OBRTypes.mqh`: opening-range, candidate, plan, execution, recovery and immutable position records.
-- `E2OBREngine.mqh`: London-time conversion, four-bar OR reconstruction/freeze, M15 ATR/ADX sampling, filters, deterministic candidate identity and duplicate protection.
-- Weekday eligibility is owned by `E2OBREngine.mqh` after all prior signal conditions pass and before candidate construction. It reuses the same London conversion/day state; disabled weekdays still build and freeze their OR.
-- `E2OBRTradePlanner.mqh`: next-window expiry, entry-gap validation, structural/broker stop geometry, risk sizing and request/attempt deduplication.
-- `E2OBRRecovery.mqh`: London-day deal-history lock and small persisted open-position metadata record.
-- `E2TradeReporter.mqh`: passive finalized-trade audit plus independent financial, R, day and chain reconciliation.
-- `E2OBRTradePlanner.mqh`: also emits the optional passive candidate decision/rejection audit and entry-time/gap verification.
-
-The engine still emits metadata only. The planner is the only bridge into generic risk and execution services.
-
-## Generic contracts
-
-`E2TradeDirection` is `NONE`, `LONG`, or `SHORT` and contains no strategy vocabulary.
-
-`E2OrderRequest` carries symbol, setup/signal/execution identities, direction, signal/known/request timestamps, requested entry, structural stop, submitted stop, TP, requested cash risk and volume. It has no zone, range, regime, retest, or legacy candidate fields.
-
-`E2ReportEntryData` freezes the request plus actual fill, actual risk and MT5 tickets at registration. `E2TradeReporter` aggregates authoritative MT5 exit deals, including profit, commission, swap and fees, and finalizes a position once without reconstructing strategy state.
-
-## Restart and ownership foundation
-
-Magic number plus symbol identify E2-owned positions and orders. Filled OBR entry deals create the per-symbol/London-day lock. Open-position metadata persists candidate identity, fill, both stop representations, immutable Original R, target, risk and tickets; startup validates it against the owned position and deal history.
+There is no strategy-specific recovery during Sprint 1 because the core cannot open positions. Existing owned positions are detected and warned about but are not managed or modified. Future ADXBB recovery will be introduced only in its authorized sprint.
 
 ## Removed architecture
 
-The active tree contains no TC, RMR, RB, H4 regime, H1 zone/range, M15 confirmation, multi-strategy planner, strategy session filter, V2 execution adapter, or V2 position manager. Git history preserves the former implementation.
+The active tree contains no opening-range strategy, market-session/timezone/DST conversion, weekday eligibility, news runtime/exporter, custom chart visualization, strategy preset, or strategy CSV production. Historical releases remain available through Git history.
 
-The frozen specification and execution lifecycle are in [OBR_STRATEGY.md](OBR_STRATEGY.md).
+## Invariants
 
-Forward/demo operation uses one-time `[E2_PRODUCTION_CONFIG]` and `[E2_PRODUCTION_TIME]` diagnostics. They read configuration, account, and time-conversion state only; they do not participate in candidate, plan, execution, or management decisions.
+- M5 chart validation and explicit `PERIOD_M5` market-data requests.
+- Closed-bar shift zero maps to platform shift one; forming candles are excluded.
+- One E2-owned position per symbol remains the generic ownership rule.
+- Risk sizing and execution economics remain strategy-independent.
+- Sprint 1 runtime is inert.
