@@ -11,6 +11,7 @@
 #include "include\\risk\\E2OrderRequest.mqh"
 #include "include\\execution\\E2PositionGuard.mqh"
 #include "include\\execution\\E2ExecutionSafety.mqh"
+#include "include\\execution\\E2WeekendFlat.mqh"
 #include "include\\execution\\E2OrderExecutor.mqh"
 #include "include\\reporting\\E2Logger.mqh"
 #include "include\\reporting\\E2TradeReporter.mqh"
@@ -27,6 +28,7 @@ E2MarketData g_market_data;
 E2PositionSizer g_position_sizer;
 E2PositionGuard g_position_guard;
 E2ExecutionSafety g_execution_safety;
+E2WeekendFlat g_weekend_flat;
 E2OrderExecutor g_order_executor;
 E2TradeReporter g_trade_reporter;
 E2BacktestSummary g_backtest_summary;
@@ -40,6 +42,13 @@ int g_strategy_candidates=0;
 int g_trade_requests=0,g_new_positions_registered=0,g_recovered_positions_registered=0;
 E2ADXBBExecutionVerification g_execution_verify;
 E2ADXBBRVerification g_r_verify;
+
+void E2EnforceWeekendFlat(void)
+  {
+   datetime now=TimeCurrent();if(!g_weekend_flat.IsBlockedAt(now))return;ulong ticket=0,position_id=0;if(!g_position_guard.FindOpenE2Position(_Symbol,ticket,position_id))return;if(!g_weekend_flat.ShouldAttemptClose(ticket,now))return;
+   g_logger.Info("ticket="+StringFormat("%I64u",ticket)+", positionId="+StringFormat("%I64u",position_id)+", symbol="+_Symbol+".","WEEKEND_FLAT_CLOSE_REQUEST");E2PositionCloseResult result;if(!g_order_executor.CloseOwnedPosition(_Symbol,ticket,position_id,result)){g_logger.Error("ticket="+StringFormat("%I64u",ticket)+", positionId="+StringFormat("%I64u",position_id)+", retcode="+IntegerToString((int)result.retcode)+", description="+result.description+".","WEEKEND_FLAT_CLOSE_FAILED");return;}
+   g_trade_reporter.MarkExitReason(position_id,"WEEKEND_FLAT");double profit=0.0;if(result.deal_ticket>0&&HistoryDealSelect(result.deal_ticket)){if(result.close_price<=0.0)result.close_price=HistoryDealGetDouble(result.deal_ticket,DEAL_PRICE);profit=HistoryDealGetDouble(result.deal_ticket,DEAL_PROFIT)+HistoryDealGetDouble(result.deal_ticket,DEAL_COMMISSION)+HistoryDealGetDouble(result.deal_ticket,DEAL_SWAP)+HistoryDealGetDouble(result.deal_ticket,DEAL_FEE);}g_logger.Info("ticket="+StringFormat("%I64u",ticket)+", positionId="+StringFormat("%I64u",position_id)+", deal="+StringFormat("%I64u",result.deal_ticket)+", closePrice="+DoubleToString(result.close_price,_Digits)+", realizedPnL="+DoubleToString(profit,2)+".","WEEKEND_FLAT_CLOSE_SUCCESS");g_trade_reporter.Reconcile();g_adxbb_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(position_id));
+  }
 
 void E2EmitVerification(void)
   {
@@ -76,12 +85,13 @@ int OnInit()
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_position_guard.Initialize(g_configuration,g_logger);
    g_execution_safety.Initialize(g_configuration,g_logger);
-   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_logger);
+   g_weekend_flat.Initialize(g_configuration,_Symbol,g_logger);
+   g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_weekend_flat,g_logger);
    if(!g_trade_reporter.Initialize(g_configuration,_Symbol,g_logger))return(INIT_FAILED);
    g_backtest_summary.Initialize(g_logger);
-   if(!g_adxbb_engine.Initialize(_Symbol,g_configuration,g_symbol_info.PipSize(),g_trade_reporter.RunId(),g_trade_reporter.ConfigHash(),g_market_data,g_logger)){g_logger.Error("ADXBB signal engine initialization failed.","Initialization");return(INIT_FAILED);}
+   if(!g_adxbb_engine.Initialize(_Symbol,g_configuration,g_symbol_info.PipSize(),g_trade_reporter.RunId(),g_trade_reporter.ConfigHash(),g_market_data,g_weekend_flat,g_logger)){g_logger.Error("ADXBB signal engine initialization failed.","Initialization");return(INIT_FAILED);}
    E2ADXBBPositionMetadata recovered;bool has_recovered=false;if(!g_adxbb_recovery.Initialize(g_configuration,_Symbol,g_environment.IsTester(),g_logger,recovered,has_recovered))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day)g_adxbb_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
-   g_adxbb_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_adxbb_recovery,g_logger);
+   g_adxbb_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_adxbb_recovery,g_weekend_flat,g_logger);E2EnforceWeekendFlat();
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");
    g_initialized=true;
    const string risk_mode=(g_configuration.risk_mode==E2_RISK_FIXED_CASH?"FIXED_CASH":"BALANCE_PERCENT");
@@ -93,6 +103,7 @@ int OnInit()
 void OnTick()
   {
    g_trade_reporter.Reconcile();g_adxbb_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_adxbb_recovery.ActivePositionId()));
+   E2EnforceWeekendFlat();
    g_trade_reporter.ObserveBar(iTime(_Symbol,PERIOD_M5,1));
    E2ADXBBCandidate candidates[];if(!g_adxbb_engine.Evaluate(candidates))return;
    const E2ADXBBSignalVerification verification=g_adxbb_engine.SignalVerification();g_strategy_candidates=(int)verification.total_candidates;

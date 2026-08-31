@@ -12,6 +12,7 @@ class E2PositionGuard
     public: E2PositionGuard(void):m_magic(0),m_logger(NULL){}
     void Initialize(const E2Config &c,E2Logger &l){m_magic=c.expert_magic_number;m_logger=&l;}
     int CountOpenE2Positions(const string s){int n=0;for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==s&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic)n++;}return(n);}
+    bool FindOpenE2Position(const string s,ulong &ticket,ulong &identifier){ticket=0;identifier=0;for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==s&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic){ticket=t;identifier=(ulong)PositionGetInteger(POSITION_IDENTIFIER);return(true);}}return(false);}
     bool HasOpenE2Position(const string s){return(CountOpenE2Positions(s)>0);}
     bool HasPendingE2Order(const string s){for(int i=0;i<OrdersTotal();i++){ulong t=OrderGetTicket(i);if(t>0&&OrderGetString(ORDER_SYMBOL)==s&&(ulong)OrderGetInteger(ORDER_MAGIC)==m_magic)return(true);}return(false);}
     bool CanOpen(const E2OrderRequest &p,E2PositionGuardResult &r)

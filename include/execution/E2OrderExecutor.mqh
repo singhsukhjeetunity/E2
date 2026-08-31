@@ -8,8 +8,9 @@
 #include "..\\risk\\E2OrderRequest.mqh"
 #include "E2PositionGuard.mqh"
 #include "E2ExecutionSafety.mqh"
+#include "E2WeekendFlat.mqh"
 
-enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E2_EXECUTION_INVALID_PLAN, E2_EXECUTION_SYMBOL_UNAVAILABLE, E2_EXECUTION_MARKET_PRICE_UNAVAILABLE, E2_EXECUTION_PRICE_DEVIATION_EXCEEDED, E2_EXECUTION_INVALID_CURRENT_GEOMETRY, E2_EXECUTION_BROKER_STOP_CONSTRAINT, E2_EXECUTION_TRADING_NOT_ALLOWED, E2_EXECUTION_INSUFFICIENT_MARGIN, E2_EXECUTION_ORDER_REJECTED, E2_EXECUTION_FAILED, E2_EXECUTION_SPREAD_TOO_HIGH, E2_EXECUTION_NO_VALID_QUOTE, E2_EXECUTION_MARKET_CLOSED, E2_EXECUTION_SYMBOL_TRADING_DISABLED, E2_EXECUTION_VOLUME_INVALID, E2_EXECUTION_MARGIN_INSUFFICIENT, E2_EXECUTION_EXECUTION_COOLDOWN, E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE, E2_EXECUTION_POSITION_ALREADY_OPEN, E2_EXECUTION_PENDING_ORDER_EXISTS, E2_EXECUTION_DIRECTION_CONFLICT, E2_EXECUTION_POSITION_STATE_UNAVAILABLE, E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED };
+enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E2_EXECUTION_INVALID_PLAN, E2_EXECUTION_SYMBOL_UNAVAILABLE, E2_EXECUTION_MARKET_PRICE_UNAVAILABLE, E2_EXECUTION_PRICE_DEVIATION_EXCEEDED, E2_EXECUTION_INVALID_CURRENT_GEOMETRY, E2_EXECUTION_BROKER_STOP_CONSTRAINT, E2_EXECUTION_TRADING_NOT_ALLOWED, E2_EXECUTION_INSUFFICIENT_MARGIN, E2_EXECUTION_ORDER_REJECTED, E2_EXECUTION_FAILED, E2_EXECUTION_SPREAD_TOO_HIGH, E2_EXECUTION_NO_VALID_QUOTE, E2_EXECUTION_MARKET_CLOSED, E2_EXECUTION_SYMBOL_TRADING_DISABLED, E2_EXECUTION_VOLUME_INVALID, E2_EXECUTION_MARGIN_INSUFFICIENT, E2_EXECUTION_EXECUTION_COOLDOWN, E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE, E2_EXECUTION_POSITION_ALREADY_OPEN, E2_EXECUTION_PENDING_ORDER_EXISTS, E2_EXECUTION_DIRECTION_CONFLICT, E2_EXECUTION_POSITION_STATE_UNAVAILABLE, E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED, E2_EXECUTION_WEEKEND_CUTOFF };
 
 struct E2ExecutionResult
   {
@@ -19,11 +20,13 @@ struct E2ExecutionResult
    string symbol; E2TradeDirection direction;
   };
 
+struct E2PositionCloseResult {bool success;uint retcode;string description;ulong ticket,position_id,deal_ticket;double close_price,volume;};
+
 string E2ExecutionStatusName(const E2ExecutionStatus status)
   {
    switch(status)
      {
-      case E2_EXECUTION_EXECUTED: return("EXECUTED"); case E2_EXECUTION_TRADING_DISABLED: return("TRADING_DISABLED"); case E2_EXECUTION_INVALID_PLAN: return("INVALID_PLAN"); case E2_EXECUTION_SYMBOL_UNAVAILABLE: return("SYMBOL_UNAVAILABLE"); case E2_EXECUTION_MARKET_PRICE_UNAVAILABLE: return("MARKET_PRICE_UNAVAILABLE"); case E2_EXECUTION_PRICE_DEVIATION_EXCEEDED: return("PRICE_DEVIATION_EXCEEDED"); case E2_EXECUTION_INVALID_CURRENT_GEOMETRY: return("INVALID_CURRENT_GEOMETRY"); case E2_EXECUTION_BROKER_STOP_CONSTRAINT: return("BROKER_STOP_CONSTRAINT"); case E2_EXECUTION_TRADING_NOT_ALLOWED: return("TRADING_NOT_ALLOWED"); case E2_EXECUTION_INSUFFICIENT_MARGIN: return("INSUFFICIENT_MARGIN"); case E2_EXECUTION_ORDER_REJECTED: return("ORDER_REJECTED"); case E2_EXECUTION_SPREAD_TOO_HIGH: return("SPREAD_TOO_HIGH"); case E2_EXECUTION_NO_VALID_QUOTE: return("NO_VALID_QUOTE"); case E2_EXECUTION_MARKET_CLOSED: return("MARKET_CLOSED"); case E2_EXECUTION_SYMBOL_TRADING_DISABLED: return("SYMBOL_TRADING_DISABLED"); case E2_EXECUTION_VOLUME_INVALID: return("VOLUME_INVALID"); case E2_EXECUTION_MARGIN_INSUFFICIENT: return("MARGIN_INSUFFICIENT"); case E2_EXECUTION_EXECUTION_COOLDOWN: return("EXECUTION_COOLDOWN"); case E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE: return("TRADE_CONTEXT_UNAVAILABLE"); case E2_EXECUTION_POSITION_ALREADY_OPEN: return("POSITION_ALREADY_OPEN"); case E2_EXECUTION_PENDING_ORDER_EXISTS: return("PENDING_ORDER_EXISTS"); case E2_EXECUTION_DIRECTION_CONFLICT: return("DIRECTION_CONFLICT"); case E2_EXECUTION_POSITION_STATE_UNAVAILABLE: return("POSITION_STATE_UNAVAILABLE"); case E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED: return("ACCOUNT_MODE_UNSUPPORTED"); default: return("EXECUTION_FAILED");
+      case E2_EXECUTION_EXECUTED: return("EXECUTED"); case E2_EXECUTION_TRADING_DISABLED: return("TRADING_DISABLED"); case E2_EXECUTION_INVALID_PLAN: return("INVALID_PLAN"); case E2_EXECUTION_SYMBOL_UNAVAILABLE: return("SYMBOL_UNAVAILABLE"); case E2_EXECUTION_MARKET_PRICE_UNAVAILABLE: return("MARKET_PRICE_UNAVAILABLE"); case E2_EXECUTION_PRICE_DEVIATION_EXCEEDED: return("PRICE_DEVIATION_EXCEEDED"); case E2_EXECUTION_INVALID_CURRENT_GEOMETRY: return("INVALID_CURRENT_GEOMETRY"); case E2_EXECUTION_BROKER_STOP_CONSTRAINT: return("BROKER_STOP_CONSTRAINT"); case E2_EXECUTION_TRADING_NOT_ALLOWED: return("TRADING_NOT_ALLOWED"); case E2_EXECUTION_INSUFFICIENT_MARGIN: return("INSUFFICIENT_MARGIN"); case E2_EXECUTION_ORDER_REJECTED: return("ORDER_REJECTED"); case E2_EXECUTION_SPREAD_TOO_HIGH: return("SPREAD_TOO_HIGH"); case E2_EXECUTION_NO_VALID_QUOTE: return("NO_VALID_QUOTE"); case E2_EXECUTION_MARKET_CLOSED: return("MARKET_CLOSED"); case E2_EXECUTION_SYMBOL_TRADING_DISABLED: return("SYMBOL_TRADING_DISABLED"); case E2_EXECUTION_VOLUME_INVALID: return("VOLUME_INVALID"); case E2_EXECUTION_MARGIN_INSUFFICIENT: return("MARGIN_INSUFFICIENT"); case E2_EXECUTION_EXECUTION_COOLDOWN: return("EXECUTION_COOLDOWN"); case E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE: return("TRADE_CONTEXT_UNAVAILABLE"); case E2_EXECUTION_POSITION_ALREADY_OPEN: return("POSITION_ALREADY_OPEN"); case E2_EXECUTION_PENDING_ORDER_EXISTS: return("PENDING_ORDER_EXISTS"); case E2_EXECUTION_DIRECTION_CONFLICT: return("DIRECTION_CONFLICT"); case E2_EXECUTION_POSITION_STATE_UNAVAILABLE: return("POSITION_STATE_UNAVAILABLE"); case E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED: return("ACCOUNT_MODE_UNSUPPORTED"); case E2_EXECUTION_WEEKEND_CUTOFF:return("WEEKEND_CUTOFF"); default: return("EXECUTION_FAILED");
      }
   }
 
@@ -34,6 +37,7 @@ private:
    ulong m_magic_number; bool m_trading_enabled; double m_max_entry_deviation_pips;
    E2PositionGuard *m_guard;
    E2ExecutionSafety *m_safety;
+   E2WeekendFlat *m_weekend;
 
    void ResetResult(E2ExecutionResult &result)
      {
@@ -79,10 +83,10 @@ private:
      }
 
 public:
-   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0),m_guard(NULL),m_safety(NULL) {}
-   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2PositionGuard &guard,E2ExecutionSafety &safety,E2Logger &logger)
+   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0),m_guard(NULL),m_safety(NULL),m_weekend(NULL) {}
+   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2PositionGuard &guard,E2ExecutionSafety &safety,E2WeekendFlat &weekend,E2Logger &logger)
      {
-      m_symbol_info=&symbol_info; m_account_info=&account_info; m_guard=&guard; m_safety=&safety; m_logger=&logger; m_magic_number=config.expert_magic_number; m_trading_enabled=config.trading_enabled; m_max_entry_deviation_pips=config.max_entry_deviation_pips;
+      m_symbol_info=&symbol_info; m_account_info=&account_info; m_guard=&guard; m_safety=&safety; m_weekend=&weekend; m_logger=&logger; m_magic_number=config.expert_magic_number; m_trading_enabled=config.trading_enabled; m_max_entry_deviation_pips=config.max_entry_deviation_pips;
       m_trade.SetAsyncMode(false); m_trade.SetExpertMagicNumber(m_magic_number);
      }
 
@@ -91,6 +95,7 @@ public:
       ResetResult(result); result.symbol=plan.symbol; result.direction=plan.direction; result.planned_entry_price=plan.requested_entry_price; result.requested_volume=plan.volume; result.stop_loss_price=plan.submitted_stop_price; result.take_profit_price=plan.take_profit_price;
       if(!m_trading_enabled) { Fail(result,E2_EXECUTION_TRADING_DISABLED); return(false); }
       if(plan.status!=E2_ORDER_REQUEST_VALID || plan.symbol=="" || plan.execution_id=="" || plan.direction==E2_DIRECTION_NONE || plan.volume<=0.0 || !MathIsValidNumber(plan.requested_entry_price) || !MathIsValidNumber(plan.submitted_stop_price) || !MathIsValidNumber(plan.take_profit_price) || plan.take_profit_price<0.0) { Fail(result,E2_EXECUTION_INVALID_PLAN); return(false); }
+      if(m_weekend!=NULL&&m_weekend.IsBlockedAt(TimeCurrent())){m_weekend.LogEntryBlock(plan.setup_id,TimeCurrent());Fail(result,E2_EXECUTION_WEEKEND_CUTOFF);return(false);}
       if(m_symbol_info==NULL || m_account_info==NULL || (!m_symbol_info.IsInitialized() && !m_symbol_info.Refresh(plan.symbol)) || (m_symbol_info.IsInitialized() && m_symbol_info.Specification().symbol!=plan.symbol && !m_symbol_info.Refresh(plan.symbol))) { Fail(result,E2_EXECUTION_SYMBOL_UNAVAILABLE); return(false); }
       E2SymbolSpecification spec=m_symbol_info.Specification();
       E2PositionGuardResult guard_result;
@@ -123,8 +128,10 @@ public:
      {
       retcode=0;description="";ulong ticket=0;for(int i=0;i<PositionsTotal();i++){ulong value=PositionGetTicket(i);if(value>0&&PositionGetString(POSITION_SYMBOL)==symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==m_magic_number&&(ulong)PositionGetInteger(POSITION_IDENTIFIER)==position_id){ticket=value;break;}}
       if(ticket==0){description="Owned position was not found for protection update.";return(false);}m_trade.SetExpertMagicNumber(m_magic_number);
-      bool changed=m_trade.PositionModify(ticket,stop_loss,take_profit);retcode=m_trade.ResultRetcode();description=m_trade.ResultRetcodeDescription();return(changed&&SuccessfulRetcode(retcode));
+     bool changed=m_trade.PositionModify(ticket,stop_loss,take_profit);retcode=m_trade.ResultRetcode();description=m_trade.ResultRetcodeDescription();return(changed&&SuccessfulRetcode(retcode));
      }
+   bool CloseOwnedPosition(const string symbol,const ulong ticket,const ulong position_id,E2PositionCloseResult &result)
+     {ZeroMemory(result);result.ticket=ticket;result.position_id=position_id;if(ticket==0||!PositionSelectByTicket(ticket)||PositionGetString(POSITION_SYMBOL)!=symbol||(ulong)PositionGetInteger(POSITION_MAGIC)!=m_magic_number||(ulong)PositionGetInteger(POSITION_IDENTIFIER)!=position_id){result.description="Owned position validation failed.";return(false);}result.volume=PositionGetDouble(POSITION_VOLUME);m_trade.SetExpertMagicNumber(m_magic_number);bool sent=m_trade.PositionClose(ticket);result.retcode=m_trade.ResultRetcode();result.description=m_trade.ResultRetcodeDescription();result.deal_ticket=m_trade.ResultDeal();result.close_price=m_trade.ResultPrice();result.success=(sent&&SuccessfulRetcode(result.retcode));return(result.success);}
   };
 
 #endif // E2_EXECUTION_E2ORDEREXECUTOR_MQH

@@ -1,6 +1,6 @@
 # E2 ADXBB Production Input Reference
 
-E2 exposes 11 operator-facing inputs. The validated HYBRID_V1_Q50 strategy methodology is fixed internally to prevent accidental live strategy drift.
+E2 exposes 13 operator-facing inputs. The validated HYBRID_V1_Q50 strategy methodology is fixed internally to prevent accidental live strategy drift.
 
 ## E2 Production
 
@@ -27,6 +27,8 @@ E2 exposes 11 operator-facing inputs. The validated HYBRID_V1_Q50 strategy metho
 | `InpMaxEntryDeviationPips` | `2.0` | Maximum planned-to-current entry deviation. |
 | `InpMaxQuoteAgeSeconds` | `10` | Maximum quote age. |
 | `InpMinimumSecondsBetweenExecutions` | `5` | Cooldown following successful execution. |
+| `InpWeekendFlatEnabled` | `true` | Blocks new execution near the final Friday session close and flattens an owned E2 position before the weekend. |
+| `InpWeekendFlatMinutesBeforeSessionClose` | `30` | Broker-session minutes before the final Friday close at which weekend protection begins. |
 
 ## Fixed production methodology
 
@@ -34,4 +36,4 @@ HYBRID_V1_Q50 uses DI 7, ADX 7 with threshold 20, Bollinger 20/2 with a 1-pip bu
 
 Debug mode and REGIME research export are internal development settings and default off. Core verification remains internally enabled.
 
-Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=11, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=13, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
