@@ -1,13 +1,17 @@
-# E2 ADXBB Production Configuration
+# E2 London Range Breakout Deployment
 
-Attach E2 to an M5 chart or run it in the Strategy Tester on M5. Initialization rejects other chart timeframes.
+Attach only to EURUSD M5 (EUR/USD currency identity permits broker suffixes).
+A verified broker-time profile must be configured before attachment or backtesting.
+Do not substitute the synthetic fixtures for a real broker/history policy.
 
-With `InpTradingEnabled=true`, a qualifying HYBRID_V1_Q50 candidate can produce one market attempt in its immediate next M5 candle. Entry is initially SL-protected; TP is then attached from the authoritative fill and immutable Original R. The fixed production methodology permits one successful entry per symbol and broker/server calendar day.
+The strategy uses London-local range/session boundaries. Broker timestamps are converted through an explicit UTC-offset schedule, then pinned Europe/London data.
+Weekend-flat protection remains broker-session based and independent of the London alpha window.
 
-Weekend Flat Protection is enabled by default. At 30 minutes before the final Friday broker trading-session close, E2 expires any pending setup, blocks new planning and execution, and closes only the position matching the chart symbol and E2 magic number. The gate remains closed until the symbol's next broker trading session. Set `InpWeekendFlatEnabled=false` only when exact legacy weekend behavior is required.
+Signals use completed M5 closes. Entry is attempted only in the immediately following M5 bar, never at the historical close.
+SL and sizing use the existing broker adjustment and risk framework; targets use actual fill and immutable Original R.
+OneTradePerDay now means one successful entry per London date, reconstructed from owned deal history.
 
-At shutdown, the signal, indicator, plan, execution, Original-R, day-lock, recovery, reconciliation, and financial blocks audit the complete lifecycle. `[E2_INPUT_VERIFY]` must show 13 inputs and zero mapping defects.
+Reports use LRB_REPORT_V1 and the existing paired SIGNALS/TRADES file framework. The old ADXBB/REGIME report schemas are historical, not the active London schema.
+See LONDON_RANGE_BREAKOUT.md for deployment, recovery compatibility, report fields and validation limitations.
 
-No custom chart objects are created. When `InpCsvExportEnabled=true`, paired production files use `E2_<SYMBOL>_<MMDD>_<HASH4>_S.csv` and `_T.csv` under Common Files `E2\Reports`. If either requested member exists, both advance together to `_2`, `_3`, and so on. The full run ID and eight-character configuration hash remain authoritative inside the datasets.
-
-ADXBB’s mechanical contract is [ADXBB_STRATEGY.md](ADXBB_STRATEGY.md). Reporting and financial realized-R details are in [ADXBB_REPORTING.md](ADXBB_REPORTING.md).
+Authoritative multi-year backtesting remains blocked pending a verified history-source broker-time profile.

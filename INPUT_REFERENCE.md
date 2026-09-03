@@ -1,39 +1,38 @@
-# E2 ADXBB Production Input Reference
+# E2 London Range Breakout Inputs
 
-E2 exposes 13 operator-facing inputs. The validated HYBRID_V1_Q50 strategy methodology is fixed internally to prevent accidental live strategy drift.
+The active strategy is LONDON_RANGE_BREAKOUT. There are 27 inputs: 13 existing operational/risk controls, 13 strategy controls, and one broker-time profile selector.
 
-## E2 Production
+## Strategy
 
-| Input | Default | Purpose |
-|---|---:|---|
-| `InpTradingEnabled` | `true` | Master execution gate. |
-| `InpExpertMagicNumber` | `2026001` | E2 order, position, history, and recovery ownership identity. |
-| `InpLoggingEnabled` | `true` | Enables operational Journal logging. |
-| `InpCsvExportEnabled` | `false` | Enables paired production SIGNALS/TRADES CSV output. |
+| Input | Default |
+|---|---|
+| InpRangeStartHourLondon / InpRangeStartMinuteLondon | 0 / 0 |
+| InpRangeEndHourLondon / InpRangeEndMinuteLondon | 8 / 0 |
+| InpBreakoutStartHourLondon / InpBreakoutStartMinuteLondon | 8 / 0 |
+| InpBreakoutEndHourLondon / InpBreakoutEndMinuteLondon | 12 / 0 |
+| InpStopMode | OPPOSITE_RANGE (alternative: ATR) |
+| InpATRLength | 14 |
+| InpATRMultiplier | 1.0 |
+| InpTargetR | 1.5 |
+| InpOneTradePerDay | true |
 
-## Risk Management
+Hours 0..23; minutes 0..59 on M5 boundaries. Same-day ordering:
+rangeStart < rangeEnd <= breakoutStart < breakoutEnd.
+ATR length 1..1000; ATR multiplier and TargetR finite and positive.
+No silent clamping. Overnight custom range windows are not supported in Sprint 1.
 
-| Input | Default | Purpose |
-|---|---:|---|
-| `InpRiskMode` | `FIXED_CASH` | Selects fixed-cash or balance-percent sizing. |
-| `InpFixedCashRisk` | `1000.0` | Requested account-currency risk in fixed mode. |
-| `InpBalanceRiskPercent` | `1.0` | Requested balance percentage in percent mode. |
+## Broker time
 
-## Execution Safety
+InpBrokerTimeProfile defaults to an empty string. A verified profile in MT5 Common Files is required; empty, inconsistent, mismatched or uncovered profiles fail initialization. No broker policy is inferred.
+See LONDON_RANGE_BREAKOUT.md for the exact profile format and coverage limits.
 
-| Input | Default | Purpose |
-|---|---:|---|
-| `InpMaxSpreadPips` | `3.0` | Maximum accepted spread. |
-| `InpMaxEntryDeviationPips` | `2.0` | Maximum planned-to-current entry deviation. |
-| `InpMaxQuoteAgeSeconds` | `10` | Maximum quote age. |
-| `InpMinimumSecondsBetweenExecutions` | `5` | Cooldown following successful execution. |
-| `InpWeekendFlatEnabled` | `true` | Blocks new execution near the final Friday session close and flattens an owned E2 position before the weekend. |
-| `InpWeekendFlatMinutesBeforeSessionClose` | `30` | Broker-session minutes before the final Friday close at which weekend protection begins. |
+## Preserved operational controls
 
-## Fixed production methodology
+InpTradingEnabled=true; InpExpertMagicNumber=2026001; InpLoggingEnabled=true;
+InpCsvExportEnabled=false; InpRiskMode=E2_RISK_FIXED_CASH;
+InpFixedCashRisk=1000.0; InpBalanceRiskPercent=1.0;
+InpMaxSpreadPips=3.0; InpMaxEntryDeviationPips=2.0;
+InpMaxQuoteAgeSeconds=10; InpMinimumSecondsBetweenExecutions=5;
+InpWeekendFlatEnabled=true; InpWeekendFlatMinutesBeforeSessionClose=30.
 
-HYBRID_V1_Q50 uses DI 7, ADX 7 with threshold 20, Bollinger 20/2 with a 1-pip buffer, no BB re-entry confirmation, ATR 14 with multiplier 2, target 1.5R, one successful trade per broker day, maturity threshold 0.50 ATR, Q50 quality threshold, and a 250-bar causal percentile lookback. Legacy inversion is fixed off and hybrid mode is fixed on.
-
-Debug mode and REGIME research export are internal development settings and default off. Core verification remains internally enabled.
-
-Expected `[E2_INPUT_VERIFY]`: `totalExposedInputs=13, deadInputs=0, duplicateInputs=0, invalidMappings=0`.
+No BB/ADX/DI/EMA/hybrid/inversion research input remains active.

@@ -9,6 +9,7 @@
 #include "E2PositionGuard.mqh"
 #include "E2ExecutionSafety.mqh"
 #include "E2WeekendFlat.mqh"
+#include "..\\time\\E2BrokerTimeAdapter.mqh"
 
 enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E2_EXECUTION_INVALID_PLAN, E2_EXECUTION_SYMBOL_UNAVAILABLE, E2_EXECUTION_MARKET_PRICE_UNAVAILABLE, E2_EXECUTION_PRICE_DEVIATION_EXCEEDED, E2_EXECUTION_INVALID_CURRENT_GEOMETRY, E2_EXECUTION_BROKER_STOP_CONSTRAINT, E2_EXECUTION_TRADING_NOT_ALLOWED, E2_EXECUTION_INSUFFICIENT_MARGIN, E2_EXECUTION_ORDER_REJECTED, E2_EXECUTION_FAILED, E2_EXECUTION_SPREAD_TOO_HIGH, E2_EXECUTION_NO_VALID_QUOTE, E2_EXECUTION_MARKET_CLOSED, E2_EXECUTION_SYMBOL_TRADING_DISABLED, E2_EXECUTION_VOLUME_INVALID, E2_EXECUTION_MARGIN_INSUFFICIENT, E2_EXECUTION_EXECUTION_COOLDOWN, E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE, E2_EXECUTION_POSITION_ALREADY_OPEN, E2_EXECUTION_PENDING_ORDER_EXISTS, E2_EXECUTION_DIRECTION_CONFLICT, E2_EXECUTION_POSITION_STATE_UNAVAILABLE, E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED, E2_EXECUTION_WEEKEND_CUTOFF };
 
@@ -38,6 +39,7 @@ private:
    E2PositionGuard *m_guard;
    E2ExecutionSafety *m_safety;
    E2WeekendFlat *m_weekend;
+   E2BrokerTimeAdapter *m_time;
 
    void ResetResult(E2ExecutionResult &result)
      {
@@ -83,11 +85,12 @@ private:
      }
 
 public:
-   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0),m_guard(NULL),m_safety(NULL),m_weekend(NULL) {}
-   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2PositionGuard &guard,E2ExecutionSafety &safety,E2WeekendFlat &weekend,E2Logger &logger)
+   E2OrderExecutor(void) : m_symbol_info(NULL),m_account_info(NULL),m_logger(NULL),m_magic_number(0),m_trading_enabled(false),m_max_entry_deviation_pips(0.0),m_guard(NULL),m_safety(NULL),m_weekend(NULL),m_time(NULL) {}
+   void Initialize(const E2Config &config,E2SymbolInfo &symbol_info,E2AccountInfo &account_info,E2PositionGuard &guard,E2ExecutionSafety &safety,E2WeekendFlat &weekend,E2BrokerTimeAdapter &time,E2Logger &logger)
      {
       m_symbol_info=&symbol_info; m_account_info=&account_info; m_guard=&guard; m_safety=&safety; m_weekend=&weekend; m_logger=&logger; m_magic_number=config.expert_magic_number; m_trading_enabled=config.trading_enabled; m_max_entry_deviation_pips=config.max_entry_deviation_pips;
       m_trade.SetAsyncMode(false); m_trade.SetExpertMagicNumber(m_magic_number);
+      m_time=&time;
      }
 
    bool Execute(const E2OrderRequest &plan,const string comment,E2ExecutionResult &result)
@@ -116,6 +119,14 @@ public:
       if(margin>m_account_info.FreeMargin()) { Fail(result,E2_EXECUTION_MARGIN_INSUFFICIENT); return(false); }
       if(!m_trade.SetTypeFillingBySymbol(plan.symbol)) { Fail(result,E2_EXECUTION_FAILED,"Unable to set symbol filling mode."); return(false); }
       m_trade.SetExpertMagicNumber(m_magic_number);
+      // Final causal/time-policy gate directly before submission; not an alpha filter.
+      int signal_day=0,current_day=0;datetime submit_time=TimeCurrent();
+      if(m_time==NULL||!m_time.Day(submit_time,current_day)||!m_time.Day(plan.signal_time,signal_day)||
+         signal_day!=current_day||submit_time<plan.signal_known_from||submit_time>=plan.signal_known_from+300||
+         iTime(plan.symbol,PERIOD_M5,0)!=plan.signal_known_from)
+         {Fail(result,E2_EXECUTION_INVALID_PLAN,"TIME_POLICY_OR_EXECUTION_WINDOW_INVALID");return(false);}
+      if(m_weekend!=NULL&&m_weekend.IsBlockedAt(submit_time))
+         {m_weekend.LogEntryBlock(plan.setup_id,submit_time);Fail(result,E2_EXECUTION_WEEKEND_CUTOFF);return(false);}
       if(m_logger!=NULL) m_logger.Debug("Attempt direction="+E2TradeDirectionName(plan.direction)+", symbol="+plan.symbol+", volume="+DoubleToString(plan.volume,4)+", requestedEntry="+DoubleToString(plan.requested_entry_price,spec.digits)+", marketPrice="+DoubleToString(result.requested_market_price,spec.digits)+".","Execution");
       const bool sent=(plan.direction==E2_DIRECTION_LONG ? m_trade.Buy(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment) : m_trade.Sell(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment));
       result.retcode=m_trade.ResultRetcode(); result.retcode_description=m_trade.ResultRetcodeDescription(); result.order_ticket=m_trade.ResultOrder(); result.deal_ticket=m_trade.ResultDeal(); result.executed_volume=m_trade.ResultVolume(); result.actual_execution_price=m_trade.ResultPrice();

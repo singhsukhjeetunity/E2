@@ -1,0 +1,12 @@
+# TEST ONLY: deliberately invalid transition ordering.
+schema_version=1
+profile_id=E2_SYNTHETIC_INVALID_ORDER_V1
+expected_server=E2_TEST_ONLY
+mode=UTC_TRANSITIONS
+valid_from_utc=1672531200
+valid_until_utc=1735689600
+initial_offset_seconds=7200
+source_reference=synthetic_negative_test
+test_only=1
+transition=1730592000,10800
+transition=1710028800,7200
