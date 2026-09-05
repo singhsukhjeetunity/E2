@@ -4,6 +4,7 @@ enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1 };
 input group "=== E2 PRODUCTION ==="
 input bool InpTradingEnabled = true;             // Enable Trading
+input bool InpConfirmRealAccountTrading = false; // Required for real-account trading
 input ulong InpExpertMagicNumber = 2026001;      // Expert Magic Number
 input bool InpLoggingEnabled = true;             // Enable Journal Logging
 input bool InpCsvExportEnabled = false;           // Export SIGNALS / TRADES CSV
@@ -14,7 +15,7 @@ input double InpFixedCashRisk = 1000.0;             // Fixed Risk (account curre
 input double InpBalanceRiskPercent = 1.0;            // Balance Risk (%)
 
 input group "=== EXECUTION SAFETY ==="
-input double InpMaxSpreadPips = 3.0;                 // Maximum Spread (pips)
+input double InpMaxSpreadPips = 40.0;                // Maximum Spread (pips)
 input double InpMaxEntryDeviationPips = 2.0;         // Maximum Entry Deviation (pips)
 input int InpMaxQuoteAgeSeconds = 10;                 // Maximum Quote Age (seconds)
 input int InpMinimumSecondsBetweenExecutions = 5;    // Minimum Execution Interval (seconds)
@@ -54,7 +55,7 @@ struct E2Config
    E2RiskMode risk_mode;
    double fixed_cash_risk,balance_risk_percent;
    ulong expert_magic_number;
-   bool trading_enabled;
+   bool trading_enabled,confirm_real_account_trading;
    double max_spread_pips,max_entry_deviation_pips;
    int max_quote_age_seconds,minimum_seconds_between_executions;
    bool weekend_flat_enabled;
@@ -75,7 +76,7 @@ void E2LoadConfiguration(E2Config &c)
    c.use_manual_broker_utc_offset=InpUseManualBrokerUtcOffset;
    c.broker_utc_offset_seconds=InpBrokerUtcOffsetSeconds;
    c.risk_mode=InpRiskMode;c.fixed_cash_risk=InpFixedCashRisk;c.balance_risk_percent=InpBalanceRiskPercent;
-   c.expert_magic_number=InpExpertMagicNumber;c.trading_enabled=InpTradingEnabled;
+   c.expert_magic_number=InpExpertMagicNumber;c.trading_enabled=InpTradingEnabled;c.confirm_real_account_trading=InpConfirmRealAccountTrading;
    c.max_spread_pips=InpMaxSpreadPips;c.max_entry_deviation_pips=InpMaxEntryDeviationPips;
    c.max_quote_age_seconds=InpMaxQuoteAgeSeconds;c.minimum_seconds_between_executions=InpMinimumSecondsBetweenExecutions;
    c.weekend_flat_enabled=InpWeekendFlatEnabled;c.weekend_flat_minutes_before_session_close=InpWeekendFlatMinutesBeforeSessionClose;
@@ -106,7 +107,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
 
    return(true);
 }
-int E2ExposedInputCount(void){return(28);}
+int E2ExposedInputCount(void){return(29);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}
