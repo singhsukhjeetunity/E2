@@ -34,6 +34,7 @@ input double InpXauATRMultiplier=8.0;
 input double InpXauTargetR=1.5;
 input int InpXauTrendLookbackBars=36;
 input double InpXauTrendEfficiencyMin=0.30;
+input int InpXauBlockFridayEntriesFromHour=16; // -1 disables late-Friday entry block
 
 input group "=== BROKER TIME ADAPTER ==="
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
@@ -43,6 +44,7 @@ input int InpBrokerUtcOffsetSeconds=0;
 struct E2Config
 {
    int xau_range_start,xau_range_end,xau_atr_length,xau_trend_lookback_bars;
+   int xau_block_friday_entries_from_hour;
    double xau_atr_multiplier,xau_target_r,xau_trend_efficiency_min;
    E2XauTimeBasis xau_time_basis;
    bool one_trade_per_day;
@@ -68,6 +70,7 @@ void E2LoadConfiguration(E2Config &c)
    c.xau_range_end=InpXauRangeEndHour*60+InpXauRangeEndMinute;
    c.xau_atr_length=InpXauATRLength;c.xau_atr_multiplier=InpXauATRMultiplier;c.xau_target_r=InpXauTargetR;
    c.xau_trend_lookback_bars=InpXauTrendLookbackBars;c.xau_trend_efficiency_min=InpXauTrendEfficiencyMin;
+   c.xau_block_friday_entries_from_hour=InpXauBlockFridayEntriesFromHour;
    c.xau_time_basis=InpXauTimeBasis;
    c.use_manual_broker_utc_offset=InpUseManualBrokerUtcOffset;
    c.broker_utc_offset_seconds=InpBrokerUtcOffsetSeconds;
@@ -90,6 +93,8 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
    if(c.xau_trend_lookback_bars<2||c.xau_trend_lookback_bars>1000||
       !MathIsValidNumber(c.xau_trend_efficiency_min)||c.xau_trend_efficiency_min<0.0||c.xau_trend_efficiency_min>1.0)
       {reason="XAU trend lookback must be 2..1000 and efficiency threshold 0..1.";return(false);}
+   if(c.xau_block_friday_entries_from_hour<-1||c.xau_block_friday_entries_from_hour>23)
+      {reason="XAU Friday entry block hour must be -1 or 0..23.";return(false);}
    if(c.risk_mode!=E2_RISK_FIXED_CASH&&c.risk_mode!=E2_RISK_BALANCE_PERCENT){reason="Risk mode is invalid.";return(false);}
    if(c.risk_mode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(c.fixed_cash_risk)||c.fixed_cash_risk<=0.0)){reason="Fixed cash risk must be positive.";return(false);}
    if(c.risk_mode==E2_RISK_BALANCE_PERCENT&&(!MathIsValidNumber(c.balance_risk_percent)||c.balance_risk_percent<=0.0)){reason="Balance risk percent must be positive.";return(false);}
@@ -101,7 +106,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
 
    return(true);
 }
-int E2ExposedInputCount(void){return(27);}
+int E2ExposedInputCount(void){return(28);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}
