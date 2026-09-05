@@ -10,6 +10,7 @@
 #include "E2ExecutionSafety.mqh"
 #include "E2WeekendFlat.mqh"
 #include "..\\time\\E2BrokerTimeAdapter.mqh"
+#include "..\\time\\E2TimeUtils.mqh"
 
 enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E2_EXECUTION_INVALID_PLAN, E2_EXECUTION_SYMBOL_UNAVAILABLE, E2_EXECUTION_MARKET_PRICE_UNAVAILABLE, E2_EXECUTION_PRICE_DEVIATION_EXCEEDED, E2_EXECUTION_INVALID_CURRENT_GEOMETRY, E2_EXECUTION_BROKER_STOP_CONSTRAINT, E2_EXECUTION_TRADING_NOT_ALLOWED, E2_EXECUTION_INSUFFICIENT_MARGIN, E2_EXECUTION_ORDER_REJECTED, E2_EXECUTION_FAILED, E2_EXECUTION_SPREAD_TOO_HIGH, E2_EXECUTION_NO_VALID_QUOTE, E2_EXECUTION_MARKET_CLOSED, E2_EXECUTION_SYMBOL_TRADING_DISABLED, E2_EXECUTION_VOLUME_INVALID, E2_EXECUTION_MARGIN_INSUFFICIENT, E2_EXECUTION_EXECUTION_COOLDOWN, E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE, E2_EXECUTION_POSITION_ALREADY_OPEN, E2_EXECUTION_PENDING_ORDER_EXISTS, E2_EXECUTION_DIRECTION_CONFLICT, E2_EXECUTION_POSITION_STATE_UNAVAILABLE, E2_EXECUTION_ACCOUNT_MODE_UNSUPPORTED, E2_EXECUTION_WEEKEND_CUTOFF };
 
@@ -121,7 +122,8 @@ public:
       m_trade.SetExpertMagicNumber(m_magic_number);
       // Final causal/time-policy gate directly before submission; not an alpha filter.
       int signal_day=0,current_day=0;datetime submit_time=TimeCurrent();
-      if(m_time==NULL||!m_time.Day(submit_time,current_day)||!m_time.Day(plan.signal_time,signal_day)||
+      signal_day=E2CalendarDay(plan.signal_time);current_day=E2CalendarDay(submit_time);
+      if(signal_day<=0||current_day<=0||
          signal_day!=current_day||submit_time<plan.signal_known_from||submit_time>=plan.signal_known_from+300||
          iTime(plan.symbol,PERIOD_M5,0)!=plan.signal_known_from)
          {Fail(result,E2_EXECUTION_INVALID_PLAN,"TIME_POLICY_OR_EXECUTION_WINDOW_INVALID");return(false);}
