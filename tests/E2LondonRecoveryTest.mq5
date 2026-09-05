@@ -129,6 +129,9 @@ void OpenAndRecover(E2TradeDirection direction,string id)
    PositionSelectByTicket(m.position_ticket);
    Check(PositionGetDouble(POSITION_SL)==m.submitted_stop&&PositionGetDouble(POSITION_TP)==m.target_price,id+"_live_protection_unchanged");
    Check(g_position_guard.CountOpenE2Positions(_Symbol)==1,id+"_no_duplicate_position");
+   E2BrokerTimeAdapter live_change;
+   Check(live_change.InitializeLiveObservedForTest("SYNTHETIC_LIVE",TimeCurrent()+7200,TimeCurrent(),g_logger)&&live_change.ObserveLiveForTest(TimeCurrent()+10800,TimeCurrent()+1),id+"_live_offset_change_while_open");
+   Check(g_position_guard.CountOpenE2Positions(_Symbol)==1&&PositionSelectByTicket(m.position_ticket)&&PositionGetDouble(POSITION_SL)==m.submitted_stop&&PositionGetDouble(POSITION_TP)==m.target_price,id+"_open_position_unchanged_by_time_transition");
    Check(g_position_recovery.ReconstructDayLock(0,0),id+"_history_lock_after_reset");
    E2DayVerification day=g_position_recovery.DayVerification();
    Check(day.today_owned_entry_deals_found>=1&&day.daily_lock_recovered==1&&day.daily_lock_failure_reason=="NONE",id+"_current_second_entry_in_history");
@@ -149,6 +152,8 @@ int OnInit()
    if(!MQLInfoInteger(MQL_TESTER))return INIT_FAILED;
    Print("[LRB_INTEGRATION] SYNTHETIC CLOCK / INJECTED CANDIDATES; NOT A HISTORICAL STRATEGY BASELINE");
    E2LoadConfiguration(g_configuration);g_configuration.expert_magic_number=9900202;g_configuration.fixed_cash_risk=100;
+   // Pin strategy-independent harness geometry regardless of cached tester UI inputs.
+   g_configuration.stop_mode=OPPOSITE_RANGE;g_configuration.atr_length=14;g_configuration.atr_multiplier=1.0;g_configuration.target_r=1.5;
    g_configuration.csv_export_enabled=true;g_logger.Initialize(true,false);
    if(!g_broker_time.Initialize("E2\\Tests\\LondonSprint1\\fixed.profile","E2_TEST_ONLY",true,g_logger))return INIT_FAILED;
    g_configuration.time_policy_digest=g_broker_time.Digest();

@@ -3,7 +3,7 @@
 ## Status and boundaries
 
 Implementation and synthetic component validation only. No verified FivePercentOnline-Real profile is included. No authoritative historical strategy backtest has been performed.
-No optimization, filters, trailing stop, breakeven or direction inversion is added.
+No optimization, trailing stop, breakeven or direction inversion is added. Direction and range-width controls are explicit research inputs and default to the unfiltered BOTH-direction baseline.
 
 ## Execution flow
 
@@ -16,10 +16,20 @@ The 11:55 breakout can execute at 12:00 in its next M5 bar. A failed/late attemp
 One-trade-per-day disables further candidate emission after an authoritative owned entry deal; planning independently rechecks history.
 Manual/other-magic positions are not treated as E2-owned.
 
+`InpTradeDirection` filters raw breakout direction before planner/daily-lock handling. The optional range-width filter freezes `rangeHigh-rangeLow` in pips and relative to ATR from the completed 07:55–08:00 M5 candle. Its intervals are `[minimum,maximum)`. Rejected days emit no candidate and do not consume the daily lock. The metrics and decision are included in the reconstructed range fingerprint and logged under `RANGE_FROZEN`.
+
 OPPOSITE_RANGE uses the opposite frozen boundary. ATR uses the platform iATR closed-bar value, configured period/multiplier, and current Ask/Bid entry reference.
 Both paths use the original broker stop normalization and position sizer. TP uses actual fill and submitted initial SL, not pre-fill estimated risk.
 
-## Broker-time profile v1
+The optional `ATR_NORMALIZED` range-width research metric is versioned as `H1_ATR14_LAST_COMPLETED_BEFORE_RANGE_END_V1`. It divides the frozen London range width by ATR(14) read directly from the final fully completed H1 candle before the London range ends. It does not reuse or alter the M5 ATR used by ATR stop planning.
+
+## Broker-time modes
+
+Live mode is `LIVE_AUTO`. The adapter compares contemporaneous `TimeTradeServer` and `TimeCurrent` with `TimeGMT`, only outside Strategy Tester. The clocks must agree within five seconds, and the inferred server-minus-UTC offset must be plausible, within -14..+14 hours and aligned to 15 minutes. Every tick rechecks it. A valid change is installed as one atomic UTC transition and logged. An invalid observation makes conversions unavailable and blocks new entries; reconciliation and weekend-flat execute before that gate. When valid observations resume, the range engine reconstructs before entries resume.
+
+Tester mode never calls the live-clock path. The normal mode is `TESTER_PROFILE` below. The optional `InpTesterAssumedFixedUTCOffsetHours` uses 99 as disabled; a whole-hour value -14..+14 with an empty profile selects `TESTER_ASSUMED_FIXED_OFFSET`. Its digest starts `NONAUTHORITATIVE_ASSUMED_`, startup logging says `AUTHORITATIVE=false`, and reports carry that digest. It is for exploratory comparisons only.
+
+### Broker-time profile v1
 
 Select a relative Common Files path with InpBrokerTimeProfile.
 Required key=value lines (each exactly once):
@@ -48,8 +58,8 @@ Existing position reconciliation/weekend management runs before the signal gate.
 
 The normalized policy, including its expected server, offsets, transition instants, coverage and test-only marker, is SHA-256 digested.
 The digest is included in the existing behavioral configuration hash and startup log. Source prose and filename are not behavioral identity.
-All nine normalized strategy settings, infrastructure/risk values and time-policy digest are hashed (25 serialized fields including strategy/build/symbol/timeframe identifiers).
-No TimeGMT(), local-PC timezone, broker-name offset selection or inferred DST policy is used.
+All behavioral strategy settings, infrastructure/risk values and time-policy digest are hashed (30 serialized fields including strategy/build/symbol/timeframe identifiers).
+No TimeGMT historical inference occurs in Strategy Tester. Live uses only contemporaneous clocks, never broker-name rules or a guessed DST regime. `TimeLocal` is never used.
 
 ## Pinned London conversion
 

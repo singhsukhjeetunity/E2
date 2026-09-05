@@ -40,6 +40,8 @@ E2PositionRecovery g_position_recovery;
 E2LondonTradePlanner g_london_planner;
 
 bool g_initialized=false;
+bool g_strategy_time_ready=false;
+int g_time_revision=0;
 datetime g_last_observed_m5_bar=0;
 int g_strategy_candidates=0;
 int g_trade_requests=0,g_new_positions_registered=0,g_recovered_positions_registered=0;
@@ -77,6 +79,7 @@ int OnInit()
    E2LoadConfiguration(g_configuration);
    ZeroMemory(g_execution_verify);ZeroMemory(g_r_verify);g_trade_requests=0;g_new_positions_registered=0;g_recovered_positions_registered=0;
    g_logger.Initialize(g_configuration.logging_enabled,g_configuration.debug_mode);
+   g_logger.Info("EA=E2.mq5, runtime=PRODUCTION, testOnly=false, orderSubmission="+(g_configuration.trading_enabled?"ENABLED":"DISABLED_BY_INPUT")+".","RUNTIME_IDENTITY");
    string reason;
    if(!E2ValidateConfiguration(g_configuration,reason)){g_logger.Error(reason,"Initialization");return(INIT_PARAMETERS_INCORRECT);}
    if(_Period!=PERIOD_M5){g_logger.Error("London Range Breakout requires M5.","Initialization");return(INIT_PARAMETERS_INCORRECT);}
@@ -90,17 +93,24 @@ int OnInit()
    g_weekend_flat.Initialize(g_configuration,_Symbol,g_logger);
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_weekend_flat,g_broker_time,g_logger);
    if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="EUR"||SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD"){g_logger.Error("This baseline is EURUSD only (broker suffixes allowed).","Initialization");return(INIT_PARAMETERS_INCORRECT);}
-   if(!g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),g_environment.IsTester(),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
+   bool time_initialized=g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),_Symbol,g_environment.IsTester(),g_configuration.tester_assumed_fixed_utc_offset_hours,g_logger);
+   if(g_environment.IsTester()&&(!time_initialized||!g_broker_time.ValidateNow(TimeCurrent())))return(INIT_PARAMETERS_INCORRECT);
    g_configuration.time_policy_digest=g_broker_time.Digest();
+   g_configuration.time_policy_description=g_broker_time.Description();
+   if(g_configuration.time_policy_digest==""){g_configuration.time_policy_digest="LIVE_AUTO_UNAVAILABLE";g_configuration.time_policy_description="LIVE_AUTO|UNAVAILABLE|AUTHORITATIVE=false";}
    if(!g_trade_reporter.Initialize(g_configuration,_Symbol,g_logger))return(INIT_FAILED);
+   g_logger.Info("RANGE_ATR_NORMALIZATION=H1_ATR14_LAST_COMPLETED_BEFORE_RANGE_END_V1.","LRB_RESEARCH_VERSION");
    g_reporter_ready=true;
    g_backtest_summary.Initialize(g_logger);
-   E2PositionMetadata recovered;bool has_recovered=false;if(!g_position_recovery.Initialize(g_configuration,_Symbol,g_environment.IsTester(),g_broker_time,g_logger,recovered,has_recovered))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day)g_position_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
+   E2PositionMetadata recovered;bool has_recovered=false;if(!g_position_recovery.Initialize(g_configuration,_Symbol,g_environment.IsTester(),g_broker_time,g_logger,recovered,has_recovered))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day&&g_broker_time.Ready())g_position_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
    g_london_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_position_recovery,g_weekend_flat,g_broker_time,g_logger);E2EnforceWeekendFlat();
-   if(!g_london_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("London range reconstruction failed.","Initialization");return(INIT_FAILED);}
+   g_strategy_time_ready=(time_initialized&&g_broker_time.ValidateNow(TimeCurrent()));g_time_revision=g_broker_time.Revision();
+   if(g_strategy_time_ready&&!g_london_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("London range reconstruction failed.","Initialization");return(INIT_FAILED);}
+   if(!g_strategy_time_ready&&g_environment.IsTester())return(INIT_PARAMETERS_INCORRECT);
+   if(!g_strategy_time_ready)g_logger.Error("LIVE_AUTO unavailable: running protection-only; new London-session entries are blocked.","BROKER_TIME_PROTECTION_ONLY");
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");
    g_initialized=true;
-   g_logger.Info("Initialized in "+g_environment.Name()+". London breakout planning, execution, fixed-R protection, lifecycle reporting, and recovery are active.","Core");
+   g_logger.Info("Initialized in "+g_environment.Name()+". "+(g_strategy_time_ready?"London breakout planning and execution are active.":"Protection-only mode is active; London entries are blocked.")+" Fixed-R protection, lifecycle reporting, and recovery are active.","Core");
    return(INIT_SUCCEEDED);
   }
 
@@ -109,6 +119,18 @@ void OnTick()
    if(!g_initialized)return;
    g_trade_reporter.Reconcile();g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
    E2EnforceWeekendFlat();
+   if(!g_environment.IsTester())
+     {
+      bool available=g_broker_time.RefreshLive();
+      if(!available){g_strategy_time_ready=false;return;}
+      if(!g_strategy_time_ready||g_time_revision!=g_broker_time.Revision())
+        {
+         g_london_engine.Shutdown();
+         if(!g_london_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_strategy_time_ready=false;return;}
+         g_time_revision=g_broker_time.Revision();g_strategy_time_ready=true;
+        }
+     }
+   if(!g_strategy_time_ready)return;
    g_trade_reporter.ObserveBar(iTime(_Symbol,PERIOD_M5,1));
    E2Candidate candidates[];if(!g_london_engine.Evaluate(candidates,g_position_recovery))return;
    const E2SignalVerification verification=g_london_engine.SignalVerification();g_strategy_candidates=(int)verification.total_candidates;
@@ -134,4 +156,5 @@ void OnDeinit(const int reason)
    if(g_reporter_ready){g_trade_reporter.Close();E2EmitVerification();g_reporter_ready=false;}
    g_london_engine.Shutdown();
    g_initialized=false;
+   g_strategy_time_ready=false;
   }

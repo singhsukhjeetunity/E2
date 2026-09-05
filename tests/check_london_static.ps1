@@ -15,10 +15,11 @@ $obsolete=@($seen | Where-Object {$_ -match 'E2ADXBB(Engine|Types|TradePlanner|R
 if($obsolete.Count){throw "Obsolete active include: $obsolete"}
 $config=Get-Content -LiteralPath (Join-Path $root 'include\core\E2Config.mqh') -Raw
 $inputs=[regex]::Matches($config,'(?m)^input (?!group\b)').Count
-if($inputs -ne 27){throw "Expected 27 inputs, found $inputs"}
+if($inputs -ne 33){throw "Expected 33 inputs, found $inputs"}
 if($config -match 'adxbb|hybrid|InpResearch_BB|InpResearch_ADX'){throw 'Obsolete alpha in active config'}
 $adapter=Get-Content -LiteralPath (Join-Path $root 'include\time\E2BrokerTimeAdapter.mqh') -Raw
-if($adapter -match 'TimeGMT\s*\(|TimeLocal\s*\(|FivePercentOnline|The5ers'){throw 'Broker-time inference/hardcoding found'}
+if($adapter -match 'TimeLocal\s*\(|FivePercentOnline|The5ers'){throw 'Broker-time hardcoding/local-PC clock found'}
+if($adapter -notmatch 'TimeGMT\s*\(' -or $adapter -notmatch 'MQLInfoInteger\(MQL_TESTER\)'){throw 'Guarded live clock detection missing'}
 $report=Get-Content -LiteralPath (Join-Path $root 'include\reporting\E2TradeReporter.mqh') -Raw
 foreach($schema in @(@('SignalHeader',39),@('TradeHeader',54))){
     $line=($report -split '\r?\n' | Where-Object {$_ -match ("void "+$schema[0])})
@@ -31,4 +32,4 @@ $planner=Get-Content -LiteralPath (Join-Path $root 'include\strategy\E2LondonTra
 if($main -notmatch 'E2EnforceWeekendFlat\(\)' -or $executor -notmatch 'm_weekend.IsBlockedAt' -or $planner -notmatch 'm_weekend.IsBlockedAt'){throw 'Weekend gate disconnected'}
 Push-Location $root
 try {git diff --check;if($LASTEXITCODE -ne 0){throw 'git diff --check failed'}} finally {Pop-Location}
-Write-Output "[LRB_STATIC_VERIFY] activeFiles=$($seen.Count), oldAlphaIncludes=0, inputs=$inputs, signalColumns=39, tradeColumns=54, brokerGuessing=0, weekendGates=PASS, diffCheck=PASS"
+Write-Output "[LRB_STATIC_VERIFY] activeFiles=$($seen.Count), oldAlphaIncludes=0, inputs=$inputs, signalColumns=39, tradeColumns=54, testerTimeGMTInference=0, weekendGates=PASS, diffCheck=PASS"

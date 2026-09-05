@@ -1,0 +1,24 @@
+# RESEARCH ONLY. Community-observed hypothesis; not broker-certified metadata.
+schema_version=1
+profile_id=METAQUOTES_DEMO_EURUSD_US_DST_2020_2026_RESEARCH
+expected_server=MetaQuotes-Demo
+mode=UTC_TRANSITIONS
+valid_from_utc=1577836800
+valid_until_utc=1798761600
+initial_offset_seconds=7200
+source_reference=research_hypothesis_from_documented_and_community_observed_MetaQuotes_Demo_EURUSD_US_DST_behavior_not_broker_certified
+test_only=1
+transition=1583650800,10800
+transition=1604210400,7200
+transition=1615705200,10800
+transition=1636264800,7200
+transition=1647154800,10800
+transition=1667714400,7200
+transition=1678604400,10800
+transition=1699164000,7200
+transition=1710054000,10800
+transition=1730613600,7200
+transition=1741503600,10800
+transition=1762063200,7200
+transition=1772953200,10800
+transition=1793512800,7200

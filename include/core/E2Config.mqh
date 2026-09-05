@@ -1,7 +1,10 @@
 #ifndef E2_CORE_E2CONFIG_MQH
 #define E2_CORE_E2CONFIG_MQH
+#include "E2TradeTypes.mqh"
 enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 enum E2StopMode { OPPOSITE_RANGE=0, ATR=1 };
+enum E2TradeDirectionMode { BOTH=0, LONG_ONLY=1, SHORT_ONLY=2 };
+enum E2RangeWidthFilterMode { PIPS=0, ATR_NORMALIZED=1 };
 input group "=== E2 PRODUCTION ==="
 input bool InpTradingEnabled = true;             // Enable Trading
 input ulong InpExpertMagicNumber = 2026001;      // Expert Magic Number
@@ -31,21 +34,32 @@ input int InpBreakoutStartHourLondon=8;
 input int InpBreakoutStartMinuteLondon=0;
 input int InpBreakoutEndHourLondon=12;
 input int InpBreakoutEndMinuteLondon=0;
+input E2TradeDirectionMode InpTradeDirection=BOTH;
+input bool InpRangeWidthFilterEnabled=false;
+input E2RangeWidthFilterMode InpRangeWidthFilterMode=ATR_NORMALIZED;
+input double InpMinRangeWidth=0.0;
+input double InpMaxRangeWidth=999999.0;
 input E2StopMode InpStopMode=OPPOSITE_RANGE;
 input int InpATRLength=14;
 input double InpATRMultiplier=1.0;
 input double InpTargetR=1.5;
 input bool InpOneTradePerDay=true;
 input group "=== BROKER TIME ADAPTER ==="
-input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
+input string InpBrokerTimeProfile=""; // Tester profile; ignored live
+input int InpTesterAssumedFixedUTCOffsetHours=99; // TESTER RESEARCH ONLY; 99=disabled
 
 struct E2Config
 {
    int range_start,range_end,breakout_start,breakout_end,atr_length;
+   E2TradeDirectionMode trade_direction;
+   bool range_width_filter_enabled;
+   E2RangeWidthFilterMode range_width_filter_mode;
+   double min_range_width,max_range_width;
    E2StopMode stop_mode;
    double atr_multiplier,target_r;
    bool one_trade_per_day;
-   string broker_time_profile,time_policy_digest;
+   string broker_time_profile,time_policy_digest,time_policy_description;
+   int tester_assumed_fixed_utc_offset_hours;
    E2RiskMode risk_mode;
    double fixed_cash_risk,balance_risk_percent;
    ulong expert_magic_number;
@@ -64,8 +78,10 @@ void E2LoadConfiguration(E2Config &c)
    c.range_end=InpRangeEndHourLondon*60+InpRangeEndMinuteLondon;
    c.breakout_start=InpBreakoutStartHourLondon*60+InpBreakoutStartMinuteLondon;
    c.breakout_end=InpBreakoutEndHourLondon*60+InpBreakoutEndMinuteLondon;
+   c.trade_direction=InpTradeDirection;
+   c.range_width_filter_enabled=InpRangeWidthFilterEnabled;c.range_width_filter_mode=InpRangeWidthFilterMode;c.min_range_width=InpMinRangeWidth;c.max_range_width=InpMaxRangeWidth;
    c.stop_mode=InpStopMode;c.atr_length=InpATRLength;c.atr_multiplier=InpATRMultiplier;
-   c.target_r=InpTargetR;c.one_trade_per_day=InpOneTradePerDay;c.broker_time_profile=InpBrokerTimeProfile;
+   c.target_r=InpTargetR;c.one_trade_per_day=InpOneTradePerDay;c.broker_time_profile=InpBrokerTimeProfile;c.tester_assumed_fixed_utc_offset_hours=InpTesterAssumedFixedUTCOffsetHours;
    c.risk_mode=InpRiskMode;c.fixed_cash_risk=InpFixedCashRisk;c.balance_risk_percent=InpBalanceRiskPercent;
    c.expert_magic_number=InpExpertMagicNumber;c.trading_enabled=InpTradingEnabled;
    c.max_spread_pips=InpMaxSpreadPips;c.max_entry_deviation_pips=InpMaxEntryDeviationPips;
@@ -84,6 +100,9 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
    if(c.range_start>=c.range_end||c.range_end>c.breakout_start||c.breakout_start>=c.breakout_end)
       {reason="Require same-day rangeStart < rangeEnd <= breakoutStart < breakoutEnd.";return(false);}
    if(c.stop_mode!=OPPOSITE_RANGE&&c.stop_mode!=ATR){reason="Invalid stop mode.";return(false);}
+   if(c.trade_direction!=BOTH&&c.trade_direction!=LONG_ONLY&&c.trade_direction!=SHORT_ONLY){reason="Invalid trade direction.";return(false);}
+   if(c.range_width_filter_mode!=PIPS&&c.range_width_filter_mode!=ATR_NORMALIZED){reason="Invalid range-width filter mode.";return(false);}
+   if(!MathIsValidNumber(c.min_range_width)||!MathIsValidNumber(c.max_range_width)||c.min_range_width<0.0||c.max_range_width<=c.min_range_width){reason="Range-width bounds must be finite and satisfy 0 <= minimum < maximum.";return(false);}
    if(c.atr_length<1||c.atr_length>1000||!MathIsValidNumber(c.atr_multiplier)||c.atr_multiplier<=0||
       !MathIsValidNumber(c.target_r)||c.target_r<=0){reason="ATR length 1..1000 and positive ATR multiplier/Target R required.";return(false);}
    if(c.risk_mode!=E2_RISK_FIXED_CASH&&c.risk_mode!=E2_RISK_BALANCE_PERCENT){reason="Risk mode is invalid.";return(false);}
@@ -92,10 +111,13 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
    if(c.expert_magic_number==0){reason="Expert magic number must be non-zero.";return(false);}
    if(!MathIsValidNumber(c.max_spread_pips)||c.max_spread_pips<0.0||!MathIsValidNumber(c.max_entry_deviation_pips)||c.max_entry_deviation_pips<0.0||c.max_quote_age_seconds<0||c.minimum_seconds_between_executions<0){reason="Execution safety values cannot be negative.";return(false);}
    if(c.weekend_flat_minutes_before_session_close<0||c.weekend_flat_minutes_before_session_close>1440){reason="Weekend-flat safety margin must be between 0 and 1440 minutes.";return(false);}
+   if(c.tester_assumed_fixed_utc_offset_hours!=99&&(c.tester_assumed_fixed_utc_offset_hours<-14||c.tester_assumed_fixed_utc_offset_hours>14)){reason="Tester assumed UTC offset must be a whole hour from -14 to +14, or 99 (disabled).";return(false);}
 
    return(true);
 }
-int E2ExposedInputCount(void){return(27);}
+bool E2TradeDirectionAllowed(const E2TradeDirectionMode mode,const E2TradeDirection direction){return(mode==BOTH||(mode==LONG_ONLY&&direction==E2_DIRECTION_LONG)||(mode==SHORT_ONLY&&direction==E2_DIRECTION_SHORT));}
+bool E2RangeWidthFilterPass(const bool enabled,const E2RangeWidthFilterMode mode,const double pips,const double atr,const double minimum,const double maximum){if(!enabled)return(true);double metric=(mode==PIPS?pips:atr);return(MathIsValidNumber(metric)&&metric>=minimum&&metric<maximum);}
+int E2ExposedInputCount(void){return(33);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}

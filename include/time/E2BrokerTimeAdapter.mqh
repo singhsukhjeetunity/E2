@@ -2,109 +2,63 @@
 #define E2_BROKER_TIME_ADAPTER_MQH
 #include "E2LondonTime.mqh"
 #include "..\\reporting\\E2Logger.mqh"
-
+const int E2_TESTER_ASSUMED_OFFSET_DISABLED=99;
 class E2BrokerTimeAdapter
 {
 private:
-   datetime m_from,m_until,m_at[];
-   int m_offset[];
-   bool m_ready;
-   string m_id,m_server,m_mode,m_source,m_digest,m_error;
-   E2Logger *m_logger;
-   bool Integer(const string text,long &value)
-   {
-      int n=StringLen(text);if(n==0)return(false);
-      for(int i=0;i<n;i++){ushort ch=StringGetCharacter(text,i);if(i==0&&ch==45&&n>1)continue;if(ch<48||ch>57)return(false);}
-      value=StringToInteger(text);return(IntegerToString(value)==text);
-   }
-   bool Error(const string reason)
-   {m_ready=false;if(m_error!=reason&&m_logger!=NULL)m_logger.Error(reason,"BROKER_TIME");m_error=reason;return(false);}
+ datetime m_from,m_until,m_at[];int m_offset[],m_revision;bool m_ready,m_live,m_authoritative;
+ string m_id,m_server,m_mode,m_source,m_digest,m_error,m_description;E2Logger *m_logger;
+ bool Integer(string text,long &value){int n=StringLen(text);if(n==0)return false;for(int i=0;i<n;i++){ushort c=StringGetCharacter(text,i);if(i==0&&c==45&&n>1)continue;if(c<48||c>57)return false;}value=StringToInteger(text);return IntegerToString(value)==text;}
+ string Hash(string value){uchar b[],k[],h[];string r="";int n=StringToCharArray(value,b,0,WHOLE_ARRAY,CP_UTF8);if(n>0)ArrayResize(b,n-1);if(CryptEncode(CRYPT_HASH_SHA256,b,k,h)<=0)return "";for(int i=0;i<ArraySize(h);i++)r+=StringFormat("%02X",(uint)h[i]);return r;}
+ bool Error(string reason,bool disable=true){if(disable)m_ready=false;if(m_error!=reason&&m_logger!=NULL)m_logger.Error(reason,"BROKER_TIME");m_error=reason;return false;}
+ void Reset(E2Logger &logger,string server){m_logger=&logger;m_server=server;m_ready=false;m_live=false;m_authoritative=false;m_revision=0;m_error="";m_digest="";m_id="";m_mode="";m_source="";m_description="";m_from=0;m_until=0;ArrayResize(m_at,0);ArrayResize(m_offset,0);}
+ bool Plausible(datetime server,datetime utc,int &offset)const{offset=0;if(server<=0||utc<E2_LONDON_FROM||utc>=E2_LONDON_UNTIL)return false;long raw=(long)server-(long)utc,rounded=(long)MathRound((double)raw/60.0)*60;if(MathAbs((double)(raw-rounded))>5||rounded< -50400||rounded>50400||rounded%900!=0)return false;offset=(int)rounded;return true;}
+ bool ReadLive(datetime &server,datetime &utc)const
+ {server=0;utc=0;if(MQLInfoInteger(MQL_TESTER))return false;datetime ts=TimeTradeServer(),quote=TimeCurrent(),gmt=TimeGMT();if(ts<=0||quote<=0||gmt<=0||MathAbs((double)((long)ts-(long)quote))>5)return false;server=ts;utc=gmt;return true;}
+ bool Observe(datetime server,datetime utc,bool startup)
+ {
+  int observed;if(!Plausible(server,utc,observed))return Error("LIVE_OFFSET_DETECTION_INVALID: new entries blocked; position protection remains active.");
+  if(startup){m_live=true;m_authoritative=true;m_mode="LIVE_AUTO";m_id="LIVE_AUTO";m_source="contemporaneous_terminal_server_and_GMT_clocks";m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;ArrayResize(m_at,1);ArrayResize(m_offset,1);m_at[0]=m_from;m_offset[0]=observed;m_digest="LIVE_AUTO_"+Hash("LIVE_AUTO|v1|"+m_server+"|initial="+IntegerToString(observed)+"|"+E2_LONDON_DATA_ID);if(m_digest=="LIVE_AUTO_")return Error("LIVE_AUTO_DIGEST_FAILED");m_description="LIVE_AUTO|SERVER="+m_server+"|INITIAL_OFFSET_SECONDS="+IntegerToString(observed);m_ready=true;m_revision=1;m_error="";m_logger.Info("TIME_MODE=LIVE_AUTO, SERVER="+m_server+", SERVER_UTC_OFFSET="+IntegerToString(observed)+", LONDON_TZ=Europe/London, LONDON_TZ_DATA="+E2_LONDON_DATA_ID+", PROFILE_DIGEST="+m_digest+".","BROKER_TIME");return true;}
+  if(!m_live)return Error("LIVE_AUTO_NOT_INITIALIZED");int old=m_offset[ArraySize(m_offset)-1];
+  if(observed==old){bool recovered=!m_ready;m_ready=true;m_error="";if(recovered)m_logger.Info("TIME_MODE=LIVE_AUTO, status=RECOVERED, SERVER_UTC_OFFSET="+IntegerToString(observed)+".","BROKER_TIME");return true;}
+  if(utc<=m_at[ArraySize(m_at)-1])return Error("LIVE_OFFSET_CHANGE_TIME_INCONSISTENT: new entries blocked; position protection remains active.");
+  int n=ArraySize(m_at);ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);m_at[n]=utc;m_offset[n]=observed;m_ready=true;m_error="";m_revision++;
+  m_logger.Warning("TIME_MODE=LIVE_AUTO, OFFSET_CHANGE=1, OLD_SERVER_UTC_OFFSET="+IntegerToString(old)+", NEW_SERVER_UTC_OFFSET="+IntegerToString(observed)+", OBSERVED_UTC="+TimeToString(utc,TIME_DATE|TIME_SECONDS)+", SERVER_TIME="+TimeToString(server,TIME_DATE|TIME_SECONDS)+".","BROKER_TIME");return true;
+ }
+ bool Assumed(int hours)
+ {if(hours<-14||hours>14)return Error("TESTER_ASSUMED_OFFSET_INVALID: use whole hours -14..14, or 99 to disable.");int offset=hours*3600;m_mode="TESTER_ASSUMED_FIXED_OFFSET";m_id=m_mode;m_source="explicit_non_authoritative_tester_input";m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;ArrayResize(m_at,1);ArrayResize(m_offset,1);m_at[0]=m_from;m_offset[0]=offset;string h=Hash(m_mode+"|v1|"+m_server+"|offset="+IntegerToString(offset)+"|"+E2_LONDON_DATA_ID);if(h=="")return Error("TESTER_ASSUMED_OFFSET_DIGEST_FAILED");m_digest="NONAUTHORITATIVE_ASSUMED_"+IntegerToString(hours)+"H_"+h;m_description=m_mode+"|ASSUMED_SERVER_UTC_OFFSET_SECONDS="+IntegerToString(offset)+"|AUTHORITATIVE=false";m_ready=true;m_revision=1;m_logger.Warning("TIME_MODE="+m_mode+", ASSUMED_SERVER_UTC_OFFSET="+IntegerToString(offset)+", AUTHORITATIVE=false, SERVER="+m_server+", LONDON_TZ_DATA="+E2_LONDON_DATA_ID+", PROFILE_DIGEST="+m_digest+".","BROKER_TIME");return true;}
+ bool BuiltinMetaQuotesDemoEurusdResearch(const string symbol)
+ {
+  if(m_server!="MetaQuotes-Demo"||symbol!="EURUSD")return Error("PROFILE_REQUIRED: no matching built-in historical broker policy and no explicit tester policy supplied.");
+  m_id="METAQUOTES_DEMO_EURUSD_US_DST_2020_2026_RESEARCH";m_mode="UTC_TRANSITIONS";m_source="research_hypothesis_from_documented_and_community_observed_MetaQuotes_Demo_EURUSD_US_DST_behavior_not_broker_certified";m_from=(datetime)1577836800;m_until=(datetime)1798761600;
+  long at[]={1583650800,1604210400,1615705200,1636264800,1647154800,1667714400,1678604400,1699164000,1710054000,1730613600,1741503600,1762063200,1772953200,1793512800};
+  int offsets[]={10800,7200,10800,7200,10800,7200,10800,7200,10800,7200,10800,7200,10800,7200};
+  const int initial=7200,n=ArraySize(at);string canonical="schema=1|"+m_id+"|"+m_server+"|"+m_mode+"|"+IntegerToString((long)m_from)+"|"+IntegerToString((long)m_until)+"|"+IntegerToString(initial)+"|test=1|"+E2_LONDON_DATA_ID;
+  ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);m_at[0]=m_from;m_offset[0]=initial;for(int i=0;i<n;i++){m_at[i+1]=(datetime)at[i];m_offset[i+1]=offsets[i];canonical+="|"+IntegerToString(at[i])+","+IntegerToString(offsets[i]);}
+  m_digest=Hash(canonical);if(m_digest=="")return Error("PROFILE_DIGEST_FAILED");m_authoritative=false;m_description="TESTER_BUILTIN_PROFILE|PROFILE_ID="+m_id+"|AUTHORITATIVE=false";m_ready=true;m_revision=1;
+  m_logger.Info("TIME_MODE=TESTER_BUILTIN_PROFILE, PROFILE_ID="+m_id+", PROFILE_DIGEST="+m_digest+", AUTHORITATIVE=false, SERVER="+m_server+", SYMBOL="+symbol+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", LONDON_TZ_DATA="+E2_LONDON_DATA_ID+".","BROKER_TIME");return true;
+ }
+ bool Profile(string file,string actual_server,bool tester)
+ {
+  if(file=="")return Error("PROFILE_REQUIRED: no historical broker policy inferred in Strategy Tester.");int h=FileOpen(file,FILE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);if(h==INVALID_HANDLE)return Error("PROFILE_OPEN_FAILED: "+file);
+  int seen=0;long initial=0,test_only=0;bool bad=false;
+  while(!FileIsEnding(h)){string line=FileReadString(h);StringTrimLeft(line);StringTrimRight(line);if(line==""||StringSubstr(line,0,1)=="#")continue;int eq=StringFind(line,"=");if(eq<1){bad=true;break;}string key=StringSubstr(line,0,eq),v=StringSubstr(line,eq+1);int bit=0;long x=0;
+   if(key=="schema_version"){bit=1;if(v!="1")bad=true;}else if(key=="profile_id"){bit=2;m_id=v;}else if(key=="expected_server"){bit=4;m_server=v;}else if(key=="mode"){bit=8;m_mode=v;}else if(key=="valid_from_utc"){bit=16;if(!Integer(v,x))bad=true;m_from=(datetime)x;}else if(key=="valid_until_utc"){bit=32;if(!Integer(v,x))bad=true;m_until=(datetime)x;}else if(key=="initial_offset_seconds"){bit=64;if(!Integer(v,initial))bad=true;}else if(key=="source_reference"){bit=128;m_source=v;}else if(key=="test_only"){bit=256;if(!Integer(v,test_only)||(test_only!=0&&test_only!=1))bad=true;}else if(key=="transition"){string p[];long at,off;if(StringSplit(v,',',p)!=2||!Integer(p[0],at)||!Integer(p[1],off)||off< -50400||off>50400||off%60!=0){bad=true;break;}int n=ArraySize(m_at);ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);m_at[n]=(datetime)at;m_offset[n]=(int)off;}else{bad=true;break;}if(bit>0){if((seen&bit)!=0)bad=true;seen|=bit;}if(bad)break;}
+  FileClose(h);if(bad||seen!=511||m_id==""||m_source==""||m_server==""||m_server!=actual_server)return Error("PROFILE_INVALID_OR_SERVER_MISMATCH");if(test_only==1&&!tester)return Error("TEST_ONLY_PROFILE_FORBIDDEN_IN_LIVE");if(m_from<E2_LONDON_FROM||m_until>E2_LONDON_UNTIL||m_until<=m_from)return Error("PROFILE_COVERAGE_INVALID_OR_OUTSIDE_PINNED_LONDON_DATA");if(initial< -50400||initial>50400||initial%60!=0)return Error("PROFILE_OFFSET_INVALID");
+  int n=ArraySize(m_at);if((m_mode!="FIXED_OFFSET"&&m_mode!="UTC_TRANSITIONS")||(m_mode=="FIXED_OFFSET"&&n!=0)||(m_mode=="UTC_TRANSITIONS"&&n==0))return Error("PROFILE_MODE_TRANSITIONS_INCONSISTENT");datetime previous=m_from;int old=(int)initial;string canonical="schema=1|"+m_id+"|"+m_server+"|"+m_mode+"|"+IntegerToString((long)m_from)+"|"+IntegerToString((long)m_until)+"|"+IntegerToString(initial)+"|test="+IntegerToString(test_only)+"|"+E2_LONDON_DATA_ID;
+  for(int i=0;i<n;i++){if(m_at[i]<=previous||m_at[i]>=m_until||m_offset[i]==old)return Error("PROFILE_TRANSITIONS_UNORDERED_OR_INVALID");previous=m_at[i];old=m_offset[i];canonical+="|"+IntegerToString((long)m_at[i])+","+IntegerToString(m_offset[i]);}
+  ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);for(int i=n;i>0;i--){m_at[i]=m_at[i-1];m_offset[i]=m_offset[i-1];}m_at[0]=m_from;m_offset[0]=(int)initial;m_digest=Hash(canonical);if(m_digest=="")return Error("PROFILE_DIGEST_FAILED");m_authoritative=(test_only==0);m_description="TESTER_PROFILE|PROFILE_ID="+m_id+"|AUTHORITATIVE="+(m_authoritative?"true":"false");m_ready=true;m_revision=1;m_logger.Info("TIME_MODE=TESTER_PROFILE, PROFILE_ID="+m_id+", PROFILE_DIGEST="+m_digest+", AUTHORITATIVE="+(m_authoritative?"true":"false")+", SERVER="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", LONDON_TZ_DATA="+E2_LONDON_DATA_ID+".","BROKER_TIME");return true;
+ }
 public:
-   E2BrokerTimeAdapter(void):m_from(0),m_until(0),m_ready(false),m_logger(NULL){}
-   string Digest()const{return(m_digest);}
-   string Failure()const{return(m_error);}
-   datetime CoverageStart()const{return(m_from);}
-   datetime CoverageEnd()const{return(m_until);}
-   bool Initialize(const string file,const string actual_server,const bool tester,E2Logger &logger)
-   {
-      m_logger=&logger;m_ready=false;m_error="";m_digest="";m_id="";m_server="";m_mode="";m_source="";
-      ArrayResize(m_at,0);ArrayResize(m_offset,0);m_from=0;m_until=0;
-      if(file=="")return(Error("PROFILE_REQUIRED: no broker policy inferred."));
-      int h=FileOpen(file,FILE_READ|FILE_TXT|FILE_ANSI|FILE_COMMON);
-      if(h==INVALID_HANDLE)return(Error("PROFILE_OPEN_FAILED: "+file));
-      int seen=0;long initial=0,test_only=0;bool bad=false;
-      while(!FileIsEnding(h))
-      {
-         string line=FileReadString(h);StringTrimLeft(line);StringTrimRight(line);
-         if(line==""||StringSubstr(line,0,1)=="#")continue;
-         int eq=StringFind(line,"=");if(eq<1){bad=true;break;}
-         string key=StringSubstr(line,0,eq),value=StringSubstr(line,eq+1);int bit=0;long number=0;
-         if(key=="schema_version"){bit=1;if(value!="1")bad=true;}
-         else if(key=="profile_id"){bit=2;m_id=value;}
-         else if(key=="expected_server"){bit=4;m_server=value;}
-         else if(key=="mode"){bit=8;m_mode=value;}
-         else if(key=="valid_from_utc"){bit=16;if(!Integer(value,number))bad=true;m_from=(datetime)number;}
-         else if(key=="valid_until_utc"){bit=32;if(!Integer(value,number))bad=true;m_until=(datetime)number;}
-         else if(key=="initial_offset_seconds"){bit=64;if(!Integer(value,initial))bad=true;}
-         else if(key=="source_reference"){bit=128;m_source=value;}
-         else if(key=="test_only"){bit=256;if(!Integer(value,test_only)||(test_only!=0&&test_only!=1))bad=true;}
-         else if(key=="transition")
-         {
-            string parts[];long instant=0,offset=0;
-            if(StringSplit(value,',',parts)!=2||!Integer(parts[0],instant)||!Integer(parts[1],offset)||offset < -50400||offset>50400||offset%60!=0){bad=true;break;}
-            int n=ArraySize(m_at);ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);m_at[n]=(datetime)instant;m_offset[n]=(int)offset;
-         }
-         else {bad=true;break;}
-         if(bit>0){if((seen&bit)!=0)bad=true;seen|=bit;}
-         if(bad)break;
-      }
-      FileClose(h);
-      if(bad||seen!=511||m_id==""||m_source==""||m_server==""||m_server!=actual_server)return(Error("PROFILE_INVALID_OR_SERVER_MISMATCH"));
-      if(test_only==1&&!tester)return(Error("TEST_ONLY_PROFILE_FORBIDDEN_IN_LIVE"));
-      if(m_from<E2_LONDON_FROM||m_until>E2_LONDON_UNTIL||m_until<=m_from)return(Error("PROFILE_COVERAGE_INVALID_OR_OUTSIDE_PINNED_LONDON_DATA"));
-      if(initial < -50400||initial>50400||initial%60!=0)return(Error("PROFILE_OFFSET_INVALID"));
-      int n=ArraySize(m_at);
-      if((m_mode!="FIXED_OFFSET"&&m_mode!="UTC_TRANSITIONS")||(m_mode=="FIXED_OFFSET"&&n!=0)||(m_mode=="UTC_TRANSITIONS"&&n==0))return(Error("PROFILE_MODE_TRANSITIONS_INCONSISTENT"));
-      datetime previous=m_from;int previous_offset=(int)initial;
-      string canonical="schema=1|"+m_id+"|"+m_server+"|"+m_mode+"|"+IntegerToString((long)m_from)+"|"+IntegerToString((long)m_until)+"|"+IntegerToString(initial)+"|test="+IntegerToString(test_only)+"|"+E2_LONDON_DATA_ID;
-      for(int i=0;i<n;i++)
-      {
-         if(m_at[i]<=previous||m_at[i]>=m_until||m_offset[i]==previous_offset)return(Error("PROFILE_TRANSITIONS_UNORDERED_OR_INVALID"));
-         previous=m_at[i];previous_offset=m_offset[i];canonical+="|"+IntegerToString((long)m_at[i])+","+IntegerToString(m_offset[i]);
-      }
-      // Prepend initial segment; all segments are UTC half-open intervals.
-      ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);
-      for(int i=n;i>0;i--){m_at[i]=m_at[i-1];m_offset[i]=m_offset[i-1];}
-      m_at[0]=m_from;m_offset[0]=(int)initial;
-      uchar bytes[],key[],hash[];int length=StringToCharArray(canonical,bytes,0,WHOLE_ARRAY,CP_UTF8);
-      if(length>0)ArrayResize(bytes,length-1);
-      if(CryptEncode(CRYPT_HASH_SHA256,bytes,key,hash)<=0)return(Error("PROFILE_DIGEST_FAILED"));
-      for(int i=0;i<ArraySize(hash);i++)m_digest+=StringFormat("%02X",(uint)hash[i]);
-      m_ready=true;
-      logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", testOnly="+IntegerToString(test_only)+", source="+m_source+", digest="+m_digest+", londonData="+E2_LONDON_DATA_ID+".","BROKER_TIME");
-      return(true);
-   }
-   bool ServerToUtc(const datetime server,datetime &utc)const
-   {
-      utc=0;if(!m_ready)return(false);int matches=0;
-      for(int i=0;i<ArraySize(m_at);i++)
-      {
-         datetime candidate=server-m_offset[i],end=(i+1<ArraySize(m_at)?m_at[i+1]:m_until);
-         if(candidate>=m_at[i]&&candidate<end){utc=candidate;matches++;}
-      }
-      if(matches!=1){utc=0;return(false);}return(true);
-   }
-   bool UtcToServer(const datetime utc,datetime &server)const
-   {
-      server=0;if(!m_ready||utc<m_from||utc>=m_until)return(false);
-      for(int i=ArraySize(m_at)-1;i>=0;i--)if(utc>=m_at[i]){server=utc+m_offset[i];return(true);}
-      return(false);
-   }
-   bool London(const datetime server,datetime &local)const
-   {datetime utc;local=0;return(ServerToUtc(server,utc)&&E2UtcToLondon(utc,local));}
-   bool Day(const datetime server,int &day)const
-   {datetime local;day=0;if(!London(server,local))return(false);day=E2CalendarDay(local);return(day>0);}
-   bool ValidateNow(const datetime server)
-   {datetime local;if(!London(server,local))return(Error("PROFILE_CURRENT_TIMESTAMP_UNCOVERED_OR_AMBIGUOUS"));return(true);}
+ E2BrokerTimeAdapter():m_from(0),m_until(0),m_revision(0),m_ready(false),m_live(false),m_authoritative(false),m_logger(NULL){}
+ string Digest()const{return m_digest;}string Failure()const{return m_error;}string Mode()const{return m_mode;}string Description()const{return m_description;}datetime CoverageStart()const{return m_from;}datetime CoverageEnd()const{return m_until;}bool Ready()const{return m_ready;}bool Authoritative()const{return m_authoritative;}int Revision()const{return m_revision;}int CurrentOffset()const{return ArraySize(m_offset)>0?m_offset[ArraySize(m_offset)-1]:0;}
+ bool Initialize(string file,string server,string symbol,bool tester,int assumed_hours,E2Logger &logger){Reset(logger,server);if(tester){if(file!=""&&assumed_hours!=E2_TESTER_ASSUMED_OFFSET_DISABLED)return Error("TESTER_TIME_CONFIGURATION_CONFLICT: choose profile OR assumed offset.");if(file!="")return Profile(file,server,true);if(assumed_hours!=E2_TESTER_ASSUMED_OFFSET_DISABLED)return Assumed(assumed_hours);return BuiltinMetaQuotesDemoEurusdResearch(symbol);}if(assumed_hours!=E2_TESTER_ASSUMED_OFFSET_DISABLED)return Error("TESTER_ASSUMED_OFFSET_FORBIDDEN_IN_LIVE");if(file!="")m_logger.Warning("InpBrokerTimeProfile is ignored in LIVE_AUTO mode.","BROKER_TIME");datetime s,u;if(!ReadLive(s,u))return Error("LIVE_OFFSET_DETECTION_UNAVAILABLE: new entries blocked; position protection remains active.");return Observe(s,u,true);}
+ bool Initialize(string file,string server,bool tester,int assumed_hours,E2Logger &logger){return Initialize(file,server,"",tester,assumed_hours,logger);}
+ bool Initialize(string f,string s,bool t,E2Logger &l){return Initialize(f,s,t,E2_TESTER_ASSUMED_OFFSET_DISABLED,l);}
+ bool InitializeLiveObservedForTest(string name,datetime server,datetime utc,E2Logger &logger){Reset(logger,name);return Observe(server,utc,true);}bool ObserveLiveForTest(datetime server,datetime utc){return Observe(server,utc,false);}
+ bool RefreshLive(){if(!m_live)return m_ready;datetime s,u;if(!ReadLive(s,u))return Error("LIVE_OFFSET_DETECTION_UNAVAILABLE: new entries blocked; position protection remains active.");return Observe(s,u,false);}
+ bool ServerToUtc(datetime server,datetime &utc)const{utc=0;if(!m_ready)return false;int matches=0;for(int i=0;i<ArraySize(m_at);i++){datetime candidate=server-m_offset[i],end=i+1<ArraySize(m_at)?m_at[i+1]:m_until;if(candidate>=m_at[i]&&candidate<end){utc=candidate;matches++;}}if(matches!=1){utc=0;return false;}return true;}
+ bool UtcToServer(datetime utc,datetime &server)const{server=0;if(!m_ready||utc<m_from||utc>=m_until)return false;for(int i=ArraySize(m_at)-1;i>=0;i--)if(utc>=m_at[i]){server=utc+m_offset[i];return true;}return false;}
+ bool GetLondonDateTime(datetime broker,datetime &london)const{datetime utc;london=0;return ServerToUtc(broker,utc)&&E2UtcToLondon(utc,london);}bool London(datetime broker,datetime &local)const{return GetLondonDateTime(broker,local);}bool Day(datetime broker,int &day)const{datetime local;day=0;if(!GetLondonDateTime(broker,local))return false;day=E2CalendarDay(local);return day>0;}bool ValidateNow(datetime server){datetime local;if(!GetLondonDateTime(server,local))return Error("CURRENT_TIMESTAMP_UNCOVERED_OR_AMBIGUOUS");return true;}
 };
 #endif
