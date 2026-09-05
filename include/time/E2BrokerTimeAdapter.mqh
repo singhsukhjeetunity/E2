@@ -84,6 +84,15 @@ public:
       logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", testOnly="+IntegerToString(test_only)+", source="+m_source+", digest="+m_digest+", londonData="+E2_LONDON_DATA_ID+".","BROKER_TIME");
       return(true);
    }
+   bool InitializeServerTimeProfile(const string actual_server,E2Logger &logger)
+   {
+      m_logger=&logger;m_ready=false;m_error="";m_digest="SERVER_TIME_PROFILE_V1";
+      m_id="E2_SERVER_TIME_INTERNAL_V1";m_server=actual_server;m_mode="FIXED_OFFSET";m_source="internal_server_time_for_non_london_strategy";
+      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;m_at[0]=m_from;m_offset[0]=0;
+      m_ready=true;
+      logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds=0, transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
+      return(true);
+   }
    bool ServerToUtc(const datetime server,datetime &utc)const
    {
       utc=0;if(!m_ready)return(false);int matches=0;

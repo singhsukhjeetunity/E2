@@ -29,5 +29,7 @@ public:
    void FinancialVerify(const E2FinancialVerification &v){if(m_logger!=NULL)m_logger.Info("tradesChecked="+IntegerToString(v.trades_checked)+", grossProfitSum="+DoubleToString(v.gross_profit_sum,2)+", commissionSum="+DoubleToString(v.commission_sum,2)+", swapSum="+DoubleToString(v.swap_sum,2)+", feeSum="+DoubleToString(v.fee_sum,2)+", netProfitSum="+DoubleToString(v.net_profit_sum,2)+", mt5AuthoritativeProfitSum="+DoubleToString(v.mt5_authoritative_profit_sum,2)+", financialDifference="+DoubleToString(v.financial_difference,8)+", financialMismatchTrades="+IntegerToString(v.financial_mismatch_trades)+", invalidInitialRiskTrades="+IntegerToString(v.invalid_initial_risk_trades)+", invalidRealizedRTrades="+IntegerToString(v.invalid_realized_r_trades)+".","LRB_FINANCIAL_VERIFY");}
    void LondonSignalVerify(const E2SignalVerification &v)
    {if(m_logger!=NULL)m_logger.Info("barsObserved="+IntegerToString(v.bars_observed)+", candidates="+IntegerToString(v.total_candidates)+", long="+IntegerToString(v.long_candidates)+", short="+IntegerToString(v.short_candidates)+", timeFailures="+IntegerToString(v.time_failures)+".","LRB_SIGNAL_VERIFY");}
+   void SignalVerify(const string tag,const E2SignalVerification &v)
+   {if(m_logger!=NULL)m_logger.Info("barsObserved="+IntegerToString(v.bars_observed)+", candidates="+IntegerToString(v.total_candidates)+", long="+IntegerToString(v.long_candidates)+", short="+IntegerToString(v.short_candidates)+", timeFailures="+IntegerToString(v.time_failures)+".",tag);}
 };
 #endif

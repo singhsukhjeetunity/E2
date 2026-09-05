@@ -1,0 +1,50 @@
+#ifndef E2_XAU_SESSION_FADE_TRADE_PLANNER_MQH
+#define E2_XAU_SESSION_FADE_TRADE_PLANNER_MQH
+
+#include "E2StrategyTypes.mqh"
+#include "E2PositionRecovery.mqh"
+#include "..\\risk\\E2PositionSizer.mqh"
+#include "..\\execution\\E2WeekendFlat.mqh"
+
+class E2XauSessionFadeTradePlanner
+  {
+private:
+   E2Config m_config;E2SymbolInfo *m_symbol;E2PositionSizer *m_sizer;E2PositionGuard *m_guard;E2PositionRecovery *m_recovery;E2WeekendFlat *m_weekend;E2Logger *m_logger;string m_consumed[];E2PlanVerification m_verify;
+   bool Consumed(const string id){for(int i=0;i<ArraySize(m_consumed);i++)if(m_consumed[i]==id)return(true);int n=ArraySize(m_consumed);ArrayResize(m_consumed,n+1);m_consumed[n]=id;return(false);}
+   double FloorTick(const double v,const E2SymbolSpecification &s){return(NormalizeDouble(MathFloor(v/s.tick_size+1e-10)*s.tick_size,s.digits));}
+public:
+   E2XauSessionFadeTradePlanner(void):m_symbol(NULL),m_sizer(NULL),m_guard(NULL),m_recovery(NULL),m_weekend(NULL),m_logger(NULL){ZeroMemory(m_verify);}
+   void Initialize(const E2Config &c,E2SymbolInfo &symbol,E2PositionSizer &sizer,E2PositionGuard &guard,E2PositionRecovery &recovery,E2WeekendFlat &weekend,E2Logger &logger)
+     {m_config=c;m_symbol=&symbol;m_sizer=&sizer;m_guard=&guard;m_recovery=&recovery;m_weekend=&weekend;m_logger=&logger;ZeroMemory(m_verify);ArrayResize(m_consumed,0);}
+   bool Build(const E2Candidate &c,E2OrderRequest &r,E2PlanningAudit &a)
+     {
+      E2ResetOrderRequest(r);ZeroMemory(a);a.status="OTHER_REJECTED";a.reason="UNCLASSIFIED";m_verify.candidates_received++;
+      if(Consumed(c.candidate_id)){m_verify.duplicate_candidates++;a.reason="DUPLICATE_CANDIDATE";return(false);}
+      datetime now=TimeCurrent();a.planning_time=now;
+      if(m_weekend!=NULL&&m_weekend.IsBlockedAt(now)){m_verify.expired_candidates++;a.status="EXPIRED";a.reason="WEEKEND_CUTOFF";m_weekend.LogEntryBlock(c.candidate_id,now);return(false);}
+      datetime bar=iTime(c.symbol,PERIOD_M5,0);
+      if(now<c.execution_window_start||now>=c.execution_window_end||bar!=c.execution_window_start){m_verify.expired_candidates++;a.status="EXPIRED";a.reason="EXECUTION_WINDOW_EXPIRED";return(false);}
+      if(c.symbol==""||c.direction!=E2_DIRECTION_LONG||c.risk_distance<=0.0||!MathIsValidNumber(c.risk_distance)){m_verify.invalid_candidates++;a.reason="INVALID_XAU_CANDIDATE";return(false);}
+      if(m_recovery.DayConsumed(now)){m_verify.day_rejections++;m_recovery.RecordSuppressed();a.status="DAY_REJECTED";a.reason="DAY_CONSUMED";return(false);}
+      if(m_guard.HasOpenE2PositionGlobal()||m_guard.HasPendingE2OrderGlobal()){m_verify.position_rejections++;a.status="POSITION_REJECTED";a.reason="E2_GLOBAL_POSITION_OR_ORDER_EXISTS";return(false);}
+      MqlTick tick;if(!SymbolInfoTick(c.symbol,tick)||tick.ask<=0.0||tick.bid<=0.0){m_verify.quote_rejections++;a.status="SAFETY_REJECTED";a.reason="QUOTE_UNAVAILABLE";return(false);}
+      a.planning_bid=tick.bid;a.planning_ask=tick.ask;E2SymbolSpecification s=m_symbol.Specification();a.planning_spread=tick.ask-tick.bid;
+      double entry=tick.ask;
+      double raw=entry-c.risk_distance;
+      if(raw<=0.0||raw>=entry){a.reason="INVALID_ATR_STOP";m_verify.invalid_candidates++;return(false);}
+      double min_dist=MathMax((double)SymbolInfoInteger(c.symbol,SYMBOL_TRADE_STOPS_LEVEL),(double)SymbolInfoInteger(c.symbol,SYMBOL_TRADE_FREEZE_LEVEL))*s.point;
+      double stop=FloorTick(MathMin(raw,tick.bid-min_dist),s);
+      a.raw_sl=raw;a.submitted_sl=stop;a.sl_adjustment_distance=MathAbs(stop-raw);a.sl_adjusted=(int)(a.sl_adjustment_distance>s.tick_size*1e-8);
+      E2PositionSizingResult z;if(!m_sizer.CalculateRequestedRisk(c.symbol,c.direction,entry,stop,z,true)){m_verify.sizing_rejections++;a.status="SIZING_REJECTED";a.reason=E2SizingStatusName(z.status);return(false);}
+      r.status=E2_ORDER_REQUEST_VALID;r.symbol=c.symbol;r.setup_id=c.candidate_id;r.signal_id=c.candidate_id;r.execution_id=c.candidate_id+"|"+IntegerToString((int)now);
+      r.direction=c.direction;r.signal_time=c.signal_bar_time;r.signal_known_from=c.signal_known_time;r.request_time=now;
+      r.requested_entry_price=entry;r.structural_stop_price=raw;r.submitted_stop_price=stop;r.take_profit_price=0.0;
+      r.requested_risk_cash=z.target_risk_money;r.volume=z.volume;
+      a.status="PLANNED";a.reason="REQUEST_CREATED";a.request_id=r.execution_id;a.execution_id=r.execution_id;
+      a.requested_cash_risk=z.target_risk_money;a.calculated_volume=z.volume;m_verify.requests_created++;
+      return(true);
+     }
+   E2PlanVerification Verification()const{return(m_verify);}
+  };
+
+#endif
