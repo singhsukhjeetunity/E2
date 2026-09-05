@@ -25,16 +25,16 @@ input bool InpOneTradePerDay=true;
 
 input group "=== XAU SESSION FADE ==="
 input E2XauTimeBasis InpXauTimeBasis=E2_XAU_TIME_UTC;
-input int InpXauRangeStartHour=8;
+input int InpXauRangeStartHour=12;
 input int InpXauRangeStartMinute=0;
-input int InpXauRangeEndHour=8;
+input int InpXauRangeEndHour=12;
 input int InpXauRangeEndMinute=30;
 input int InpXauATRLength=14;
 input double InpXauATRMultiplier=8.0;
 input double InpXauTargetR=1.5;
 input int InpXauTrendLookbackBars=36;
 input double InpXauTrendEfficiencyMin=0.30;
-input int InpXauBlockFridayEntriesFromHour=16; // -1 disables late-Friday entry block
+input int InpXauBlockFridayEntriesFromHour=20; // -1 disables late-Friday entry block
 
 input group "=== BROKER TIME ADAPTER ==="
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
@@ -84,7 +84,7 @@ void E2LoadConfiguration(E2Config &c)
 bool E2ValidateConfiguration(const E2Config &c,string &reason)
 {
    reason="";
-   if(!E2ValidClock(InpXauRangeStartHour,InpXauRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
+   if(!E2ValidClock(InpXauRangeStartHour,InpXRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
       c.xau_range_start>=c.xau_range_end){reason="XAU range clocks must be valid, same-day, and aligned to M5.";return(false);}
    if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC)
       {reason="Invalid XAU time basis.";return(false);}
