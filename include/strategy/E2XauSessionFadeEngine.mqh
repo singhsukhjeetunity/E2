@@ -5,6 +5,7 @@
 #include "E2PositionRecovery.mqh"
 #include "..\\core\\E2Config.mqh"
 #include "..\\time\\E2LondonTime.mqh"
+#include "..\\time\\E2BrokerTimeAdapter.mqh"
 #include "..\\execution\\E2WeekendFlat.mqh"
 
 class E2XauSessionRange
@@ -49,9 +50,26 @@ class E2XauSessionFadeEngine
   {
 private:
    E2Config m_config;string m_symbol;
-   E2WeekendFlat *m_weekend;E2Logger *m_logger;
+   E2WeekendFlat *m_weekend;E2BrokerTimeAdapter *m_time;E2Logger *m_logger;
    E2XauSessionRange m_range;datetime m_last;int m_atr,m_signaled_day;
    E2SignalVerification m_verify;
+
+   string BasisName()const
+     {
+      if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return("UTC");
+      if(m_config.xau_time_basis==E2_XAU_TIME_LONDON)return("LONDON");
+      return("SERVER");
+     }
+
+   bool RuleTime(const datetime server_time,datetime &rule_time)
+     {
+      rule_time=server_time;
+      if(m_config.xau_time_basis==E2_XAU_TIME_SERVER)return(true);
+      if(m_time==NULL)return(false);
+      if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return(m_time.ServerToUtc(server_time,rule_time));
+      if(m_config.xau_time_basis==E2_XAU_TIME_LONDON)return(m_time.London(server_time,rule_time));
+      return(false);
+     }
 
    bool TrendEfficient(const datetime bar_time,const double threshold)
      {
@@ -75,11 +93,13 @@ private:
    bool Process(const MqlRates &bar,const bool emit,E2Candidate &candidate,bool &found)
      {
       found=false;
-      m_range.Observe(bar.time,bar.high,bar.low);
+      datetime rule_open;
+      if(!RuleTime(bar.time,rule_open)){m_verify.time_failures++;return(false);}
+      m_range.Observe(rule_open,bar.high,bar.low);
       m_verify.bars_observed++;
       if(!emit)return(true);
       if(m_signaled_day==m_range.Day())return(true);
-      if(!m_range.Signal(bar.time,bar.close))return(true);
+      if(!m_range.Signal(rule_open,bar.close))return(true);
       if(!TrendEfficient(bar.time,m_config.xau_trend_efficiency_min))return(true);
       datetime known=bar.time+300;
       if(m_weekend.IsBlockedAt(known)||m_weekend.IsBlockedAt(TimeCurrent())){m_weekend.LogExpire("XAU_SF|"+IntegerToString((long)bar.time),known);return(true);}
@@ -89,8 +109,8 @@ private:
       candidate.symbol=m_symbol;candidate.timeframe="M5";candidate.london_day=m_range.Day();
       candidate.candidate_id="XAU_SF|"+m_symbol+"|"+IntegerToString(candidate.london_day)+"|"+IntegerToString((long)bar.time)+"|LONG";
       candidate.direction=E2_DIRECTION_LONG;candidate.signal_bar_time=bar.time;candidate.signal_known_time=known;
-      candidate.signal_close=bar.close;candidate.range_start_london=E2LocalMidnight(bar.time)+m_config.xau_range_start*60;
-      candidate.range_end_london=E2LocalMidnight(bar.time)+m_config.xau_range_end*60;
+      candidate.signal_close=bar.close;candidate.range_start_london=E2LocalMidnight(rule_open)+m_config.xau_range_start*60;
+      candidate.range_end_london=E2LocalMidnight(rule_open)+m_config.xau_range_end*60;
       candidate.range_high=m_range.High();candidate.range_low=m_range.Low();
       candidate.breakout_distance=m_range.Low()-bar.close;
       candidate.atr=values[0];candidate.atr_multiplier=m_config.xau_atr_multiplier;
@@ -102,10 +122,10 @@ private:
       return(true);
      }
 public:
-   E2XauSessionFadeEngine(void):m_weekend(NULL),m_logger(NULL),m_last(0),m_atr(INVALID_HANDLE),m_signaled_day(0){ZeroMemory(m_verify);}
-   bool Initialize(const string symbol,const E2Config &config,E2WeekendFlat &weekend,E2Logger &logger)
+   E2XauSessionFadeEngine(void):m_weekend(NULL),m_time(NULL),m_logger(NULL),m_last(0),m_atr(INVALID_HANDLE),m_signaled_day(0){ZeroMemory(m_verify);}
+   bool Initialize(const string symbol,const E2Config &config,E2BrokerTimeAdapter &time,E2WeekendFlat &weekend,E2Logger &logger)
      {
-      m_config=config;m_symbol=symbol;m_weekend=&weekend;m_logger=&logger;m_last=0;m_signaled_day=0;ZeroMemory(m_verify);
+      m_config=config;m_symbol=symbol;m_time=&time;m_weekend=&weekend;m_logger=&logger;m_last=0;m_signaled_day=0;ZeroMemory(m_verify);
       m_range.Initialize(config);
       m_atr=iATR(symbol,PERIOD_M5,config.xau_atr_length);
       if(m_atr==INVALID_HANDLE)return(false);
@@ -113,15 +133,18 @@ public:
       MqlRates bars[];ArraySetAsSeries(bars,false);
       int count=CopyRates(symbol,PERIOD_M5,now-2*86400,now-1,bars);
       if(count<0)return(false);
-      int today=E2CalendarDay(now);
+      datetime rule_now;int today=0;
+      if(!RuleTime(now,rule_now))return(false);
+      today=E2CalendarDay(rule_now);
       for(int i=0;i<count;i++)
         {
          if(bars[i].time+300>now)continue;
-         if(E2CalendarDay(bars[i].time)!=today)continue;
+         datetime rule_bar;if(!RuleTime(bars[i].time,rule_bar))return(false);
+         if(E2CalendarDay(rule_bar)!=today)continue;
          E2Candidate unused;bool found;if(!Process(bars[i],false,unused,found))return(false);
         }
       m_last=iTime(symbol,PERIOD_M5,1);
-      logger.Info("serverDay="+IntegerToString(today)+", rangeFrozen="+IntegerToString((int)m_range.Frozen())+", rangeValid="+IntegerToString((int)m_range.Valid())+", restartSignalsReplayed=0.","XAU_SF_STATE");
+      logger.Info("timeBasis="+BasisName()+", ruleDay="+IntegerToString(today)+", rangeFrozen="+IntegerToString((int)m_range.Frozen())+", rangeValid="+IntegerToString((int)m_range.Valid())+", restartSignalsReplayed=0.","XAU_SF_STATE");
       return(true);
      }
    bool Evaluate(E2Candidate &out[],E2PositionRecovery &recovery)

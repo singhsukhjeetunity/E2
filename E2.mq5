@@ -1,6 +1,6 @@
 #property strict
 #property version "4.0"
-#property description "E2 London Range Breakout with explicit broker-time profiles."
+#property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "include\\core\\E2Config.mqh"
 #include "include\\time\\E2BrokerTimeAdapter.mqh"
@@ -115,11 +115,26 @@ int OnInit()
    g_weekend_flat.Initialize(g_configuration,_Symbol,g_logger);
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_weekend_flat,g_broker_time,g_logger);
    if(!E2SymbolAllowedForStrategy()){g_logger.Error("Selected strategy is not allowed on this symbol.","Initialization");return(INIT_PARAMETERS_INCORRECT);}
-   if(g_configuration.strategy_mode==E2_STRATEGY_XAU_SESSION_FADE&&g_configuration.broker_time_profile=="")
+   if(g_configuration.broker_time_profile!="")
+     {
+      if(!g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),g_environment.IsTester(),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
+     }
+   else if(g_configuration.strategy_mode==E2_STRATEGY_XAU_SESSION_FADE&&g_configuration.xau_time_basis==E2_XAU_TIME_SERVER)
      {
       if(!g_broker_time.InitializeServerTimeProfile(AccountInfoString(ACCOUNT_SERVER),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
      }
-   else if(!g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),g_environment.IsTester(),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
+   else if(g_configuration.strategy_mode==E2_STRATEGY_XAU_SESSION_FADE&&g_configuration.use_manual_broker_utc_offset)
+     {
+      if(!g_broker_time.InitializeManualFixedOffsetProfile(AccountInfoString(ACCOUNT_SERVER),g_configuration.broker_utc_offset_seconds,g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
+     }
+   else
+     {
+      if(g_configuration.strategy_mode==E2_STRATEGY_XAU_SESSION_FADE)
+         g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC/London XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
+      else
+         g_logger.Error("PROFILE_REQUIRED: London strategy needs InpBrokerTimeProfile.","BROKER_TIME");
+      return(INIT_PARAMETERS_INCORRECT);
+     }
    g_configuration.time_policy_digest=g_broker_time.Digest();
    if(!g_trade_reporter.Initialize(g_configuration,_Symbol,g_logger))return(INIT_FAILED);
    g_reporter_ready=true;
@@ -130,7 +145,7 @@ int OnInit()
    E2EnforceWeekendFlat();
    if(g_configuration.strategy_mode==E2_STRATEGY_XAU_SESSION_FADE)
      {
-      if(!g_xau_engine.Initialize(_Symbol,g_configuration,g_weekend_flat,g_logger)){g_logger.Error("XAU session-fade reconstruction failed.","Initialization");return(INIT_FAILED);}
+      if(!g_xau_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("XAU session-fade reconstruction failed.","Initialization");return(INIT_FAILED);}
      }
    else if(!g_london_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("London range reconstruction failed.","Initialization");return(INIT_FAILED);}
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");

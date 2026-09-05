@@ -93,6 +93,18 @@ public:
       logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds=0, transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
       return(true);
    }
+   bool InitializeManualFixedOffsetProfile(const string actual_server,const int offset_seconds,E2Logger &logger)
+   {
+      m_logger=&logger;m_ready=false;m_error="";
+      if(offset_seconds<-50400||offset_seconds>50400||offset_seconds%60!=0)
+         return(Error("MANUAL_OFFSET_INVALID"));
+      m_digest="MANUAL_FIXED_OFFSET_"+IntegerToString(offset_seconds);
+      m_id="E2_MANUAL_FIXED_OFFSET";m_server=actual_server;m_mode="FIXED_OFFSET";m_source="manual_input";
+      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;m_at[0]=m_from;m_offset[0]=offset_seconds;
+      m_ready=true;
+      logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(offset_seconds)+", transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
+      return(true);
+   }
    bool ServerToUtc(const datetime server,datetime &utc)const
    {
       utc=0;if(!m_ready)return(false);int matches=0;
