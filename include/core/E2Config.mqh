@@ -84,7 +84,7 @@ void E2LoadConfiguration(E2Config &c)
 bool E2ValidateConfiguration(const E2Config &c,string &reason)
 {
    reason="";
-   if(!E2ValidClock(InpXauRangeStartHour,InpXRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
+   if(!E2ValidClock(InpXauRangeStartHour,InpXauRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
       c.xau_range_start>=c.xau_range_end){reason="XAU range clocks must be valid, same-day, and aligned to M5.";return(false);}
    if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC)
       {reason="Invalid XAU time basis.";return(false);}
