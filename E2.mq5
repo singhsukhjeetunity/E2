@@ -97,6 +97,14 @@ int OnInit()
    g_environment.Initialize();
    if(!g_symbol_info.Initialize(_Symbol,g_logger)){g_logger.Error("Symbol initialization failed.","Initialization");return(INIT_FAILED);}
    if(!g_account_info.Initialize(g_logger)){g_logger.Error("Account initialization failed.","Initialization");return(INIT_FAILED);}
+   E2AccountSpecification account=g_account_info.Specification();
+   if(!g_environment.IsTester()&&g_configuration.trading_enabled&&account.trade_mode==ACCOUNT_TRADE_MODE_REAL&&!g_configuration.confirm_real_account_trading)
+     {
+      g_logger.Error("REAL_ACCOUNT_CONFIRMATION_REQUIRED: set InpConfirmRealAccountTrading=true only after verifying symbol, risk, broker UTC offset, and spread settings.","Initialization");
+      return(INIT_PARAMETERS_INCORRECT);
+     }
+   if(!g_environment.IsTester()&&g_configuration.trading_enabled&&g_configuration.risk_mode==E2_RISK_FIXED_CASH)
+      g_logger.Warning("Fixed-cash risk is enabled. Verify InpFixedCashRisk before live/prop deployment.","Initialization");
    g_market_data.Initialize(g_logger);
    g_position_sizer.Initialize(g_configuration,g_symbol_info,g_account_info,g_logger);
    g_position_guard.Initialize(g_configuration,g_logger);
