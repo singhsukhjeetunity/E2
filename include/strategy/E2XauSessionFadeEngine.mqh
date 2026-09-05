@@ -69,6 +69,14 @@ private:
       return(false);
      }
 
+   bool FridayEntryBlocked(const datetime server_time)
+     {
+      if(m_config.xau_block_friday_entries_from_hour<0)return(false);
+      datetime rule_time;
+      if(!RuleTime(server_time,rule_time))return(true);
+      return(E2DayOfWeek(rule_time)==5&&E2MinuteOfDay(rule_time)>=m_config.xau_block_friday_entries_from_hour*60);
+     }
+
    bool TrendEfficient(const datetime bar_time,const double threshold)
      {
       int shift=iBarShift(m_symbol,PERIOD_M5,bar_time,true);
@@ -100,6 +108,7 @@ private:
       if(!m_range.Signal(rule_open,bar.close))return(true);
       if(!TrendEfficient(bar.time,m_config.xau_trend_efficiency_min))return(true);
       datetime known=bar.time+300;
+      if(FridayEntryBlocked(known))return(true);
       if(m_weekend.IsBlockedAt(known)||m_weekend.IsBlockedAt(TimeCurrent())){m_weekend.LogExpire("XAU_SF|"+IntegerToString((long)bar.time),known);return(true);}
       int shift=iBarShift(m_symbol,PERIOD_M5,bar.time,true);double values[];
       if(shift<1||CopyBuffer(m_atr,0,shift,1,values)!=1||values[0]<=0.0||!MathIsValidNumber(values[0]))return(false);
