@@ -4,7 +4,7 @@
 #include "E2StrategyTypes.mqh"
 #include "E2PositionRecovery.mqh"
 #include "..\\core\\E2Config.mqh"
-#include "..\\time\\E2LondonTime.mqh"
+#include "..\\time\\E2TimeUtils.mqh"
 #include "..\\time\\E2BrokerTimeAdapter.mqh"
 #include "..\\execution\\E2WeekendFlat.mqh"
 
@@ -57,7 +57,6 @@ private:
    string BasisName()const
      {
       if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return("UTC");
-      if(m_config.xau_time_basis==E2_XAU_TIME_LONDON)return("LONDON");
       return("SERVER");
      }
 
@@ -67,7 +66,6 @@ private:
       if(m_config.xau_time_basis==E2_XAU_TIME_SERVER)return(true);
       if(m_time==NULL)return(false);
       if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return(m_time.ServerToUtc(server_time,rule_time));
-      if(m_config.xau_time_basis==E2_XAU_TIME_LONDON)return(m_time.London(server_time,rule_time));
       return(false);
      }
 
@@ -106,13 +104,13 @@ private:
       int shift=iBarShift(m_symbol,PERIOD_M5,bar.time,true);double values[];
       if(shift<1||CopyBuffer(m_atr,0,shift,1,values)!=1||values[0]<=0.0||!MathIsValidNumber(values[0]))return(false);
       ZeroMemory(candidate);
-      candidate.symbol=m_symbol;candidate.timeframe="M5";candidate.london_day=m_range.Day();
-      candidate.candidate_id="XAU_SF|"+m_symbol+"|"+IntegerToString(candidate.london_day)+"|"+IntegerToString((long)bar.time)+"|LONG";
+      candidate.symbol=m_symbol;candidate.timeframe="M5";candidate.rule_day=m_range.Day();
+      candidate.candidate_id="XAU_SF|"+m_symbol+"|"+IntegerToString(candidate.rule_day)+"|"+IntegerToString((long)bar.time)+"|LONG";
       candidate.direction=E2_DIRECTION_LONG;candidate.signal_bar_time=bar.time;candidate.signal_known_time=known;
-      candidate.signal_close=bar.close;candidate.range_start_london=E2LocalMidnight(rule_open)+m_config.xau_range_start*60;
-      candidate.range_end_london=E2LocalMidnight(rule_open)+m_config.xau_range_end*60;
+      candidate.signal_close=bar.close;candidate.range_start_rule=E2LocalMidnight(rule_open)+m_config.xau_range_start*60;
+      candidate.range_end_rule=E2LocalMidnight(rule_open)+m_config.xau_range_end*60;
       candidate.range_high=m_range.High();candidate.range_low=m_range.Low();
-      candidate.breakout_distance=m_range.Low()-bar.close;
+      candidate.extension_distance=m_range.Low()-bar.close;
       candidate.atr=values[0];candidate.atr_multiplier=m_config.xau_atr_multiplier;
       candidate.risk_distance=values[0]*m_config.xau_atr_multiplier;
       candidate.execution_window_start=known;candidate.execution_window_end=known+300;

@@ -9,8 +9,8 @@ struct E2Candidate
    datetime signal_bar_time,signal_known_time;
    E2TradeDirection direction;
    double signal_close,atr,atr_multiplier,risk_distance;
-   int london_day;datetime range_start_london,range_end_london;
-   double range_high,range_low,breakout_distance;
+   int rule_day;datetime range_start_rule,range_end_rule;
+   double range_high,range_low,extension_distance;
    datetime execution_window_start,execution_window_end;
   };
 
@@ -23,8 +23,8 @@ struct E2PositionMetadata
    datetime signal_time,entry_time;
    ulong entry_deal,position_id,position_ticket;
    double volume,fill_price,submitted_stop,original_r,target_r,target_price,requested_risk_cash,actual_risk_cash;
-   int london_day;datetime range_start_london,range_end_london;
-   double range_high,range_low,signal_close,breakout_distance;
+   int rule_day;datetime range_start_rule,range_end_rule;
+   double range_high,range_low,signal_close,extension_distance;
    string time_policy_digest;
   };
 

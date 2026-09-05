@@ -1,11 +1,8 @@
 #ifndef E2_CORE_E2CONFIG_MQH
 #define E2_CORE_E2CONFIG_MQH
 enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
-enum E2StopMode { OPPOSITE_RANGE=0, ATR=1 };
-enum E2StrategyMode { E2_STRATEGY_LONDON_BREAKOUT=0,E2_STRATEGY_XAU_SESSION_FADE=1 };
-enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1,E2_XAU_TIME_LONDON=2 };
+enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1 };
 input group "=== E2 PRODUCTION ==="
-input E2StrategyMode InpStrategyMode = E2_STRATEGY_LONDON_BREAKOUT; // Strategy Mode
 input bool InpTradingEnabled = true;             // Enable Trading
 input ulong InpExpertMagicNumber = 2026001;      // Expert Magic Number
 input bool InpLoggingEnabled = true;             // Enable Journal Logging
@@ -24,20 +21,6 @@ input int InpMinimumSecondsBetweenExecutions = 5;    // Minimum Execution Interv
 input bool InpWeekendFlatEnabled = true;              // Enable Weekend Flat Protection
 input int InpWeekendFlatMinutesBeforeSessionClose = 30; // Minutes Before Friday Session Close
 
-
-input group "=== LONDON RANGE BREAKOUT ==="
-input int InpRangeStartHourLondon=0;
-input int InpRangeStartMinuteLondon=0;
-input int InpRangeEndHourLondon=8;
-input int InpRangeEndMinuteLondon=0;
-input int InpBreakoutStartHourLondon=8;
-input int InpBreakoutStartMinuteLondon=0;
-input int InpBreakoutEndHourLondon=12;
-input int InpBreakoutEndMinuteLondon=0;
-input E2StopMode InpStopMode=OPPOSITE_RANGE;
-input int InpATRLength=14;
-input double InpATRMultiplier=1.0;
-input double InpTargetR=1.5;
 input bool InpOneTradePerDay=true;
 
 input group "=== XAU SESSION FADE ==="
@@ -59,10 +42,6 @@ input int InpBrokerUtcOffsetSeconds=0;
 
 struct E2Config
 {
-   E2StrategyMode strategy_mode;
-   int range_start,range_end,breakout_start,breakout_end,atr_length;
-   E2StopMode stop_mode;
-   double atr_multiplier,target_r;
    int xau_range_start,xau_range_end,xau_atr_length,xau_trend_lookback_bars;
    double xau_atr_multiplier,xau_target_r,xau_trend_efficiency_min;
    E2XauTimeBasis xau_time_basis;
@@ -84,13 +63,7 @@ bool E2ValidClock(const int h,const int m){return(h>=0&&h<=23&&m>=0&&m<=59&&m%5=
 void E2LoadConfiguration(E2Config &c)
 {
    ZeroMemory(c);
-   c.strategy_mode=InpStrategyMode;
-   c.range_start=InpRangeStartHourLondon*60+InpRangeStartMinuteLondon;
-   c.range_end=InpRangeEndHourLondon*60+InpRangeEndMinuteLondon;
-   c.breakout_start=InpBreakoutStartHourLondon*60+InpBreakoutStartMinuteLondon;
-   c.breakout_end=InpBreakoutEndHourLondon*60+InpBreakoutEndMinuteLondon;
-   c.stop_mode=InpStopMode;c.atr_length=InpATRLength;c.atr_multiplier=InpATRMultiplier;
-   c.target_r=InpTargetR;c.one_trade_per_day=InpOneTradePerDay;c.broker_time_profile=InpBrokerTimeProfile;
+   c.one_trade_per_day=InpOneTradePerDay;c.broker_time_profile=InpBrokerTimeProfile;
    c.xau_range_start=InpXauRangeStartHour*60+InpXauRangeStartMinute;
    c.xau_range_end=InpXauRangeEndHour*60+InpXauRangeEndMinute;
    c.xau_atr_length=InpXauATRLength;c.xau_atr_multiplier=InpXauATRMultiplier;c.xau_target_r=InpXauTargetR;
@@ -108,21 +81,9 @@ void E2LoadConfiguration(E2Config &c)
 bool E2ValidateConfiguration(const E2Config &c,string &reason)
 {
    reason="";
-   if(c.strategy_mode!=E2_STRATEGY_LONDON_BREAKOUT&&c.strategy_mode!=E2_STRATEGY_XAU_SESSION_FADE)
-      {reason="Invalid strategy mode.";return(false);}
-   if(!E2ValidClock(InpRangeStartHourLondon,InpRangeStartMinuteLondon)||
-      !E2ValidClock(InpRangeEndHourLondon,InpRangeEndMinuteLondon)||
-      !E2ValidClock(InpBreakoutStartHourLondon,InpBreakoutStartMinuteLondon)||
-      !E2ValidClock(InpBreakoutEndHourLondon,InpBreakoutEndMinuteLondon))
-      {reason="London session clocks must be valid and aligned to M5.";return(false);}
-   if(c.range_start>=c.range_end||c.range_end>c.breakout_start||c.breakout_start>=c.breakout_end)
-      {reason="Require same-day rangeStart < rangeEnd <= breakoutStart < breakoutEnd.";return(false);}
-   if(c.stop_mode!=OPPOSITE_RANGE&&c.stop_mode!=ATR){reason="Invalid stop mode.";return(false);}
-   if(c.atr_length<1||c.atr_length>1000||!MathIsValidNumber(c.atr_multiplier)||c.atr_multiplier<=0||
-      !MathIsValidNumber(c.target_r)||c.target_r<=0){reason="ATR length 1..1000 and positive ATR multiplier/Target R required.";return(false);}
    if(!E2ValidClock(InpXauRangeStartHour,InpXauRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
       c.xau_range_start>=c.xau_range_end){reason="XAU range clocks must be valid, same-day, and aligned to M5.";return(false);}
-   if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC&&c.xau_time_basis!=E2_XAU_TIME_LONDON)
+   if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC)
       {reason="Invalid XAU time basis.";return(false);}
    if(c.xau_atr_length<1||c.xau_atr_length>1000||!MathIsValidNumber(c.xau_atr_multiplier)||c.xau_atr_multiplier<=0||
       !MathIsValidNumber(c.xau_target_r)||c.xau_target_r<=0){reason="XAU ATR length 1..1000 and positive ATR multiplier/Target R required.";return(false);}
@@ -140,7 +101,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
 
    return(true);
 }
-int E2ExposedInputCount(void){return(40);}
+int E2ExposedInputCount(void){return(27);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}

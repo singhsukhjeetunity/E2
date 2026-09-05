@@ -1,6 +1,6 @@
 #ifndef E2_BROKER_TIME_ADAPTER_MQH
 #define E2_BROKER_TIME_ADAPTER_MQH
-#include "E2LondonTime.mqh"
+#include "E2TimeUtils.mqh"
 #include "..\\reporting\\E2Logger.mqh"
 
 class E2BrokerTimeAdapter
@@ -61,12 +61,12 @@ public:
       FileClose(h);
       if(bad||seen!=511||m_id==""||m_source==""||m_server==""||m_server!=actual_server)return(Error("PROFILE_INVALID_OR_SERVER_MISMATCH"));
       if(test_only==1&&!tester)return(Error("TEST_ONLY_PROFILE_FORBIDDEN_IN_LIVE"));
-      if(m_from<E2_LONDON_FROM||m_until>E2_LONDON_UNTIL||m_until<=m_from)return(Error("PROFILE_COVERAGE_INVALID_OR_OUTSIDE_PINNED_LONDON_DATA"));
+      if(m_from<E2_TIME_FROM||m_until>E2_TIME_UNTIL||m_until<=m_from)return(Error("PROFILE_COVERAGE_INVALID"));
       if(initial < -50400||initial>50400||initial%60!=0)return(Error("PROFILE_OFFSET_INVALID"));
       int n=ArraySize(m_at);
       if((m_mode!="FIXED_OFFSET"&&m_mode!="UTC_TRANSITIONS")||(m_mode=="FIXED_OFFSET"&&n!=0)||(m_mode=="UTC_TRANSITIONS"&&n==0))return(Error("PROFILE_MODE_TRANSITIONS_INCONSISTENT"));
       datetime previous=m_from;int previous_offset=(int)initial;
-      string canonical="schema=1|"+m_id+"|"+m_server+"|"+m_mode+"|"+IntegerToString((long)m_from)+"|"+IntegerToString((long)m_until)+"|"+IntegerToString(initial)+"|test="+IntegerToString(test_only)+"|"+E2_LONDON_DATA_ID;
+      string canonical="schema=1|"+m_id+"|"+m_server+"|"+m_mode+"|"+IntegerToString((long)m_from)+"|"+IntegerToString((long)m_until)+"|"+IntegerToString(initial)+"|test="+IntegerToString(test_only);
       for(int i=0;i<n;i++)
       {
          if(m_at[i]<=previous||m_at[i]>=m_until||m_offset[i]==previous_offset)return(Error("PROFILE_TRANSITIONS_UNORDERED_OR_INVALID"));
@@ -81,14 +81,14 @@ public:
       if(CryptEncode(CRYPT_HASH_SHA256,bytes,key,hash)<=0)return(Error("PROFILE_DIGEST_FAILED"));
       for(int i=0;i<ArraySize(hash);i++)m_digest+=StringFormat("%02X",(uint)hash[i]);
       m_ready=true;
-      logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", testOnly="+IntegerToString(test_only)+", source="+m_source+", digest="+m_digest+", londonData="+E2_LONDON_DATA_ID+".","BROKER_TIME");
+      logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(initial)+", transitions="+IntegerToString(n)+", validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", testOnly="+IntegerToString(test_only)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
       return(true);
    }
    bool InitializeServerTimeProfile(const string actual_server,E2Logger &logger)
    {
       m_logger=&logger;m_ready=false;m_error="";m_digest="SERVER_TIME_PROFILE_V1";
-      m_id="E2_SERVER_TIME_INTERNAL_V1";m_server=actual_server;m_mode="FIXED_OFFSET";m_source="internal_server_time_for_non_london_strategy";
-      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;m_at[0]=m_from;m_offset[0]=0;
+      m_id="E2_SERVER_TIME_INTERNAL_V1";m_server=actual_server;m_mode="FIXED_OFFSET";m_source="internal_server_time_for_debugging";
+      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_TIME_FROM;m_until=E2_TIME_UNTIL;m_at[0]=m_from;m_offset[0]=0;
       m_ready=true;
       logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds=0, transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
       return(true);
@@ -100,7 +100,7 @@ public:
          return(Error("MANUAL_OFFSET_INVALID"));
       m_digest="MANUAL_FIXED_OFFSET_"+IntegerToString(offset_seconds);
       m_id="E2_MANUAL_FIXED_OFFSET";m_server=actual_server;m_mode="FIXED_OFFSET";m_source="manual_input";
-      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_LONDON_FROM;m_until=E2_LONDON_UNTIL;m_at[0]=m_from;m_offset[0]=offset_seconds;
+      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_from=E2_TIME_FROM;m_until=E2_TIME_UNTIL;m_at[0]=m_from;m_offset[0]=offset_seconds;
       m_ready=true;
       logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(offset_seconds)+", transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
       return(true);
@@ -121,11 +121,9 @@ public:
       for(int i=ArraySize(m_at)-1;i>=0;i--)if(utc>=m_at[i]){server=utc+m_offset[i];return(true);}
       return(false);
    }
-   bool London(const datetime server,datetime &local)const
-   {datetime utc;local=0;return(ServerToUtc(server,utc)&&E2UtcToLondon(utc,local));}
    bool Day(const datetime server,int &day)const
-   {datetime local;day=0;if(!London(server,local))return(false);day=E2CalendarDay(local);return(day>0);}
+   {datetime utc;day=0;if(!ServerToUtc(server,utc))return(false);day=E2CalendarDay(utc);return(day>0);}
    bool ValidateNow(const datetime server)
-   {datetime local;if(!London(server,local))return(Error("PROFILE_CURRENT_TIMESTAMP_UNCOVERED_OR_AMBIGUOUS"));return(true);}
+   {datetime utc;if(!ServerToUtc(server,utc))return(Error("PROFILE_CURRENT_TIMESTAMP_UNCOVERED_OR_AMBIGUOUS"));return(true);}
 };
 #endif
