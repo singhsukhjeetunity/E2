@@ -17,6 +17,7 @@ enum E2ExecutionStatus { E2_EXECUTION_EXECUTED, E2_EXECUTION_TRADING_DISABLED, E
 struct E2ExecutionResult
   {
    E2ExecutionStatus status;
+   bool submitted;
    uint retcode; string retcode_description; ulong order_ticket; ulong deal_ticket;
    double requested_volume; double executed_volume; double planned_entry_price; double requested_market_price; double actual_execution_price; double stop_loss_price; double take_profit_price;
    string symbol; E2TradeDirection direction;
@@ -44,7 +45,7 @@ private:
 
    void ResetResult(E2ExecutionResult &result)
      {
-      result.status=E2_EXECUTION_FAILED; result.retcode=0; result.retcode_description=""; result.order_ticket=0; result.deal_ticket=0; result.requested_volume=0.0; result.executed_volume=0.0; result.planned_entry_price=0.0; result.requested_market_price=0.0; result.actual_execution_price=0.0; result.stop_loss_price=0.0; result.take_profit_price=0.0; result.symbol=""; result.direction=E2_DIRECTION_NONE;
+      result.submitted=false;result.status=E2_EXECUTION_FAILED; result.retcode=0; result.retcode_description=""; result.order_ticket=0; result.deal_ticket=0; result.requested_volume=0.0; result.executed_volume=0.0; result.planned_entry_price=0.0; result.requested_market_price=0.0; result.actual_execution_price=0.0; result.stop_loss_price=0.0; result.take_profit_price=0.0; result.symbol=""; result.direction=E2_DIRECTION_NONE;
      }
    void Fail(E2ExecutionResult &result,const E2ExecutionStatus status,const string description="") const
      {
@@ -130,9 +131,10 @@ public:
       if(m_weekend!=NULL&&m_weekend.IsBlockedAt(submit_time))
          {m_weekend.LogEntryBlock(plan.setup_id,submit_time);Fail(result,E2_EXECUTION_WEEKEND_CUTOFF);return(false);}
       if(m_logger!=NULL) m_logger.Debug("Attempt direction="+E2TradeDirectionName(plan.direction)+", symbol="+plan.symbol+", volume="+DoubleToString(plan.volume,4)+", requestedEntry="+DoubleToString(plan.requested_entry_price,spec.digits)+", marketPrice="+DoubleToString(result.requested_market_price,spec.digits)+".","Execution");
+      result.submitted=true;
       const bool sent=(plan.direction==E2_DIRECTION_LONG ? m_trade.Buy(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment) : m_trade.Sell(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment));
       result.retcode=m_trade.ResultRetcode(); result.retcode_description=m_trade.ResultRetcodeDescription(); result.order_ticket=m_trade.ResultOrder(); result.deal_ticket=m_trade.ResultDeal(); result.executed_volume=m_trade.ResultVolume(); result.actual_execution_price=m_trade.ResultPrice();
-      if(!sent || !SuccessfulRetcode(result.retcode)) { Fail(result,TemporaryExecutionRetcode(result.retcode) ? E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE : E2_EXECUTION_ORDER_REJECTED); return(false); }
+      if(!sent || (!SuccessfulRetcode(result.retcode)&&result.retcode!=TRADE_RETCODE_PLACED)) { Fail(result,TemporaryExecutionRetcode(result.retcode) ? E2_EXECUTION_TRADE_CONTEXT_UNAVAILABLE : E2_EXECUTION_ORDER_REJECTED); return(false); }
       result.status=E2_EXECUTION_EXECUTED;
       if(m_safety!=NULL) m_safety.RecordSuccessfulExecution();
       return(true);

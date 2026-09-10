@@ -1,5 +1,5 @@
 #property strict
-#property version "4.0"
+#property version "4.1"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "include\\core\\E2Config.mqh"
@@ -45,6 +45,8 @@ int g_strategy_candidates=0;
 int g_trade_requests=0,g_new_positions_registered=0,g_recovered_positions_registered=0;
 E2ExecutionVerification g_execution_verify;
 E2RVerification g_r_verify;
+
+#include "include\\execution\\E2EntryLifecycle.mqh"
 
 string E2ActiveStrategyName(void)
   {
@@ -130,14 +132,16 @@ int OnInit()
       return(INIT_PARAMETERS_INCORRECT);
      }
    g_configuration.time_policy_digest=g_broker_time.Digest();
+   if(!E2LoadEntryIntent()){Print("[E2][ERROR] Invalid pending-entry journal; inspect before trading.");return(INIT_FAILED);}
    if(!g_trade_reporter.Initialize(g_configuration,_Symbol,g_logger))return(INIT_FAILED);
    g_reporter_ready=true;
    g_backtest_summary.Initialize(g_logger);
-   E2PositionMetadata recovered;bool has_recovered=false;if(!g_position_recovery.Initialize(g_configuration,_Symbol,g_environment.IsTester(),g_broker_time,g_logger,recovered,has_recovered))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day)g_position_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
+   E2PositionMetadata recovered;bool has_recovered=false;if(!g_position_recovery.Initialize(g_configuration,_Symbol,g_environment.IsTester(),g_broker_time,g_logger,recovered,has_recovered,g_entry_pending))return(INIT_FAILED);if(has_recovered){if(!g_trade_reporter.Register(recovered,true)){g_logger.Error("Recovered position could not be registered.","Recovery");return(INIT_FAILED);}g_recovered_positions_registered++;g_r_verify.recovered_positions_validated++;if(g_configuration.one_trade_per_day)g_position_recovery.ReconstructDayLock(recovered.entry_deal,recovered.entry_time);}
    g_xau_planner.Initialize(g_configuration,g_symbol_info,g_position_sizer,g_position_guard,g_position_recovery,g_weekend_flat,g_logger);
    E2EnforceWeekendFlat();
    if(!g_xau_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("XAU session-fade reconstruction failed.","Initialization");return(INIT_FAILED);}
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");
+   if(!EventSetTimer(1)){Print("[E2][ERROR] Could not start entry reconciliation timer.");return(INIT_FAILED);}
    g_initialized=true;
    g_logger.Info("Initialized in "+g_environment.Name()+". "+E2ActiveStrategyName()+" planning, execution, fixed-R protection, lifecycle reporting, and recovery are active.","Core");
    return(INIT_SUCCEEDED);
@@ -146,8 +150,10 @@ int OnInit()
 void OnTick()
   {
    if(!g_initialized)return;
+   E2ReconcileEntry();
    g_trade_reporter.Reconcile();g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
    E2EnforceWeekendFlat();
+   if(g_entry_pending)return;
    g_trade_reporter.ObserveBar(iTime(_Symbol,PERIOD_M5,1));
    E2Candidate candidates[];if(!g_xau_engine.Evaluate(candidates,g_position_recovery))return;
    E2SignalVerification verification=g_xau_engine.SignalVerification();
@@ -156,23 +162,50 @@ void OnTick()
      {
       g_trade_reporter.BeginCandidate(candidates[i]);E2OrderRequest request;E2PlanningAudit audit;bool planned=g_xau_planner.Build(candidates[i],request,audit);g_trade_reporter.RecordPlanning(candidates[i].candidate_id,audit);if(!planned)continue;g_trade_requests++;
       g_execution_verify.attempts++;E2ExecutionResult result;
-      string comment="E2XAU|"+StringSubstr(candidates[i].candidate_id,0,20);
-      if(!g_order_executor.Execute(request,comment,result)){g_execution_verify.failures++;g_trade_reporter.RecordExecutionFailure(candidates[i].candidate_id,result);continue;}
-      g_execution_verify.successes++;if(result.deal_ticket==0||!HistoryDealSelect(result.deal_ticket)){g_execution_verify.unresolved_entry_deals++;g_logger.Error("Successful execution has no authoritative entry deal.","Execution");continue;}
-      E2PositionMetadata m;ZeroMemory(m);m.candidate_id=candidates[i].candidate_id;m.execution_id=request.execution_id;m.symbol=request.symbol;m.direction=request.direction;m.signal_time=request.signal_time;m.entry_time=(datetime)HistoryDealGetInteger(result.deal_ticket,DEAL_TIME);m.entry_deal=result.deal_ticket;m.position_id=(ulong)HistoryDealGetInteger(result.deal_ticket,DEAL_POSITION_ID);for(int p=0;p<PositionsTotal();p++){ulong ticket=PositionGetTicket(p);if(ticket>0&&(ulong)PositionGetInteger(POSITION_IDENTIFIER)==m.position_id){m.position_ticket=ticket;break;}}m.volume=HistoryDealGetDouble(result.deal_ticket,DEAL_VOLUME);m.fill_price=HistoryDealGetDouble(result.deal_ticket,DEAL_PRICE);m.submitted_stop=request.submitted_stop_price;m.original_r=MathAbs(m.fill_price-m.submitted_stop);m.target_r=g_configuration.xau_target_r;m.requested_risk_cash=request.requested_risk_cash;
-      m.rule_day=candidates[i].rule_day;m.range_start_rule=candidates[i].range_start_rule;m.range_end_rule=candidates[i].range_end_rule;m.range_high=candidates[i].range_high;m.range_low=candidates[i].range_low;m.signal_close=candidates[i].signal_close;m.extension_distance=candidates[i].extension_distance;m.time_policy_digest=g_configuration.time_policy_digest;
-      if(m.original_r<=0.0){g_r_verify.invalid_r_geometry++;continue;}double raw_target=(m.direction==E2_DIRECTION_LONG?m.fill_price+m.original_r*m.target_r:m.fill_price-m.original_r*m.target_r);m.target_price=g_symbol_info.NormalizePrice(raw_target);
-      if((m.direction==E2_DIRECTION_LONG&&m.target_price<=m.fill_price)||(m.direction==E2_DIRECTION_SHORT&&m.target_price>=m.fill_price)){g_r_verify.invalid_r_geometry++;continue;}
-      if(!g_position_sizer.CalculateActualRisk(m.symbol,m.direction,m.volume,m.fill_price,m.submitted_stop,m.actual_risk_cash)){g_logger.Error("Actual entry risk could not be calculated.","Risk");continue;}g_position_sizer.RecordOriginalRiskCash(m.actual_risk_cash);
-      if(!g_position_recovery.Save(m)){g_logger.Error("Filled position recovery state could not be persisted.","Recovery");continue;}if(!g_trade_reporter.Register(m)){g_logger.Error("Filled position registration failed.","Reporting");continue;}g_new_positions_registered++;g_r_verify.new_positions_registered++;g_position_recovery.RecordLock();
-      uint rc=0;string desc;if(!g_order_executor.AttachProtection(m.symbol,m.position_id,m.submitted_stop,m.target_price,rc,desc)&&!g_order_executor.AttachProtection(m.symbol,m.position_id,m.submitted_stop,m.target_price,rc,desc)){g_execution_verify.protection_failures++;g_logger.Error("TP attachment failed after retry; position remains SL-protected and registered: "+desc,"Protection");}else g_r_verify.targets_attached++;
-      g_trade_reporter.RecordExecuted(candidates[i].candidate_id,result,m);
+      if(!E2BeginEntry(candidates[i],request))continue;
+      bool accepted=g_order_executor.Execute(request,g_entry_comment,result);
+      g_entry_result=result;
+      if(!accepted)
+        {
+         g_execution_verify.failures++;g_trade_reporter.RecordExecutionFailure(candidates[i].candidate_id,result);
+         // Timeout/connection/no-result may still have executed. Never retry or erase their intent.
+         uint rc=result.retcode;
+         bool refused=(rc==TRADE_RETCODE_REQUOTE||rc==TRADE_RETCODE_REJECT||rc==TRADE_RETCODE_INVALID||
+            rc==TRADE_RETCODE_INVALID_VOLUME||rc==TRADE_RETCODE_INVALID_PRICE||rc==TRADE_RETCODE_INVALID_STOPS||
+            rc==TRADE_RETCODE_TRADE_DISABLED||rc==TRADE_RETCODE_MARKET_CLOSED||rc==TRADE_RETCODE_NO_MONEY||
+            rc==TRADE_RETCODE_PRICE_CHANGED||rc==TRADE_RETCODE_PRICE_OFF||rc==TRADE_RETCODE_INVALID_FILL||
+            rc==TRADE_RETCODE_TOO_MANY_REQUESTS||rc==TRADE_RETCODE_CLIENT_DISABLES_AT||rc==TRADE_RETCODE_SERVER_DISABLES_AT);
+         bool uncertain=result.submitted&&(!refused||result.order_ticket>0||result.deal_ticket>0);
+         if(!uncertain){E2ClearEntryIntent();continue;}
+        }
+      else g_execution_verify.successes++;
+      if(!E2WriteEntryIntent())E2EntryAlert("Order result could not be persisted; original intent retained");
+      E2ReconcileEntry();
+      break;
      }
   }
 
 void OnDeinit(const int reason)
   {
+   EventKillTimer();
    if(g_reporter_ready){g_trade_reporter.Close();E2EmitVerification();g_reporter_ready=false;}
    g_xau_engine.Shutdown();
    g_initialized=false;
+  }
+
+void OnTimer()
+  {
+   if(!g_initialized)return;
+   E2ReconcileEntry();
+   g_trade_reporter.Reconcile();
+   g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
+   E2EnforceWeekendFlat();
+  }
+
+void OnTradeTransaction(const MqlTradeTransaction &transaction,const MqlTradeRequest &request,const MqlTradeResult &result)
+  {
+   if(!g_initialized||!g_entry_pending)return;
+   // Keep callbacks short; the timer also handles missing/out-of-order notifications.
+   if(transaction.type==TRADE_TRANSACTION_DEAL_ADD||transaction.type==TRADE_TRANSACTION_HISTORY_ADD)
+      {g_entry_retry_ms=0;E2ReconcileEntry();}
   }

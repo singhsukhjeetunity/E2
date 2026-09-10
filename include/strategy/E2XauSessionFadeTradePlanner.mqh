@@ -38,7 +38,9 @@ public:
       E2PositionSizingResult z;if(!m_sizer.CalculateRequestedRisk(c.symbol,c.direction,entry,stop,z,true)){m_verify.sizing_rejections++;a.status="SIZING_REJECTED";a.reason=E2SizingStatusName(z.status);return(false);}
       r.status=E2_ORDER_REQUEST_VALID;r.symbol=c.symbol;r.setup_id=c.candidate_id;r.signal_id=c.candidate_id;r.execution_id=c.candidate_id+"|"+IntegerToString((int)now);
       r.direction=c.direction;r.signal_time=c.signal_bar_time;r.signal_known_from=c.signal_known_time;r.request_time=now;
-      r.requested_entry_price=entry;r.structural_stop_price=raw;r.submitted_stop_price=stop;r.take_profit_price=0.0;
+      r.requested_entry_price=entry;r.structural_stop_price=raw;r.submitted_stop_price=stop;
+      // Broker-side TP is present even if deal history arrives after OrderSend.
+      r.take_profit_price=m_symbol.NormalizePrice(entry+(entry-stop)*m_config.xau_target_r);
       r.requested_risk_cash=z.target_risk_money;r.volume=z.volume;
       a.status="PLANNED";a.reason="REQUEST_CREATED";a.request_id=r.execution_id;a.execution_id=r.execution_id;
       a.requested_cash_risk=z.target_risk_money;a.calculated_volume=z.volume;m_verify.requests_created++;
