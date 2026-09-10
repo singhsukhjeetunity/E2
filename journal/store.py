@@ -1,5 +1,4 @@
 """Durable local journal; imports are atomic and never overwrite trade evidence."""
-import base64
 import csv
 import hashlib
 import json

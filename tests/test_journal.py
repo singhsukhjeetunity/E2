@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from journal.app import make_server
-from journal.model import HEADERS, SCHEMA, metrics, parse_csv
+from journal.model import HEADERS, SCHEMA, parse_csv
 from journal.store import Store, Watcher
 
 

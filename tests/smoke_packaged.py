@@ -8,7 +8,6 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 with tempfile.TemporaryDirectory() as directory:
     process = subprocess.Popen([sys.argv[1], "--no-browser", "--data-dir", directory, "--port", "18866"])

@@ -6,7 +6,6 @@ import io
 import json
 import os
 import secrets
-import sys
 import threading
 import webbrowser
 import urllib.request
