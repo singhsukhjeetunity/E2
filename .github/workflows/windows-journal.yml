@@ -1,0 +1,32 @@
+name: Windows Journal
+on:
+  push:
+    branches: [feature/standalone-journal]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+      - name: Offline journal tests
+        run: python -m unittest discover -s tests -p "test_journal.py" -v
+      - name: Install packager
+        run: python -m pip install pyinstaller==6.22.2
+      - name: Build standalone journal
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name E2-Journal --add-data "journal/index.html;journal" --add-data "journal/style.css;journal" --add-data "journal/app.js;journal" Open-E2-Journal.pyw
+      - name: Test packaged app without any broker
+        run: python tests/smoke_packaged.py dist/E2-Journal.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: E2-Journal-Windows
+          path: |
+            dist/E2-Journal.exe
+            JOURNAL_GUIDE.md
+          if-no-files-found: error
