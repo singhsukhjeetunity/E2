@@ -28,6 +28,7 @@ double sl=90,tp=116.5,position_volume=1,expected_volume=1;
 int registrations=0,modifications=0,saves=0;
 struct Deal {unsigned long id,order,pid,magic;long entry,type;double volume,price;};
 std::vector<Deal> deals;
+std::vector<string> disk,temp_disk;size_t read_index=0;
 Deal& deal(unsigned long id){for(auto& d:deals)if(d.id==id)return d;throw 1;}
 template<class T>void ZeroMemory(T& x){x=T{};}
 template<class... T>void Print(T... args){}
@@ -40,13 +41,13 @@ void StringReplace(string& s,const string& from,const string& to){size_t p;while
 long AccountInfoInteger(int){return 1;} string AccountInfoString(int){return "demo";}
 unsigned long GetTickCount64(){return clock_ms;}
 datetime TimeCurrent(){return 2000;}
-int FileOpen(const string&,int,char){return 1;}
-template<class... T>unsigned int FileWrite(int,T...){return 1;}
+int FileOpen(const string&,int,char){read_index=0;return 1;}
+template<class... T>unsigned int FileWrite(int,T... values){temp_disk={string(values)...};return 1;}
 void FileFlush(int){} void FileClose(int){}
-bool FileMove(const string&,int,const string&,int){journal=true;return true;}
+bool FileMove(const string&,int,const string&,int){journal=true;disk=temp_disk;return true;}
 bool FileIsExist(const string&){return journal;}
 bool FileDelete(const string&){if(delete_ok)journal=false;return delete_ok;}
-bool FileIsEnding(int){return true;} string FileReadString(int){return "";}
+bool FileIsEnding(int){return read_index>=disk.size();} string FileReadString(int){return disk.at(read_index++);}
 bool MathIsValidNumber(double x){return std::isfinite(x);}double MathAbs(double x){return std::abs(x);}
 bool HistorySelect(datetime,datetime){return history_ok;}int HistoryDealsTotal(){return deals.size();}
 unsigned long HistoryDealGetTicket(int i){return deals[i].id;}
@@ -87,5 +88,14 @@ int main(){
  reset();deals={{8,7,42,77,DEAL_ENTRY_IN,DEAL_TYPE_BUY,.4,100}};E2ReconcileEntry();assert(g_entry_pending);deals.push_back({9,7,42,77,DEAL_ENTRY_IN,DEAL_TYPE_BUY,.6,102});retry();assert(!g_entry_pending&&tp==118);
  reset();filled();g_entry_restarted=true;E2ReconcileEntry();assert(!g_entry_pending&&g_recovered_positions_registered==1);
  reset();filled();position_open=false;E2ReconcileEntry();assert(g_entry_pending);deals.push_back({9,9,42,77,DEAL_ENTRY_OUT,DEAL_TYPE_BUY,1,115});retry();assert(!g_entry_pending&&registrations==1);
- std::cout<<"10 production reconciliation scenarios passed\n";
+ reset();journal=false;assert(E2LoadEntryIntent());
+ E2Candidate candidate{};candidate.candidate_id="candidate";
+ E2OrderRequest request{};request.execution_id="execution";request.symbol="XAUUSD";request.direction=E2_DIRECTION_LONG;
+ request.signal_time=900;request.request_time=1000;request.submitted_stop_price=90;request.requested_risk_cash=10;request.volume=1;
+ assert(E2BeginEntry(candidate,request));assert(journal&&disk.size()==24);
+ g_entry={};g_entry_pending=false;assert(E2LoadEntryIntent());assert(g_entry_pending&&g_entry_restarted&&g_entry.submitted_stop==90&&g_entry.execution_id=="execution");
+ auto saved=disk;disk[2]="wrong-server";assert(!E2LoadEntryIntent());disk=saved;
+ disk.pop_back();assert(!E2LoadEntryIntent());disk=saved;
+ disk[11]="nan";assert(!E2LoadEntryIntent());
+ std::cout<<"14 production reconciliation and durable-journal scenarios passed\n";
 }
