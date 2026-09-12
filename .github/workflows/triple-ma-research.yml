@@ -1,0 +1,26 @@
+name: TripleMA research checks
+on:
+  push:
+    branches: [research/triple-ma]
+  pull_request:
+    paths:
+      - 'research/TripleMA/**'
+      - 'tests/triple_ma_core.cpp'
+      - 'tests/test_triple_ma_contract.py'
+      - '.github/workflows/triple-ma-research.yml'
+permissions:
+  contents: read
+jobs:
+  research-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Compile actual signal and risk helper tests (not an MQL compilation)
+        run: g++ -std=c++17 -Wall -Wextra -pedantic tests/triple_ma_core.cpp -o /tmp/triple-ma-core
+      - name: Signal and risk checks
+        run: /tmp/triple-ma-core
+      - name: Journal import compatibility and regression checks
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
