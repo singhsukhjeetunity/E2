@@ -71,4 +71,15 @@ datetime NPDeadline(const datetime utc) {
    if(close<=0)return utc;
    return NPNyToUtc(NPDate(t.year,t.mon,t.day)+(close-5)*60);
 }
+// End wall time may be midnight or cross midnight. Ignore API date fields.
+datetime NPSessionEnd(const datetime day,const datetime from,const datetime to) {
+   int a=(int)(from%86400),b=(int)(to%86400);
+   return day+b+(b<=a?86400:0);
+}
+datetime NPEarlierExit(const datetime planned,const datetime broker_end,const int buffer) {
+   datetime cutoff=broker_end-buffer*60;
+   return cutoff<planned?cutoff:planned;
+}
+bool NPExitOverdue(const datetime now,const datetime deadline) {return now>deadline+60;}
+bool NPRetryClose(const datetime now,const datetime last) {return last==0||now-last>=5;}
 #endif

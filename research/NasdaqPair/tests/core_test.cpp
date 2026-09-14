@@ -62,4 +62,22 @@ int main() {
     assert(NPCloseMinute(NPDate(2027,1,4,15))==-1);
     assert(NPDeadline(NPDate(2024,7,3,15))==NPDate(2024,7,3,16,55));
     assert(NPDeadline(NPDate(2024,1,3,15))==NPDate(2024,1,3,20,55));
+    // Friday broker close precedes the planned cash exit (UTC+2 feed).
+    auto fri=NPDate(2024,7,5);
+    auto end=NPSessionEnd(fri,60,21*3600);
+    assert(end==fri+21*3600);
+    assert(NPEarlierExit(NPDate(2024,7,5,19,55),end-7200,5)==NPDate(2024,7,5,18,55));
+    // Midnight and overnight ends, plus broker close later than cash close.
+    assert(NPSessionEnd(fri,3600,86400)==fri+86400);
+    assert(NPSessionEnd(fri,22*3600,2*3600)==fri+26*3600);
+    assert(NPEarlierExit(fri+19*3600,fri+23*3600,5)==fri+19*3600);
+    // Exact deadline / grace boundaries; Sunday completion must be invalid.
+    auto deadline=fri+19*3600;
+    assert(!NPExitOverdue(deadline,deadline));
+    assert(!NPExitOverdue(deadline+60,deadline));
+    assert(NPExitOverdue(deadline+61,deadline));
+    assert(NPExitOverdue(fri+3*86400,deadline));
+    assert(NPRetryClose(deadline,0));
+    assert(!NPRetryClose(deadline+4,deadline));
+    assert(NPRetryClose(deadline+5,deadline));
 }

@@ -40,6 +40,7 @@ const double InpNRCashRisk=1000.0;
 const ulong InpNRMagic=2026091401;
 #endif
 input group "Execution and reporting"
+input int InpBrokerCloseBufferMinutes=5; // Exit before the active broker session ends
 input double InpMaxSpreadPriceUnits=4.0;
 input double InpMaxDeviationPriceUnits=0.5;
 input int InpMaxEntryDelaySeconds=5;
@@ -49,7 +50,8 @@ struct NPRecord {
    string id,strategy,status,integrity,exit_reason;
    int slot;
    ulong order,position;
-   datetime requested,entry,exit,deadline;
+   datetime requested,entry,exit,deadline,last_close_attempt;
+   bool closing;
    long entry_msc,exit_msc;
    double volume,fill,sl,tp,risk_cash,net,requested_distance,requested_risk;
 };
@@ -183,13 +185,49 @@ bool Feed(const datetime server_now,const datetime utc_now) {
       if(g_slots[s].has_bar && g_slots[s].forming.start+PeriodMinutes(s)*60<=(long)utc_now)FinalBar(s);
    return !g_failed;
 }
+// Resolve the session containing the entry, including overnight sessions.
+// Never assume the broker remains tradable until the US cash close.
+bool ExitDeadline(const datetime now,datetime &deadline) {
+   datetime server=NPToServer(now,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds);
+   MqlDateTime t;TimeToStruct(server,t);
+   datetime midnight=NPDate(t.year,t.mon,t.day),end=0;
+   for(int back=0;back<=1;back++) {
+      datetime day=midnight-back*86400;MqlDateTime d;TimeToStruct(day,d);
+      for(uint j=0;j<64;j++) {
+         datetime from=0,to=0;
+         if(!SymbolInfoSessionTrade(_Symbol,(ENUM_DAY_OF_WEEK)d.day_of_week,j,from,to))break;
+         if(from==0&&to==0)continue;
+         datetime start=day+from%86400,finish=NPSessionEnd(day,from,to);
+         if(server>=start&&server<finish&&(end==0||finish<end))end=finish;
+      }
+   }
+   if(end==0)return false;
+   datetime end_utc;if(!Utc(end,end_utc))return false;
+   deadline=NPEarlierExit(NPDeadline(now),end_utc,InpBrokerCloseBufferMinutes);
+   return true;
+}
+void MarkOverdue(const int k,const datetime now) {
+   if(!NPExitOverdue(now,g_records[k].deadline))return;
+   if(StringFind(g_records[k].integrity,"EXIT_DEADLINE_MISSED")<0) {
+      if(g_records[k].integrity!="")g_records[k].integrity+="|";
+      g_records[k].integrity+="EXIT_DEADLINE_MISSED";
+      Audit(g_records[k].slot,now,"EXIT_DEADLINE_MISSED",Stamp(g_records[k].deadline));
+   }
+   Fail("Exit deadline missed; this run is invalid");
+}
 bool ClosePosition(const int s,const ulong ticket,const string reason) {
    int i=g_slots[s].active;
-   if(i>=0)g_records[i].exit_reason=reason;
+   datetime now;if(!Utc(TimeCurrent(),now))return false;
+   if(i>=0) {
+      if(g_records[i].closing||!NPRetryClose(now,g_records[i].last_close_attempt))return false;
+      g_records[i].last_close_attempt=now;g_records[i].closing=true;
+      g_records[i].exit_reason=reason;
+   }
    g_trade.SetExpertMagicNumber(Magic(s));
    bool sent=g_trade.PositionClose(ticket);
+   if(i>=0)g_records[i].closing=false;
    if(!sent || (g_trade.ResultRetcode()!=TRADE_RETCODE_DONE && g_trade.ResultRetcode()!=TRADE_RETCODE_DONE_PARTIAL))
-      {Audit(s,TimeCurrent(),"CLOSE_PENDING",g_trade.ResultRetcodeDescription());return false;}
+      {Audit(s,now,"CLOSE_PENDING",g_trade.ResultRetcodeDescription());return false;}
    return true;
 }
 void Reconcile(const int s,const datetime now) {
@@ -249,6 +287,7 @@ void Reconcile(const int s,const datetime now) {
    }
    ulong ticket=PositionFor(s,g_records[k].position);
    if(ticket>0) {
+      MarkOverdue(k,now);
       if(now>=g_records[k].deadline)ClosePosition(s,ticket,"SESSION_CLOSE");
       return;
    }
@@ -271,6 +310,7 @@ void Reconcile(const int s,const datetime now) {
    }
    if(vin<=0||MathAbs(vin-vout)>1e-8)return;
    Utc(last,g_records[k].exit);g_records[k].exit_msc=(long)g_records[k].exit*1000+last_msc%1000;
+   MarkOverdue(k,g_records[k].exit);
    g_records[k].net=net;g_records[k].status="FINALIZED";g_records[k].exit_reason=reason;
    g_cash[s]+=net;g_r[s]+=net/g_records[k].risk_cash;
    g_slots[s].last_exit_minute=g_records[k].exit-g_records[k].exit%60;
@@ -291,6 +331,9 @@ void Enter(const int s,const datetime now) {
    }
    if(g_slots[s].active>=0 || PositionFor(s)>0){Audit(s,now,"SKIP","strategy already occupied");return;}
    if(now-now%60<=g_slots[s].last_exit_minute)return;
+   datetime deadline;
+   if(!ExitDeadline(now,deadline)){Audit(s,now,"SKIP","broker session schedule unavailable");return;}
+   if(now>=deadline){Audit(s,now,"SKIP","broker session exit cutoff reached");return;}
    MqlTick q;if(!SymbolInfoTick(_Symbol,q)||q.ask<=q.bid||q.bid<=0)return;
    double spread=q.ask-q.bid;
    if(spread>InpMaxSpreadPriceUnits){Audit(s,now,"SKIP","spread exceeds price-unit cap");return;}
@@ -325,7 +368,8 @@ void Enter(const int s,const datetime now) {
    g_records[n].id=req.comment;g_records[n].strategy=Strategy(s);g_records[n].slot=s;
    g_records[n].requested=TimeCurrent();g_records[n].status="UNCONFIRMED";
    g_records[n].sl=sl;g_records[n].tp=tp;g_records[n].requested_distance=distance;
-   g_records[n].requested_risk=cash;g_records[n].deadline=NPDeadline(now);
+   g_records[n].requested_risk=cash;g_records[n].deadline=deadline;
+   Audit(s,now,"EXIT_DEADLINE",Stamp(deadline));
    g_slots[s].active=n;g_slots[s].pending=true; // Reserve before submission, never resend.
    bool ok=OrderSend(req,result);g_records[n].order=result.order;
    if(!ok || (result.retcode!=TRADE_RETCODE_DONE && result.retcode!=TRADE_RETCODE_PLACED &&
@@ -390,7 +434,7 @@ int OnInit() {
    }
    if(InpNRLookback<2||InpNRLookback>32||InpATRLength<1||InpEMAFast<1||InpEMASlow<=InpEMAFast||
       InpNRCashRisk<=0||InpEMACashRisk<=0||InpNRStopATR<=0||InpEMAStopATR<=0||InpEMATargetR<=0||
-      InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
+      InpBrokerCloseBufferMinutes<1||InpBrokerCloseBufferMinutes>120||InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
       InpNRMagic==0||InpEMAMagic==0||InpNRMagic==InpEMAMagic||InpIndicatorSeedUtc<D'2022.01.01')return INIT_PARAMETERS_INCORRECT;
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
    datetime now;if(!Utc(TimeCurrent(),now))return INIT_FAILED;
@@ -401,10 +445,11 @@ int OnInit() {
       if(Enabled(s)&&PositionFor(s)>0){Print("[NP] Unexpected pre-existing research position.");return INIT_FAILED;}
       g_cash[s]=0;g_r[s]=0;
    }
-   string canonical=StringFormat("NP_V1|%d|%d|%d|%I64d|%d|%d|%d|%d|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%d",
+   string canonical=StringFormat("NP_V2|%d|%d|%d|%I64d|%d|%d|%d|%d|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%d",
       NP_SELECTED_STRATEGY,(int)InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,(long)InpIndicatorSeedUtc,
       InpNRLookback,InpATRLength,InpEMAFast,InpEMASlow,InpNRStopATR,InpEMAStopATR,InpEMATargetR,
       InpNRCashRisk,InpEMACashRisk,InpMaxSpreadPriceUnits,InpMaxDeviationPriceUnits,InpMaxEntryDelaySeconds);
+   canonical+="|"+IntegerToString(InpBrokerCloseBufferMinutes);
    g_config=Hash(canonical);
    g_run="NP_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {
@@ -422,6 +467,7 @@ int OnInit() {
    g_trade.SetDeviationInPoints((ulong)MathCeil(InpMaxDeviationPriceUnits/_Point));
    if(!Feed(TimeCurrent(),now) && g_failed)return INIT_FAILED;
    for(int s=0;s<2;s++)g_slots[s].seen_signal=g_slots[s].signal_time;
+   if(!EventSetTimer(1)){Print("[NP] Cannot start exit timer.");return INIT_FAILED;}
    g_test_from=now;g_ready=true;
    Print("[NP] Research run ",g_run,". M1-derived UTC bars. Settings: ",canonical);
    return INIT_SUCCEEDED;
@@ -432,6 +478,11 @@ void OnTick() {
    for(int s=0;s<2;s++)Reconcile(s,now);
    if(!g_failed && Feed(TimeCurrent(),now))for(int s=0;s<2;s++)Enter(s,now);
    Equity(now);
+}
+void OnTimer() {
+   if(!g_ready)return;
+   datetime now;if(!Utc(TimeCurrent(),now))return;
+   for(int s=0;s<2;s++)Reconcile(s,now);
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &req,const MqlTradeResult &res) {
    if(!g_ready)return;
@@ -452,6 +503,7 @@ double OnTester() {
    return g_failed?-1e100:g_r[0]+g_r[1];
 }
 void OnDeinit(const int reason) {
+   EventKillTimer();
    if(g_ready){
       datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<2;s++)Reconcile(s,now);
       ExportTrades(NP_SELECTED_STRATEGY==0?"NR4":"EMA",NP_SELECTED_STRATEGY);

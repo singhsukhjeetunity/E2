@@ -62,10 +62,30 @@ python .\research\NasdaqPair\analyze_run.py "FULL_PATH_TO_NR4_T.csv" --equity "F
 
 Supply the actual tester interval; end is exclusive. Any combined-labelled fields from an individual run describe that run only, not both EAs.
 
-## Known issue deliberately deferred
+## Previous results
 
-The previous combined test contained positions held across weekends. This split **does not fix** missed session exits, missing overdue-exit integrity flags, or the server-time timestamp used by CLOSE_PENDING diagnostics. Those need a separate investigation. A successful compilation or unit test does not validate those results or authorize deployment. The analyzer rejects weekend settlements; do not bypass that rejection to claim validation.
+Previous exports contain weekend-held trades and must be rerun after the
+exit fix below. Do not bypass the analyzer's integrity checks.
 
 ## Gold EA rename
 
-At the repository root, `E2.mq5` is now `XAU_Session_Fade.mq5`, with identical source contents and the same `include` folder, inputs, magic number and report labels. Compiling creates `XAU_Session_Fade.ex5`. Existing `E2.ex5` copies on a VPS are not automatically renamed or removed. Do not attach both to the same account. This research-branch rename does not update your running main-branch installation.
+At the repository root, `E2.mq5` is now `XAU_Session_Fade.mq5`, with the XAUUSD-only restriction removed and the same `include` folder, inputs, magic number and report labels. Compiling creates `XAU_Session_Fade.ex5`. Existing `E2.ex5` copies on a VPS are not automatically renamed or removed. Do not attach both to the same account. This research-branch rename does not update your running main-branch installation.
+
+## Broker session exit fix (NP_V2)
+
+Both standalone EAs now use the earlier of the scheduled US exit and
+`InpBrokerCloseBufferMinutes` (default 5) before the active broker trading
+session ends. This also closes before intraday broker breaks. Entries at or
+after that deadline, or without a resolvable session, are skipped.
+Failed/partial closes are retried at five-second intervals on ticks and a timer.
+The timer uses observed server time; it cannot create missing ticks or execute
+while the broker is closed. Exits over 60 seconds late receive
+`EXIT_DEADLINE_MISSED`, stop new entries and invalidate the tester score.
+Existing positions continue to be managed. CLOSE_PENDING timestamps are UTC.
+
+Recompile both EAs; rerun NR4 on the same USTEC dates, clock and cost settings.
+Check the journal for EXIT_DEADLINE / CLOSE_PENDING / EXIT_DEADLINE_MISSED.
+Require no weekend-held trades and no integrity flags. A failure is evidence
+to inspect the broker session schedule, clock and tick coverage, not to ignore.
+Weekly broker schedules may not represent historical exceptional closures.
+Session API: https://www.mql5.com/en/docs/marketinformation/symbolinfosessiontrade

@@ -42,7 +42,10 @@ Set spread/deviation appropriately for the instrument before testing.
 Indicator seed default: 2022-01-01 UTC; full M1 history required from seed.
 If history starts later, explicitly set a supported later seed and test date.
 Calendar supported: 2022-2026. Both EAs remain Strategy Tester only.
-Known session/weekend exit problems are deferred, not fixed by this change.
+Broker session guard: exit 5 minutes before the active broker session ends
+if earlier than the scheduled US exit. Editable buffer: 1-120 minutes.
+A missed exit by more than 60 seconds invalidates the run; closes keep retrying.
+Recompile and rerun to validate this fix against your broker history.
 
 CLOCK / CROSS-MARKET TESTING
 Choose a verified historical broker UTC offset and DST policy; no universal
