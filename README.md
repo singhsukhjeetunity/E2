@@ -20,3 +20,5 @@ Developer checks:
 python -m unittest discover -s tests -p "test_journal.py" -v
 python -m unittest discover -s research/NasdaqPair/tests -p "test_*.py" -v
 ```
+
+All three strategies accept the selected symbol. See [STRATEGY_REFERENCE.txt](STRATEGY_REFERENCE.txt) for original markets, baseline settings, units and remaining test requirements.

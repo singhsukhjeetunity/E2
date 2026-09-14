@@ -53,14 +53,6 @@ string E2ActiveStrategyName(void)
    return("XAU_SESSION_FADE");
   }
 
-bool E2SymbolAllowedForStrategy(void)
-  {
-   string base=SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE);
-   string profit=SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT);
-   string s=_Symbol;StringToUpper(s);
-   return((base=="XAU"&&profit=="USD")||(StringFind(s,"XAU")>=0&&StringFind(s,"USD")>=0));
-  }
-
 void E2EnforceWeekendFlat(void)
   {
    datetime now=TimeCurrent();if(!g_weekend_flat.IsBlockedAt(now))return;ulong ticket=0,position_id=0;if(!g_position_guard.FindOpenE2Position(_Symbol,ticket,position_id))return;if(!g_weekend_flat.ShouldAttemptClose(ticket,now))return;
@@ -113,7 +105,6 @@ int OnInit()
    g_execution_safety.Initialize(g_configuration,g_logger);
    g_weekend_flat.Initialize(g_configuration,_Symbol,g_logger);
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_weekend_flat,g_broker_time,g_logger);
-   if(!E2SymbolAllowedForStrategy()){g_logger.Error("Selected strategy is not allowed on this symbol.","Initialization");return(INIT_PARAMETERS_INCORRECT);}
    if(g_configuration.broker_time_profile!="")
      {
       if(!g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),g_environment.IsTester(),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
