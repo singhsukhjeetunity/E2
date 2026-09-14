@@ -7,7 +7,7 @@ The pending intent is saved before submission in the terminal's local Files fold
 ## Test before updating the eval
 
 1. Wait for the currently open eval trade to close. Version 4.1 cannot reconstruct the missing intent from the old version's failed registration; do not replace the running EA during that trade.
-2. Download main. Copy `E2.mq5` and the complete `include` folder to a separate demo/test installation. Compile with MetaEditor; require zero errors.
+2. Download this branch. Copy `XAU_Session_Fade.mq5` and the complete `include` folder to a separate demo/test installation. Compile with MetaEditor; require zero errors.
 3. Rerun your original XAUUSD M5 backtest with the same inputs. Confirm trade counts/results and inspect any changed trade, accounting for the new initial TP.
 4. On demo, confirm each order has SL and TP immediately. Look for `ENTRY_CONFIRMED` with the actual fill, original SL and final target. For a buy, final TP is fill + 1.5 × (fill − SL), rounded to the symbol's price tick.
 5. Test delayed confirmation, repeated trade events and a rejected protection modification on demo. The EA must block further entries and reconcile without resending an order.

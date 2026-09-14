@@ -1,4 +1,4 @@
-"""Analyze ONE combined NasdaqPair tester run. Python 3.10+, standard library only."""
+"""Analyze ONE Nasdaq research tester run (single strategy or legacy combined). Python 3.10+, standard library only."""
 import argparse
 import csv
 import datetime as dt
@@ -51,7 +51,7 @@ def load_trades(rows, start, end):
     runs = {t["run_id"] for t in rows}
     configs = {t["config_hash"] for t in rows}
     if len(runs) != 1 or len(configs) != 1:
-        raise ValueError("Use one BOTH run, not ledgers from different tester runs.")
+        raise ValueError("Use one run, not ledgers from different tester runs.")
     ids, out = set(), []
     for t in rows:
         if t["trade_id"] in ids:
@@ -159,7 +159,7 @@ def analyze(rows, start, end, equity=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("trades", help="ONE *_ALL_T.csv from BOTH mode")
+    parser.add_argument("trades", help="ONE *_NR4_T.csv or *_EMA_T.csv (legacy *_ALL_T.csv also supported)")
     parser.add_argument("--equity", help="Matching *_E.csv")
     parser.add_argument("--start", required=True, type=dt.date.fromisoformat)
     parser.add_argument("--end", required=True, type=dt.date.fromisoformat, help="Exclusive tester end date")

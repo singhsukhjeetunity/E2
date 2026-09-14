@@ -3,7 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from analyze_pair import analyze, drawdown, corr, NAMES
+from analyze_run import analyze, drawdown, corr, NAMES
 
 START, END=dt.date(2024,1,1),dt.date(2025,1,1)
 def row(i, day, result, strategy=0, hour=16):

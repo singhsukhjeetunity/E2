@@ -1,29 +1,44 @@
-#property strict
-#property version "0.10"
-#property description "Nasdaq research pair. Strategy Tester only; not a live EA."
+#ifndef NASDAQ_RESEARCH_ENGINE_MQH
+#define NASDAQ_RESEARCH_ENGINE_MQH
 #include <Trade/Trade.mqh>
 #include "NasdaqPairCore.mqh"
 #include "NasdaqPairClock.mqh"
 
-enum NPMode { NP_NR4_ONLY=0, NP_EMA_ONLY=1, NP_BOTH=2 };
-input group "Research selection"
-input NPMode InpMode=NP_BOTH;
+// Each entry EA fixes one strategy at compile time. No combined mode exists.
+#ifdef NP_NR4_ENTRY
+const int NP_SELECTED_STRATEGY=0;
+#else
+const int NP_SELECTED_STRATEGY=1;
+#endif
+input group "Historical broker time"
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
 input int InpBrokerWinterUtcOffsetSeconds=0;
 input datetime InpIndicatorSeedUtc=D'2022.01.01 00:00';
-input group "Frozen strategy defaults"
-input int InpNRLookback=4;
+input group "Strategy settings"
 input int InpATRLength=14;
+#ifdef NP_NR4_ENTRY
+input int InpNRLookback=4;
+input double InpNRStopATR=1.0;
+const int InpEMAFast=20,InpEMASlow=50;
+const double InpEMAStopATR=3.0,InpEMATargetR=0.5;
+input group "Risk and identification"
+input double InpNRCashRisk=1000.0;
+input ulong InpNRMagic=2026091401;
+const double InpEMACashRisk=1000.0;
+const ulong InpEMAMagic=2026091402;
+#else
 input int InpEMAFast=20;
 input int InpEMASlow=50;
-input double InpNRStopATR=1.0;
 input double InpEMAStopATR=3.0;
 input double InpEMATargetR=0.5;
-input group "Independent cash risk"
-input double InpNRCashRisk=1000.0;
+const int InpNRLookback=4;
+const double InpNRStopATR=1.0;
+input group "Risk and identification"
 input double InpEMACashRisk=1000.0;
-input ulong InpNRMagic=2026091401;
 input ulong InpEMAMagic=2026091402;
+const double InpNRCashRisk=1000.0;
+const ulong InpNRMagic=2026091401;
+#endif
 input group "Execution and reporting"
 input double InpMaxSpreadPriceUnits=4.0;
 input double InpMaxDeviationPriceUnits=0.5;
@@ -57,7 +72,7 @@ bool g_ready=false,g_failed=false,g_seeded=false;
 double g_cash[2],g_r[2];
 double g_equity_peak=0,g_equity_dd=0;
 
-bool Enabled(const int s) {return InpMode==NP_BOTH || (int)InpMode==s;}
+bool Enabled(const int s) {return NP_SELECTED_STRATEGY==s;}
 int PeriodMinutes(const int s) {return s==0?60:30;}
 ulong Magic(const int s) {return s==0?InpNRMagic:InpEMAMagic;}
 string Strategy(const int s) {return s==0?"NP_NR4_H1_SHORT":"NP_EMA_M30_LONG";}
@@ -377,20 +392,17 @@ int OnInit() {
       InpNRCashRisk<=0||InpEMACashRisk<=0||InpNRStopATR<=0||InpEMAStopATR<=0||InpEMATargetR<=0||
       InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
       InpNRMagic==0||InpEMAMagic==0||InpNRMagic==InpEMAMagic||InpIndicatorSeedUtc<D'2022.01.01')return INIT_PARAMETERS_INCORRECT;
-   if(InpMode==NP_BOTH && AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING) {
-      Print("[NP] BOTH requires a hedging tester account. Use an individual mode on netting accounts.");return INIT_PARAMETERS_INCORRECT;
-   }
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
    datetime now;if(!Utc(TimeCurrent(),now))return INIT_FAILED;
    MqlDateTime initial;TimeToStruct(now,initial);
    if(initial.year<2022||initial.year>2026){Print("[NP] Calendar supports 2022-2026.");return INIT_PARAMETERS_INCORRECT;}
    for(int s=0;s<2;s++){
       ZeroMemory(g_slots[s]);NPReset(g_slots[s].indicators);g_slots[s].active=-1;
-      if(PositionFor(s)>0){Print("[NP] Unexpected pre-existing research position.");return INIT_FAILED;}
+      if(Enabled(s)&&PositionFor(s)>0){Print("[NP] Unexpected pre-existing research position.");return INIT_FAILED;}
       g_cash[s]=0;g_r[s]=0;
    }
    string canonical=StringFormat("NP_V1|%d|%d|%d|%I64d|%d|%d|%d|%d|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%d",
-      (int)InpMode,(int)InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,(long)InpIndicatorSeedUtc,
+      NP_SELECTED_STRATEGY,(int)InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,(long)InpIndicatorSeedUtc,
       InpNRLookback,InpATRLength,InpEMAFast,InpEMASlow,InpNRStopATR,InpEMAStopATR,InpEMATargetR,
       InpNRCashRisk,InpEMACashRisk,InpMaxSpreadPriceUnits,InpMaxDeviationPriceUnits,InpMaxEntryDelaySeconds);
    g_config=Hash(canonical);
@@ -442,10 +454,12 @@ double OnTester() {
 void OnDeinit(const int reason) {
    if(g_ready){
       datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<2;s++)Reconcile(s,now);
-      ExportTrades("ALL",-1);ExportTrades("NR4",0);ExportTrades("EMA",1);
+      ExportTrades(NP_SELECTED_STRATEGY==0?"NR4":"EMA",NP_SELECTED_STRATEGY);
       Print("[NP] Closed net R=",g_r[0]+g_r[1]," tick-observed combined cash DD=",g_equity_dd,
          " failed=",g_failed,". CSV: Common\\Files\\E2\\Research\\Nasdaq\\",g_run);
    }
    if(g_signals!=INVALID_HANDLE){FileFlush(g_signals);FileClose(g_signals);}
    if(g_equity!=INVALID_HANDLE){FileFlush(g_equity);FileClose(g_equity);}
 }
+
+#endif
