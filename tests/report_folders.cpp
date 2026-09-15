@@ -31,11 +31,13 @@ int main(){
  assert(E2PathPart("EUR/USD")!=E2PathPart("EUR_USD"));
  assert(E2PathPart("CON")=="v-CON");
  assert(E2PathPart("../USD").find('/')==string::npos);
- string run="run1",path;
- assert(E2ReportFolder("EMAPullback","USTEC",run,path));
- assert(path=="E2\\Reports\\Backtests\\v-Broker-Demo_123\\EMAPullback\\v-USTEC\\run1");
- run="run1";assert(E2ReportFolder("EMAPullback","USTEC",run,path));assert(run=="run1_1");
- tester=false;run="run1";assert(E2ReportFolder("GoldSessionFade","XAUUSD",run,path));assert(path.find("\\Demo\\")!=string::npos);
- mode=99;run="run1";assert(E2ReportFolder("GoldSessionFade","XAUUSD",run,path));assert(path.find("\\Live\\")!=string::npos);
- directories.clear();files.insert("E2");assert(!E2ReportFolder("EMAPullback","USTEC",run,path));
+ string path;
+ assert(E2ReportFolder("EMAPullback",path));assert(path=="E2\\EMAPullback");
+ assert(E2ReportFolder("EMAPullback",path));assert(directories.size()==2);
+ assert(E2ReportBase("USTEC","run1")!=E2ReportBase("USTEC","run2"));
+ auto test=E2ReportBase("USTEC","run1");tester=false;
+ assert(E2ReportBase("USTEC","run1")!=test);
+ assert(E2ReportFolder("GoldSessionFade",path));assert(path=="E2\\GoldSessionFade");
+ assert(directories.size()==3);
+ directories.clear();files.insert("E2");assert(!E2ReportFolder("EMAPullback",path));
 }

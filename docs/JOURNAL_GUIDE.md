@@ -55,21 +55,21 @@ No renaming or column mapping is necessary. UTF-8, common Windows ANSI and BOM-m
 
 At a **safe planned restart**, enable `InpCsvExportEnabled`. Do not remove or restart the EA solely for this journal while an unresolved/open position is being investigated.
 
-Current E2 writes reports when the EA shuts down or the tester finishes—not continuously after every trade. In MT5, use **File → Open Data Folder**, navigate up to the shared `Terminal\Common\Files\E2\Reports` folder. Usually:
+Current E2 writes reports when the EA shuts down or the tester finishes—not continuously after every trade. In MT5, use **File → Open Data Folder**, navigate up to the shared `Terminal\Common\Files\E2` folder. Usually:
 
 ```text
-C:\Users\<Windows user>\AppData\Roaming\MetaQuotes\Terminal\Common\Files\E2\Reports
+C:\Users\<Windows user>\AppData\Roaming\MetaQuotes\Terminal\Common\Files\E2
 ```
 
 The `_T.csv` contains finalized trades from that EA session, including registered recoveries. It is not a full automatic broker-history export. Import all relevant session reports and check coverage.
 
 ### Optional automatic reading
 
-In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades. Select a single run folder for each backtest dataset. Upload gold signal files separately; EMA diagnostic/equity files are not journal imports. Enable the watch once.
+In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades. Limit the filename pattern to a single run for each backtest dataset. Upload gold signal files separately; EMA diagnostic/equity files are not journal imports. Enable the watch once.
 
 The app recursively scans the selected folder every 15 seconds and reads a file only after its size and modified time are unchanged across two scans. New or changed exports import automatically; duplicates are skipped. Results and failures appear in Import history / folder status. It does not alter the source files.
 
-**The MT5 Common Files reports folder can mix multiple accounts and backtests.** If it is mixed, copy the right reports into an account-specific folder or upload manually. Filename symbol/config alone cannot reliably identify an account. The watcher does not make the EA generate missing exports or connect to MT5.
+**The MT5 Common Files strategy folder can mix multiple accounts and backtests.** If it is mixed, copy the right reports into an account-specific folder or upload manually. Filename symbol/config alone cannot reliably identify an account. The watcher does not make the EA generate missing exports or connect to MT5.
 
 ## 5. Daily workflow
 
@@ -117,4 +117,4 @@ Windows packaging and offline smoke tests run in GitHub Actions. MT5 compilation
 
 ## Updated strategy folders
 
-See [CSV exports](CSV_EXPORTS.md) for the current layout. Automatic watches now search subfolders. Use `E2_*_T.csv` for trades from both strategies; select one run folder per backtest dataset. Gold `_S.csv` files contain journal-compatible signals; EMA `_S.csv` files contain diagnostics and its `_E.csv` contains equity, so inspect those separately. Old reports remain readable.
+See [CSV exports](CSV_EXPORTS.md) for the current layout. Automatic watches now search subfolders. Use `E2_*_T.csv` for trades from both strategies; limit the filename pattern to one run per backtest dataset. Gold `_S.csv` files contain journal-compatible signals; EMA `_S.csv` files contain diagnostics and its `_E.csv` contains equity, so inspect those separately. Old reports remain readable.

@@ -48,7 +48,7 @@ CTrade g_trade;
 datetime g_last_server_minute=0,g_last_utc_minute=0,g_equity_minute=0;
 datetime g_test_from=0,g_test_until=0;
 int g_session_day=0,g_session_count=0,g_signals=INVALID_HANDLE,g_equity=INVALID_HANDLE;
-string g_run,g_config,g_report_folder;
+string g_run,g_config,g_report_folder,g_report_base;
 bool g_ready=false,g_failed=false,g_seeded=false;
 double g_cash[1],g_r[1];
 double g_equity_peak=0,g_equity_dd=0;
@@ -386,7 +386,7 @@ void Equity(const datetime now) {
 }
 void ExportTrades() {
    if(!InpExportCsv)return;
-   int h=FileOpen(g_report_folder+"\\E2_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+   int h=FileOpen(g_report_base+"_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
    if(h==INVALID_HANDLE){Print("[NP] Cannot export trade ledger: ",GetLastError());return;}
    FileWrite(h,"schema_version","trade_id","strategy","config_hash","symbol","direction",
       "fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status","run_id",
@@ -426,13 +426,23 @@ int OnInit() {
    g_config=Hash(canonical);
    g_run="NP_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {
-      if(!E2ReportFolder("EMAPullback",_Symbol,g_run,g_report_folder))return INIT_FAILED;
-      g_signals=FileOpen(g_report_folder+"\\E2_Signals_S.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
-      g_equity=FileOpen(g_report_folder+"\\E2_Equity_E.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+      if(!E2ReportFolder("EMAPullback",g_report_folder))return INIT_FAILED;
+      string base=g_report_folder+"\\"+E2ReportBase(_Symbol,g_run);
+      bool available=false;
+      for(int attempt=0;attempt<100;attempt++) {
+         g_report_base=base+(attempt==0?"":"_"+IntegerToString(attempt));
+         if(!FileIsExist(g_report_base+"_Trades_T.csv",FILE_COMMON) &&
+            !FileIsExist(g_report_base+"_Signals_S.csv",FILE_COMMON) &&
+            !FileIsExist(g_report_base+"_Equity_E.csv",FILE_COMMON) &&
+            !FileIsExist(g_report_base+"_Settings.txt",FILE_COMMON)){available=true;break;}
+      }
+      if(!available){Print("[NP] Report filename namespace exhausted.");return INIT_FAILED;}
+      g_signals=FileOpen(g_report_base+"_Signals_S.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+      g_equity=FileOpen(g_report_base+"_Equity_E.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
       if(g_signals==INVALID_HANDLE||g_equity==INVALID_HANDLE)return INIT_FAILED;
       FileWrite(g_signals,"schema_version","run_id","strategy","time_utc","event","detail");
       FileWrite(g_equity,"run_id","time_utc","equity_r","equity_cash","open_positions","run_failed");
-      int h=FileOpen(g_report_folder+"\\Settings.txt",FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
+      int h=FileOpen(g_report_base+"_Settings.txt",FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
       if(h!=INVALID_HANDLE){FileWriteString(h,canonical+"\r\nsymbol="+_Symbol+"\r\nclock=UTC in reports\r\n");FileClose(h);}
    }
    g_trade.SetAsyncMode(false);g_trade.SetTypeFillingBySymbol(_Symbol);

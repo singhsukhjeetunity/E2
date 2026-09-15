@@ -29,8 +29,8 @@ private:
    bool UniqueSignal(const int i)const{for(int j=0;j<i;j++)if(m_signals[j].c.candidate_id==m_signals[i].c.candidate_id)return(false);return(true);}bool UniqueTrade(const int i)const{for(int j=0;j<i;j++)if(m_trades[j].m.position_id==m_trades[i].m.position_id)return(false);return(true);}
    bool ResolveReportPair()
      {
-      if(!E2ReportFolder("GoldSessionFade",m_symbol,m_run_id,m_report_folder)){m_write_failures++;return false;}
-      string base="E2";
+      if(!E2ReportFolder("GoldSessionFade",m_report_folder)){m_write_failures++;return false;}
+      string base=E2ReportBase(m_symbol,m_run_id);
       m_signal_file="";m_trade_file="";m_file_suffix=0;
       for(int sequence=1;sequence<=9999;sequence++)
         {
