@@ -1,4 +1,4 @@
 #property strict
-#property version "0.13"
-#property description "M30 EMA pullback long research. Strategy Tester only."
+#property version "0.20"
+#property description "M30 EMA pullback long. Shared tester, demo and real-account rules."
 #include "EMAEngine.mqh"

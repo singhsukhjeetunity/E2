@@ -14,3 +14,6 @@ jobs:
       - run: g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
       - run: /tmp/report-folders
       - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - run: python3 tests/run_ema_runtime.py
+      - run: python3 tests/run_ema_warmup.py
+      - run: python3 tests/run_ema_entry.py

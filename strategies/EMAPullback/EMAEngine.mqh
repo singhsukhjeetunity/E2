@@ -2,13 +2,13 @@
 #define EMA_RESEARCH_ENGINE_MQH
 #include <Trade/Trade.mqh>
 #include "EMACore.mqh"
+#include "EMAState.mqh"
 #include "SessionClock.mqh"
 #include "..\\shared\\ReportFolders.mqh"
 
 input group "Historical broker time"
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
 input int InpBrokerWinterUtcOffsetSeconds=0;
-input datetime InpIndicatorSeedUtc=D'2022.01.01 00:00';
 input group "Strategy settings"
 input int InpATRLength=14;
 input int InpEMAFast=20;
@@ -25,15 +25,6 @@ input double InpMaxDeviationPriceUnits=0.5;
 input int InpMaxEntryDelaySeconds=5;
 input bool InpExportCsv=true;
 
-struct NPRecord {
-   string id,strategy,status,integrity,exit_reason;
-   int slot;
-   ulong order,position;
-   datetime requested,entry,exit,deadline,last_close_attempt;
-   bool closing;
-   long entry_msc,exit_msc;
-   double volume,fill,sl,tp,risk_cash,net,requested_distance,requested_risk;
-};
 struct NPSlot {
    NPState indicators;
    NPBar forming;
@@ -49,7 +40,10 @@ datetime g_last_server_minute=0,g_last_utc_minute=0,g_equity_minute=0;
 datetime g_test_from=0,g_test_until=0;
 int g_session_day=0,g_session_count=0,g_signals=INVALID_HANDLE,g_equity=INVALID_HANDLE;
 string g_run,g_config,g_report_folder,g_report_base;
-bool g_ready=false,g_failed=false,g_seeded=false;
+bool g_ready=false,g_failed=false,g_seeded=false,g_bootstrapped=false;
+string g_state_file,g_scope;
+int g_instance_lock=INVALID_HANDLE;
+datetime g_history_notice=0;
 double g_cash[1],g_r[1];
 double g_equity_peak=0,g_equity_dd=0;
 
@@ -100,6 +94,80 @@ bool CashRisk(const int s,const double volume,const double fill,const double sl,
    if(!OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,volume,fill,sl,profit))return false;
    risk=MathAbs(profit);return MathIsValidNumber(risk)&&risk>0;
 }
+// One instance owns this account/server/symbol/magic state. Tester agents use
+// local state; demo and real terminals use the SAME Common Files mechanism.
+int StateFlags() {return MQLInfoInteger(MQL_TESTER)?0:FILE_COMMON;}
+string g_last_checkpoint="";
+bool SaveState() {
+   if(g_instance_lock==INVALID_HANDLE)return false;
+   NPCheckpoint c;ZeroMemory(c);
+   c.scope=g_scope;c.config=g_config;c.failed=g_failed;
+   c.last_exit=g_slots[0].last_exit_minute;c.active=g_slots[0].active>=0;
+   c.pending=g_slots[0].pending;
+   if(c.active)c.record=g_records[g_slots[0].active];
+   string payload=NPEncode(c);
+   if(payload==g_last_checkpoint)return true;
+   string text=payload+"\r\n"+Hash(payload)+"\r\n";
+   string temp=g_state_file+".tmp";
+   int h=FileOpen(temp,FILE_WRITE|FILE_TXT|FILE_UNICODE|StateFlags());
+   if(h==INVALID_HANDLE){Fail("Cannot write EMA recovery state; new entries blocked");return false;}
+   ResetLastError();uint written=FileWriteString(h,text);FileFlush(h);int error=GetLastError();FileClose(h);
+   if(written!=(uint)(StringLen(text)*2)||error!=0 ||
+      !FileMove(temp,StateFlags(),g_state_file,StateFlags()|FILE_REWRITE)) {
+      Fail("Cannot commit EMA recovery state; new entries blocked");return false;
+   }
+   g_last_checkpoint=payload;return true;
+}
+bool EntryOwnershipClear() {
+   bool netting=AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
+   for(int i=0;i<PositionsTotal();i++) {
+      ulong t=PositionGetTicket(i);if(t==0||PositionGetString(POSITION_SYMBOL)!=_Symbol)continue;
+      if(netting || (ulong)PositionGetInteger(POSITION_MAGIC)==InpEMAMagic)return false;
+   }
+   for(int i=0;i<OrdersTotal();i++) {
+      ulong t=OrderGetTicket(i);if(t==0||OrderGetString(ORDER_SYMBOL)!=_Symbol)continue;
+      if(netting || (ulong)OrderGetInteger(ORDER_MAGIC)==InpEMAMagic)return false;
+   }
+   return true;
+}
+bool InitializeState() {
+   g_scope=Hash(AccountInfoString(ACCOUNT_SERVER)+"|"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"|"+_Symbol+"|"+StringFormat("%I64u",InpEMAMagic));
+   g_state_file="E2_EMA_STATE_"+g_scope+".dat";
+   g_instance_lock=FileOpen(g_state_file+".lock",FILE_READ|FILE_WRITE|FILE_BIN|StateFlags());
+   if(g_instance_lock==INVALID_HANDLE){Print("[NP] Another EA owns this account/symbol/magic, or state storage is unavailable.");return false;}
+   if(MQLInfoInteger(MQL_TESTER) && FileIsExist(g_state_file,StateFlags()))
+      if(!FileDelete(g_state_file,StateFlags()))return false;
+   int matches=0;
+   for(int i=0;i<PositionsTotal();i++) {
+      ulong t=PositionGetTicket(i);
+      if(t>0&&PositionGetString(POSITION_SYMBOL)==_Symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==InpEMAMagic)matches++;
+   }
+   if(matches>1){Print("[NP] Multiple matching EMA positions; cannot recover independently.");return false;}
+   if(FileIsExist(g_state_file,StateFlags())) {
+      int h=FileOpen(g_state_file,FILE_READ|FILE_TXT|FILE_UNICODE|StateFlags());
+      if(h==INVALID_HANDLE)return false;
+      string payload=FileReadString(h),checksum=FileReadString(h);FileClose(h);
+      NPCheckpoint c;ZeroMemory(c);
+      if(checksum!=Hash(payload)||!NPDecode(payload,c)||c.scope!=g_scope){Print("[NP] Invalid recovery checkpoint. Preserve the file and reconcile the account.");return false;}
+      if(c.config!=g_config&&(c.active||c.failed)){Print("[NP] Restore the saved inputs before recovering an active/stopped EA.");return false;}
+      g_failed=c.failed;g_slots[0].last_exit_minute=c.last_exit;
+      if(c.active) {
+         ArrayResize(g_records,1);g_records[0]=c.record;
+         g_slots[0].active=0;g_slots[0].pending=c.pending;
+         if(c.record.status=="FINALIZED"){g_cash[0]=c.record.net;g_r[0]=c.record.net/c.record.risk_cash;}
+         if(matches>0 && !c.pending && PositionFor(0,c.record.position)==0){Print("[NP] Position identity differs from saved state.");return false;}
+         Print("[NP] Restored trade intent ",c.record.id,"; pending=",c.pending);
+      } else if(matches>0){Print("[NP] Open EMA position has no saved trade record.");return false;}
+   } else if(matches>0){Print("[NP] Missing recovery state for open EMA position. No trade is guessed.");return false;}
+   if(g_slots[0].active<0) {
+      for(int i=0;i<OrdersTotal();i++) {
+         ulong t=OrderGetTicket(i);
+         if(t>0&&OrderGetString(ORDER_SYMBOL)==_Symbol&&(ulong)OrderGetInteger(ORDER_MAGIC)==InpEMAMagic){Print("[NP] Outstanding EMA order has no saved intent.");return false;}
+      }
+   }
+   return SaveState();
+}
+
 void FinalBar(const int s) {
    if(!g_slots[s].has_bar)return;
    double atr=0;
@@ -111,7 +179,6 @@ void FinalBar(const int s) {
 }
 void Minute(const MqlRates &r) {
    datetime utc=0;if(!Utc(r.time,utc))return;
-   if(utc<InpIndicatorSeedUtc)return;
    if(g_last_utc_minute>0 && utc<=g_last_utc_minute){Fail("Duplicate or backward UTC M1 history");return;}
    g_last_utc_minute=utc;
    datetime wall=NPNy(utc);int day=NPDay(wall);
@@ -133,35 +200,33 @@ void Minute(const MqlRates &r) {
       }
    }
 }
+int WarmupMinutes() {return NPWarmupMinutes(InpATRLength,InpEMAFast,InpEMASlow);}
 bool Feed(const datetime server_now,const datetime utc_now) {
    datetime stop=server_now-server_now%60-1;
-   datetime start=g_seeded?g_last_server_minute+60:NPToServer(InpIndicatorSeedUtc,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds);
-   if(stop>=start) {
-      MqlRates m[];ArraySetAsSeries(m,false);
-      ResetLastError();int n=CopyRates(_Symbol,PERIOD_M1,start,stop,m);
-      if(n<0) {
-         // Never advance the cursor after an unsuccessful history read.
-         Audit(0,utc_now,"M1_HISTORY_NOT_READY",IntegerToString(GetLastError()));
+   MqlRates m[];ArraySetAsSeries(m,false);
+   ResetLastError();
+   int n=0;
+   if(!g_seeded) {
+      n=CopyRates(_Symbol,PERIOD_M1,stop,WarmupMinutes(),m);
+      if(n<WarmupMinutes()) {
+         if(utc_now-g_history_notice>=60){Audit(0,utc_now,"WARMUP_WAIT","Loading completed M1 history: "+IntegerToString(n)+"/"+IntegerToString(WarmupMinutes()));g_history_notice=utc_now;}
          return false;
       }
-      if(n>0 && g_last_utc_minute==0) {
-         datetime first_utc=0;if(!Utc(m[0].time,first_utc))return false;
-         if(first_utc>InpIndicatorSeedUtc+7*86400) {
-            Fail("M1 seed history is truncated; load history or explicitly choose a later seed");return false;
-         }
-         Audit(0,utc_now,"FIRST_M1_UTC",Stamp(first_utc));
-      }
-      for(int i=0;i<n;i++){
-         Minute(m[i]);g_last_server_minute=m[i].time;
-         if(g_failed)return false;
-      }
-      // Also move the read cursor through known empty ranges without inventing bars.
-      if(n>=0) {
-         g_last_server_minute=stop-stop%60;g_seeded=true;
-      }
+   } else {
+      datetime start=g_last_server_minute+60;
+      if(start<=stop)n=CopyRates(_Symbol,PERIOD_M1,start,stop,m);
+      if(n<0)return false; // Retry without moving the cursor.
    }
-   for(int s=0;s<1;s++)
-      if(g_slots[s].has_bar && g_slots[s].forming.start+PeriodMinutes(s)*60<=(long)utc_now)FinalBar(s);
+   for(int i=0;i<n;i++) {
+      if(m[i].time>stop){Fail("History includes an unfinished minute");return false;}
+      Minute(m[i]);g_last_server_minute=m[i].time;
+      if(g_failed)return false;
+   }
+   // Advance only to the last observed bar. Missing/unavailable history is retried.
+   for(int i=0;i<1;i++)
+      if(g_slots[i].has_bar && g_slots[i].forming.start+PeriodMinutes(i)*60<=(long)utc_now)FinalBar(i);
+   if(!g_seeded){g_seeded=true;Audit(0,utc_now,"WARMUP_READY",IntegerToString(n)+" completed M1 bars");}
+   if(!g_bootstrapped){g_slots[0].seen_signal=g_slots[0].signal_time;g_bootstrapped=true;return false;}
    return !g_failed;
 }
 // Resolve the session containing the entry, including overnight sessions.
@@ -201,6 +266,7 @@ bool ClosePosition(const int s,const ulong ticket,const string reason) {
       if(g_records[i].closing||!NPRetryClose(now,g_records[i].last_close_attempt))return false;
       g_records[i].last_close_attempt=now;g_records[i].closing=true;
       g_records[i].exit_reason=reason;
+      SaveState();
    }
    g_trade.SetExpertMagicNumber(Magic(s));
    bool sent=g_trade.PositionClose(ticket);
@@ -211,7 +277,10 @@ bool ClosePosition(const int s,const ulong ticket,const string reason) {
 }
 void Reconcile(const int s,const datetime now) {
    int k=g_slots[s].active;if(k<0)return;
+   if(g_records[k].status=="FINALIZED"){if(SaveState() && ExportTrades()){g_slots[s].active=-1;SaveState();}return;}
    if(g_slots[s].pending) {
+      ulong pending_ticket=PositionFor(s);
+      if(pending_ticket>0 && now>=g_records[k].deadline){MarkOverdue(k,now);ClosePosition(s,pending_ticket,"SESSION_CLOSE");}
       if(!HistorySelect(g_records[k].requested-1,TimeCurrent()+1))return;
       ulong pid=0,order=g_records[k].order;double volume=0,weighted=0;
       datetime first=0;long first_msc=0;
@@ -262,10 +331,29 @@ void Reconcile(const int s,const datetime now) {
          Fail("Cannot calculate actual initial cash risk");return;
       }
       g_slots[s].pending=false;g_records[k].status="OPEN";
+      SaveState();
       Audit(s,now,"ENTRY_CONFIRMED",StringFormat("position=%I64u SL=%.5f TP=%.5f",pid,g_records[k].sl,g_records[k].tp));
    }
    ulong ticket=PositionFor(s,g_records[k].position);
    if(ticket>0) {
+      if(PositionGetInteger(POSITION_TYPE)!=POSITION_TYPE_BUY){Fail("Unexpected position direction");return;}
+      if(AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING && HistorySelectByPosition(g_records[k].position)) {
+         for(int j=0;j<HistoryDealsTotal();j++) {
+            ulong d=HistoryDealGetTicket(j);
+            if(HistoryDealGetInteger(d,DEAL_ENTRY)==DEAL_ENTRY_IN && (ulong)HistoryDealGetInteger(d,DEAL_MAGIC)!=Magic(s)) {
+               Fail("Foreign entry merged into the EMA netting position; manual reconciliation required");return;
+            }
+         }
+      }
+      if(!PositionSelectByTicket(ticket))return;
+      double tol=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)*0.51;
+      if(MathAbs(PositionGetDouble(POSITION_SL)-g_records[k].sl)>tol || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
+         g_trade.SetExpertMagicNumber(Magic(s));g_trade.PositionModify(ticket,g_records[k].sl,g_records[k].tp);
+         if(!PositionSelectByTicket(ticket) || MathAbs(PositionGetDouble(POSITION_SL)-g_records[k].sl)>tol || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
+            g_records[k].integrity="PROTECTION_RECONCILIATION_FAILED";
+            ClosePosition(s,ticket,"PROTECTION_FAILURE");Fail("Cannot restore saved SL/TP");return;
+         }
+      }
       MarkOverdue(k,now);
       if(now>=g_records[k].deadline)ClosePosition(s,ticket,"SESSION_CLOSE");
       return;
@@ -294,7 +382,9 @@ void Reconcile(const int s,const datetime now) {
    g_cash[s]+=net;g_r[s]+=net/g_records[k].risk_cash;
    g_slots[s].last_exit_minute=g_records[k].exit-g_records[k].exit%60;
    Audit(s,now,"EXIT",reason+" netR="+Number(net/g_records[k].risk_cash));
+   if(!SaveState() || !ExportTrades())return; // Keep the record recoverable until its report is durable.
    g_slots[s].active=-1;
+   SaveState();
 }
 void Enter(const int s,const datetime now) {
    datetime when=g_slots[s].signal_time;
@@ -310,6 +400,7 @@ void Enter(const int s,const datetime now) {
    }
    if(g_slots[s].active>=0 || PositionFor(s)>0){Audit(s,now,"SKIP","strategy already occupied");return;}
    if(now-now%60<=g_slots[s].last_exit_minute)return;
+   if(!EntryOwnershipClear()){Audit(s,now,"SKIP","symbol has a conflicting position/order");return;}
    datetime deadline;
    if(!ExitDeadline(now,deadline)){Audit(s,now,"SKIP","broker session schedule unavailable");return;}
    if(now>=deadline){Audit(s,now,"SKIP","broker session exit cutoff reached");return;}
@@ -344,13 +435,16 @@ void Enter(const int s,const datetime now) {
    req.comment="NP1_"+IntegerToString((long)now)+"_"+IntegerToString(n);
    if(!OrderCheck(req,check)){Audit(s,now,"ORDER_CHECK_REJECTED",check.comment);return;}
    ArrayResize(g_records,n+1);ZeroMemory(g_records[n]);
+   g_records[n].report_id=g_run+"_"+req.comment;
    g_records[n].id=req.comment;g_records[n].strategy=Strategy(s);g_records[n].slot=s;
    g_records[n].requested=TimeCurrent();g_records[n].status="UNCONFIRMED";
    g_records[n].sl=sl;g_records[n].tp=tp;g_records[n].requested_distance=distance;
    g_records[n].requested_risk=cash;g_records[n].deadline=deadline;
    Audit(s,now,"EXIT_DEADLINE",Stamp(deadline));
    g_slots[s].active=n;g_slots[s].pending=true; // Reserve before submission, never resend.
+   if(!SaveState())return; // Durable intent BEFORE submission. Never resend on restart.
    bool ok=OrderSend(req,result);g_records[n].order=result.order;
+   SaveState();
    if(!ok || (result.retcode!=TRADE_RETCODE_DONE && result.retcode!=TRADE_RETCODE_PLACED &&
               result.retcode!=TRADE_RETCODE_DONE_PARTIAL)) {
       g_records[n].integrity="ORDER_SEND_UNCONFIRMED";Fail("OrderSend result "+IntegerToString((int)result.retcode));
@@ -384,15 +478,16 @@ void Equity(const datetime now) {
       FileWrite(g_equity,g_run,Stamp(now),Number(rr[0]),Number(total),open[0],g_failed);
    }
 }
-void ExportTrades() {
-   if(!InpExportCsv)return;
+bool ExportTrades() {
+   if(!InpExportCsv)return true;
    int h=FileOpen(g_report_base+"_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
-   if(h==INVALID_HANDLE){Print("[NP] Cannot export trade ledger: ",GetLastError());return;}
+   if(h==INVALID_HANDLE){Fail("Cannot export trade ledger");return false;}
+   ResetLastError();
    FileWrite(h,"schema_version","trade_id","strategy","config_hash","symbol","direction",
       "fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status","run_id",
       "entry_msc","exit_msc","position_id","volume","fill_price","initial_sl","initial_tp","net_r","exit_reason","integrity_flags");
    for(int i=0;i<ArraySize(g_records);i++) {
-      FileWrite(h,"E2_JOURNAL_V1",g_run+"_"+g_records[i].id,g_records[i].strategy,g_config,_Symbol,
+      FileWrite(h,"E2_JOURNAL_V1",g_records[i].report_id,g_records[i].strategy,g_config,_Symbol,
          "LONG",Stamp(g_records[i].entry),Stamp(g_records[i].exit),
          g_records[i].status=="FINALIZED"?Number(g_records[i].net):"",
          g_records[i].risk_cash>0?Number(g_records[i].risk_cash):"",g_records[i].status,g_run,
@@ -401,10 +496,11 @@ void ExportTrades() {
          g_records[i].status=="FINALIZED"&&g_records[i].risk_cash>0?Number(g_records[i].net/g_records[i].risk_cash):"",
          g_records[i].exit_reason,g_records[i].integrity);
    }
-   FileFlush(h);FileClose(h);
+   FileFlush(h);int error=GetLastError();FileClose(h);
+   if(error!=0){Fail("Trade export write failed");return false;}
+   return true;
 }
 int OnInit() {
-   if(!MQLInfoInteger(MQL_TESTER)){Print("[NP] Strategy Tester only. Live and demo chart attachment refused.");return INIT_FAILED;}
    if(InpBrokerClock==NP_CLOCK_UNSET || InpBrokerWinterUtcOffsetSeconds<-50400 ||
       InpBrokerWinterUtcOffsetSeconds>50400 || InpBrokerWinterUtcOffsetSeconds%60!=0) {
       Print("[NP] Set the historical broker clock explicitly; see docs/EMA_TESTING.md.");return INIT_PARAMETERS_INCORRECT;
@@ -412,17 +508,16 @@ int OnInit() {
    if(InpATRLength<1||InpEMAFast<1||InpEMASlow<=InpEMAFast||
       InpEMACashRisk<=0||InpEMAStopATR<=0||InpEMATargetR<=0||
       InpBrokerCloseBufferMinutes<1||InpBrokerCloseBufferMinutes>120||InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
-      InpEMAMagic==0||InpIndicatorSeedUtc<D'2022.01.01')return INIT_PARAMETERS_INCORRECT;
+      InpEMAMagic==0||InpATRLength>1000||InpEMASlow>1000)return INIT_PARAMETERS_INCORRECT;
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
    datetime now;if(!Utc(TimeCurrent(),now))return INIT_FAILED;
    MqlDateTime initial;TimeToStruct(now,initial);
    if(initial.year<2022||initial.year>2026){Print("[NP] Calendar supports 2022-2026.");return INIT_PARAMETERS_INCORRECT;}
    for(int s=0;s<1;s++){
       ZeroMemory(g_slots[s]);NPReset(g_slots[s].indicators);g_slots[s].active=-1;
-      if(Enabled(s)&&PositionFor(s)>0){Print("[NP] Unexpected pre-existing research position.");return INIT_FAILED;}
       g_cash[s]=0;g_r[s]=0;
    }
-   string canonical="EMA_V3|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString((long)InpIndicatorSeedUtc)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpEMAFast)+"|"+IntegerToString(InpEMASlow)+"|"+Number(InpEMAStopATR)+"|"+Number(InpEMATargetR)+"|"+Number(InpEMACashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
+   string canonical="EMA_V4_AUTO20|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpEMAFast)+"|"+IntegerToString(InpEMASlow)+"|"+Number(InpEMAStopATR)+"|"+Number(InpEMATargetR)+"|"+Number(InpEMACashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
    g_config=Hash(canonical);
    g_run="NP_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {
@@ -447,11 +542,12 @@ int OnInit() {
    }
    g_trade.SetAsyncMode(false);g_trade.SetTypeFillingBySymbol(_Symbol);
    g_trade.SetDeviationInPoints((ulong)MathCeil(InpMaxDeviationPriceUnits/_Point));
-   if(!Feed(TimeCurrent(),now) && g_failed)return INIT_FAILED;
-   for(int s=0;s<1;s++)g_slots[s].seen_signal=g_slots[s].signal_time;
+   if(!InitializeState())return INIT_FAILED;
+   Reconcile(0,now);
+   if(!g_failed)Feed(TimeCurrent(),now);
    if(!EventSetTimer(1)){Print("[NP] Cannot start exit timer.");return INIT_FAILED;}
    g_test_from=now;g_ready=true;
-   Print("[NP] Research run ",g_run,". M1-derived UTC bars. Settings: ",canonical);
+   Print("[NP] EMA run ",g_run,". M1-derived UTC bars. Settings: ",canonical);
    return INIT_SUCCEEDED;
 }
 void OnTick() {
@@ -459,17 +555,20 @@ void OnTick() {
    datetime now;if(!Utc(TimeCurrent(),now))return;g_test_until=now;
    for(int s=0;s<1;s++)Reconcile(s,now);
    if(!g_failed && Feed(TimeCurrent(),now))for(int s=0;s<1;s++)Enter(s,now);
+   SaveState();
    Equity(now);
 }
 void OnTimer() {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;
    for(int s=0;s<1;s++)Reconcile(s,now);
+   SaveState();
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &req,const MqlTradeResult &res) {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;
    for(int s=0;s<1;s++)Reconcile(s,now);
+   SaveState();
 }
 double OnTester() {
    // End-of-test liquidation is explicitly marked; it is not a strategy exit.
@@ -489,11 +588,13 @@ void OnDeinit(const int reason) {
    if(g_ready){
       datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<1;s++)Reconcile(s,now);
       ExportTrades();
+      SaveState();
       Print("[NP] Closed net R=",g_r[0]," tick-observed cash DD=",g_equity_dd,
          " failed=",g_failed,". CSV: Common Files / ",g_report_folder);
    }
    if(g_signals!=INVALID_HANDLE){FileFlush(g_signals);FileClose(g_signals);}
    if(g_equity!=INVALID_HANDLE){FileFlush(g_equity);FileClose(g_equity);}
+   if(g_instance_lock!=INVALID_HANDLE){FileClose(g_instance_lock);g_instance_lock=INVALID_HANDLE;}
 }
 
 #endif

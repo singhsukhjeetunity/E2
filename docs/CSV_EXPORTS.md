@@ -14,7 +14,7 @@ There are no account, symbol, mode or run subfolders. Filenames identify the sym
 | `_Equity_E.csv` | EMA sampled equity |
 | `_Settings.txt` | EMA settings |
 
-Gold exports at shutdown/test completion; EMA exports signals/equity during testing and trades at completion. Existing CSV columns and strategy identifiers are unchanged.
+Gold exports at shutdown/test completion; EMA exports signals/equity during operation and updates its trade ledger after settlement and at shutdown/test completion. Existing CSV columns and strategy identifiers are unchanged.
 
 ## Importing
 
