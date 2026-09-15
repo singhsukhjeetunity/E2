@@ -1,44 +1,23 @@
-#ifndef NASDAQ_RESEARCH_ENGINE_MQH
-#define NASDAQ_RESEARCH_ENGINE_MQH
+#ifndef EMA_RESEARCH_ENGINE_MQH
+#define EMA_RESEARCH_ENGINE_MQH
 #include <Trade/Trade.mqh>
-#include "NasdaqPairCore.mqh"
-#include "NasdaqPairClock.mqh"
+#include "EMACore.mqh"
+#include "SessionClock.mqh"
+#include "..\\shared\\ReportFolders.mqh"
 
-// Each entry EA fixes one strategy at compile time. No combined mode exists.
-#ifdef NP_NR4_ENTRY
-const int NP_SELECTED_STRATEGY=0;
-#else
-const int NP_SELECTED_STRATEGY=1;
-#endif
 input group "Historical broker time"
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
 input int InpBrokerWinterUtcOffsetSeconds=0;
 input datetime InpIndicatorSeedUtc=D'2022.01.01 00:00';
 input group "Strategy settings"
 input int InpATRLength=14;
-#ifdef NP_NR4_ENTRY
-input int InpNRLookback=4;
-input double InpNRStopATR=1.0;
-const int InpEMAFast=20,InpEMASlow=50;
-const double InpEMAStopATR=3.0,InpEMATargetR=0.5;
-input group "Risk and identification"
-input double InpNRCashRisk=1000.0;
-input ulong InpNRMagic=2026091401;
-const double InpEMACashRisk=1000.0;
-const ulong InpEMAMagic=2026091402;
-#else
 input int InpEMAFast=20;
 input int InpEMASlow=50;
 input double InpEMAStopATR=3.0;
 input double InpEMATargetR=0.5;
-const int InpNRLookback=4;
-const double InpNRStopATR=1.0;
 input group "Risk and identification"
 input double InpEMACashRisk=1000.0;
 input ulong InpEMAMagic=2026091402;
-const double InpNRCashRisk=1000.0;
-const ulong InpNRMagic=2026091401;
-#endif
 input group "Execution and reporting"
 input int InpBrokerCloseBufferMinutes=5; // Exit before the active broker session ends
 input double InpMaxSpreadPriceUnits=4.0;
@@ -63,21 +42,21 @@ struct NPSlot {
    double signal_atr;
    int active;
 };
-NPSlot g_slots[2];
+NPSlot g_slots[1];
 NPRecord g_records[];
 CTrade g_trade;
 datetime g_last_server_minute=0,g_last_utc_minute=0,g_equity_minute=0;
 datetime g_test_from=0,g_test_until=0;
 int g_session_day=0,g_session_count=0,g_signals=INVALID_HANDLE,g_equity=INVALID_HANDLE;
-string g_run,g_config;
+string g_run,g_config,g_report_folder;
 bool g_ready=false,g_failed=false,g_seeded=false;
-double g_cash[2],g_r[2];
+double g_cash[1],g_r[1];
 double g_equity_peak=0,g_equity_dd=0;
 
-bool Enabled(const int s) {return NP_SELECTED_STRATEGY==s;}
-int PeriodMinutes(const int s) {return s==0?60:30;}
-ulong Magic(const int s) {return s==0?InpNRMagic:InpEMAMagic;}
-string Strategy(const int s) {return s==0?"NP_NR4_H1_SHORT":"NP_EMA_M30_LONG";}
+bool Enabled(const int s) {return s==0;}
+int PeriodMinutes(const int s) {return 30;}
+ulong Magic(const int s) {return InpEMAMagic;}
+string Strategy(const int s) {return "NP_EMA_M30_LONG";}
 string Stamp(const datetime t) {
    if(t==0)return "";
    string x=TimeToString(t,TIME_DATE|TIME_SECONDS);StringReplace(x,".","-");return x;
@@ -118,14 +97,14 @@ ulong PositionFor(const int s,const ulong pid=0) {
 }
 bool CashRisk(const int s,const double volume,const double fill,const double sl,double &risk) {
    double profit=0;
-   if(!OrderCalcProfit(s==0?ORDER_TYPE_SELL:ORDER_TYPE_BUY,_Symbol,volume,fill,sl,profit))return false;
+   if(!OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,volume,fill,sl,profit))return false;
    risk=MathAbs(profit);return MathIsValidNumber(risk)&&risk>0;
 }
 void FinalBar(const int s) {
    if(!g_slots[s].has_bar)return;
    double atr=0;
-   bool signal=NPConsume(g_slots[s].indicators,g_slots[s].forming,PeriodMinutes(s),s,
-      InpNRLookback,InpATRLength,InpEMAFast,InpEMASlow,atr);
+   bool signal=NPConsume(g_slots[s].indicators,g_slots[s].forming,PeriodMinutes(s),
+      InpATRLength,InpEMAFast,InpEMASlow,atr);
    g_slots[s].signal=signal;
    g_slots[s].signal_time=(datetime)(g_slots[s].forming.start+PeriodMinutes(s)*60);
    g_slots[s].signal_atr=atr;g_slots[s].has_bar=false;
@@ -139,7 +118,7 @@ void Minute(const MqlRates &r) {
    if(day!=g_session_day){g_session_day=day;g_session_count=0;}
    MqlDateTime t;TimeToStruct(wall,t);int minute=t.hour*60+t.min,close=NPCloseMinute(utc);
    if(close>0 && minute>=570 && minute<close)g_session_count++;
-   for(int s=0;s<2;s++) {
+   for(int s=0;s<1;s++) {
       if(!Enabled(s))continue;
       int seconds=PeriodMinutes(s)*60;long bucket=((long)utc/seconds)*seconds;
       if(g_slots[s].has_bar && g_slots[s].forming.start!=bucket)FinalBar(s);
@@ -181,7 +160,7 @@ bool Feed(const datetime server_now,const datetime utc_now) {
          g_last_server_minute=stop-stop%60;g_seeded=true;
       }
    }
-   for(int s=0;s<2;s++)
+   for(int s=0;s<1;s++)
       if(g_slots[s].has_bar && g_slots[s].forming.start+PeriodMinutes(s)*60<=(long)utc_now)FinalBar(s);
    return !g_failed;
 }
@@ -262,9 +241,9 @@ void Reconcile(const int s,const datetime now) {
       g_records[k].position=pid;g_records[k].order=order;g_records[k].volume=volume;
       g_records[k].fill=weighted/volume;Utc(first,g_records[k].entry);
       g_records[k].entry_msc=(long)g_records[k].entry*1000+first_msc%1000;
-      int side=s==0?-1:1;
+      int side=1;
       double sl=RoundPrice(g_records[k].fill-side*g_records[k].requested_distance);
-      double tp=s==0?0:RoundPrice(g_records[k].fill+InpEMATargetR*g_records[k].requested_distance);
+      double tp=RoundPrice(g_records[k].fill+InpEMATargetR*g_records[k].requested_distance);
       ulong ticket=PositionFor(s,pid);
       if(ticket>0) {
          double tol=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)*0.51;
@@ -337,24 +316,24 @@ void Enter(const int s,const datetime now) {
    MqlTick q;if(!SymbolInfoTick(_Symbol,q)||q.ask<=q.bid||q.bid<=0)return;
    double spread=q.ask-q.bid;
    if(spread>InpMaxSpreadPriceUnits){Audit(s,now,"SKIP","spread exceeds price-unit cap");return;}
-   double distance=g_slots[s].signal_atr*(s==0?InpNRStopATR:InpEMAStopATR);
-   if(distance<3*spread || (s==1&&InpEMATargetR*distance<=2*spread))return;
-   int side=s==0?-1:1;
-   double entry=s==0?q.bid:q.ask,sl=RoundPrice(entry-side*distance);
-   double tp=s==0?0:RoundPrice(entry+InpEMATargetR*distance);
+   double distance=g_slots[s].signal_atr*InpEMAStopATR;
+   if(distance<3*spread || (InpEMATargetR*distance<=2*spread))return;
+   int side=1;
+   double entry=q.ask,sl=RoundPrice(entry-side*distance);
+   double tp=RoundPrice(entry+InpEMATargetR*distance);
    double minimum=(double)SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL)*_Point;
-   if((s==0?sl-q.ask:q.bid-sl)<minimum || (s==1&&tp-q.bid<minimum)) {
+   if((q.bid-sl)<minimum || (tp-q.bid<minimum)) {
       Audit(s,now,"SKIP","broker stop-distance rule");return;
    }
    double unitrisk=0;if(!CashRisk(s,1,entry,sl,unitrisk))return;
-   double cash=s==0?InpNRCashRisk:InpEMACashRisk;
+   double cash=InpEMACashRisk;
    double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP),vmin=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
    double volume=MathFloor((cash/unitrisk)/step+1e-10)*step;
    volume=NormalizeDouble(MathMin(volume,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX)),8);
    if(volume<vmin){Audit(s,now,"SKIP","risk below minimum lot");return;}
    MqlTradeRequest req={};MqlTradeResult result={};MqlTradeCheckResult check={};
    req.action=TRADE_ACTION_DEAL;req.symbol=_Symbol;req.magic=Magic(s);
-   req.type=s==0?ORDER_TYPE_SELL:ORDER_TYPE_BUY;req.volume=volume;req.price=entry;req.sl=sl;req.tp=tp;
+   req.type=ORDER_TYPE_BUY;req.volume=volume;req.price=entry;req.sl=sl;req.tp=tp;
    req.deviation=(ulong)MathCeil(InpMaxDeviationPriceUnits/_Point);
    long flags=SymbolInfoInteger(_Symbol,SYMBOL_FILLING_MODE);
    if((flags&SYMBOL_FILLING_FOK)!=0)req.type_filling=ORDER_FILLING_FOK;
@@ -362,7 +341,7 @@ void Enter(const int s,const datetime now) {
    else if(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_EXEMODE)!=SYMBOL_TRADE_EXECUTION_MARKET)req.type_filling=ORDER_FILLING_RETURN;
    else {Audit(s,now,"SKIP","unsupported filling policy");return;}
    int n=ArraySize(g_records);
-   req.comment="NP"+IntegerToString(s)+"_"+IntegerToString((long)now)+"_"+IntegerToString(n);
+   req.comment="NP1_"+IntegerToString((long)now)+"_"+IntegerToString(n);
    if(!OrderCheck(req,check)){Audit(s,now,"ORDER_CHECK_REJECTED",check.comment);return;}
    ArrayResize(g_records,n+1);ZeroMemory(g_records[n]);
    g_records[n].id=req.comment;g_records[n].strategy=Strategy(s);g_records[n].slot=s;
@@ -379,8 +358,8 @@ void Enter(const int s,const datetime now) {
    Reconcile(s,now);
 }
 void Equity(const datetime now) {
-   double cash[2],rr[2];int open[2];
-   for(int s=0;s<2;s++) {
+   double cash[1],rr[1];int open[1];
+   for(int s=0;s<1;s++) {
       cash[s]=g_cash[s];rr[s]=g_r[s];open[s]=0;
       int i=g_slots[s].active;ulong ticket=PositionFor(s);
       if(ticket>0 && i>=0 && g_records[i].risk_cash>0) {
@@ -397,26 +376,24 @@ void Equity(const datetime now) {
          cash[s]+=floating;rr[s]+=floating/g_records[i].risk_cash;open[s]=1;
       }
    }
-   double total=cash[0]+cash[1];g_equity_peak=MathMax(g_equity_peak,total);
+   double total=cash[0];g_equity_peak=MathMax(g_equity_peak,total);
    g_equity_dd=MathMax(g_equity_dd,g_equity_peak-total);
    datetime minute=now-now%60;
    if(g_equity!=INVALID_HANDLE&&minute!=g_equity_minute) {
       g_equity_minute=minute;
-      FileWrite(g_equity,g_run,Stamp(now),Number(rr[0]),Number(rr[1]),Number(rr[0]+rr[1]),
-         Number(cash[0]),Number(cash[1]),Number(total),open[0],open[1],g_failed);
+      FileWrite(g_equity,g_run,Stamp(now),Number(rr[0]),Number(total),open[0],g_failed);
    }
 }
-void ExportTrades(const string suffix,const int slot) {
+void ExportTrades() {
    if(!InpExportCsv)return;
-   int h=FileOpen("E2\\Research\\Nasdaq\\"+g_run+"_"+suffix+"_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+   int h=FileOpen(g_report_folder+"\\E2_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
    if(h==INVALID_HANDLE){Print("[NP] Cannot export trade ledger: ",GetLastError());return;}
    FileWrite(h,"schema_version","trade_id","strategy","config_hash","symbol","direction",
       "fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status","run_id",
       "entry_msc","exit_msc","position_id","volume","fill_price","initial_sl","initial_tp","net_r","exit_reason","integrity_flags");
    for(int i=0;i<ArraySize(g_records);i++) {
-      if(slot>=0&&g_records[i].slot!=slot)continue;
       FileWrite(h,"E2_JOURNAL_V1",g_run+"_"+g_records[i].id,g_records[i].strategy,g_config,_Symbol,
-         g_records[i].slot==0?"SHORT":"LONG",Stamp(g_records[i].entry),Stamp(g_records[i].exit),
+         "LONG",Stamp(g_records[i].entry),Stamp(g_records[i].exit),
          g_records[i].status=="FINALIZED"?Number(g_records[i].net):"",
          g_records[i].risk_cash>0?Number(g_records[i].risk_cash):"",g_records[i].status,g_run,
          g_records[i].entry_msc,g_records[i].exit_msc,g_records[i].position,g_records[i].volume,
@@ -430,43 +407,38 @@ int OnInit() {
    if(!MQLInfoInteger(MQL_TESTER)){Print("[NP] Strategy Tester only. Live and demo chart attachment refused.");return INIT_FAILED;}
    if(InpBrokerClock==NP_CLOCK_UNSET || InpBrokerWinterUtcOffsetSeconds<-50400 ||
       InpBrokerWinterUtcOffsetSeconds>50400 || InpBrokerWinterUtcOffsetSeconds%60!=0) {
-      Print("[NP] Set the historical broker clock explicitly; see TESTING.md.");return INIT_PARAMETERS_INCORRECT;
+      Print("[NP] Set the historical broker clock explicitly; see docs/EMA_TESTING.md.");return INIT_PARAMETERS_INCORRECT;
    }
-   if(InpNRLookback<2||InpNRLookback>32||InpATRLength<1||InpEMAFast<1||InpEMASlow<=InpEMAFast||
-      InpNRCashRisk<=0||InpEMACashRisk<=0||InpNRStopATR<=0||InpEMAStopATR<=0||InpEMATargetR<=0||
+   if(InpATRLength<1||InpEMAFast<1||InpEMASlow<=InpEMAFast||
+      InpEMACashRisk<=0||InpEMAStopATR<=0||InpEMATargetR<=0||
       InpBrokerCloseBufferMinutes<1||InpBrokerCloseBufferMinutes>120||InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
-      InpNRMagic==0||InpEMAMagic==0||InpNRMagic==InpEMAMagic||InpIndicatorSeedUtc<D'2022.01.01')return INIT_PARAMETERS_INCORRECT;
+      InpEMAMagic==0||InpIndicatorSeedUtc<D'2022.01.01')return INIT_PARAMETERS_INCORRECT;
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
    datetime now;if(!Utc(TimeCurrent(),now))return INIT_FAILED;
    MqlDateTime initial;TimeToStruct(now,initial);
    if(initial.year<2022||initial.year>2026){Print("[NP] Calendar supports 2022-2026.");return INIT_PARAMETERS_INCORRECT;}
-   for(int s=0;s<2;s++){
+   for(int s=0;s<1;s++){
       ZeroMemory(g_slots[s]);NPReset(g_slots[s].indicators);g_slots[s].active=-1;
       if(Enabled(s)&&PositionFor(s)>0){Print("[NP] Unexpected pre-existing research position.");return INIT_FAILED;}
       g_cash[s]=0;g_r[s]=0;
    }
-   string canonical=StringFormat("NP_V2|%d|%d|%d|%I64d|%d|%d|%d|%d|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%.10f|%d",
-      NP_SELECTED_STRATEGY,(int)InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,(long)InpIndicatorSeedUtc,
-      InpNRLookback,InpATRLength,InpEMAFast,InpEMASlow,InpNRStopATR,InpEMAStopATR,InpEMATargetR,
-      InpNRCashRisk,InpEMACashRisk,InpMaxSpreadPriceUnits,InpMaxDeviationPriceUnits,InpMaxEntryDelaySeconds);
-   canonical+="|"+IntegerToString(InpBrokerCloseBufferMinutes);
+   string canonical="EMA_V3|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString((long)InpIndicatorSeedUtc)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpEMAFast)+"|"+IntegerToString(InpEMASlow)+"|"+Number(InpEMAStopATR)+"|"+Number(InpEMATargetR)+"|"+Number(InpEMACashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
    g_config=Hash(canonical);
    g_run="NP_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {
-      FolderCreate("E2",FILE_COMMON);FolderCreate("E2\\Research",FILE_COMMON);FolderCreate("E2\\Research\\Nasdaq",FILE_COMMON);
-      g_signals=FileOpen("E2\\Research\\Nasdaq\\"+g_run+"_S.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
-      g_equity=FileOpen("E2\\Research\\Nasdaq\\"+g_run+"_E.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+      if(!E2ReportFolder("EMAPullback",_Symbol,g_run,g_report_folder))return INIT_FAILED;
+      g_signals=FileOpen(g_report_folder+"\\E2_Signals_S.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
+      g_equity=FileOpen(g_report_folder+"\\E2_Equity_E.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
       if(g_signals==INVALID_HANDLE||g_equity==INVALID_HANDLE)return INIT_FAILED;
       FileWrite(g_signals,"schema_version","run_id","strategy","time_utc","event","detail");
-      FileWrite(g_equity,"run_id","time_utc","nr_equity_r","ema_equity_r","combined_equity_r",
-         "nr_equity_cash","ema_equity_cash","combined_equity_cash","nr_open","ema_open","run_failed");
-      int h=FileOpen("E2\\Research\\Nasdaq\\"+g_run+"_settings.txt",FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
+      FileWrite(g_equity,"run_id","time_utc","equity_r","equity_cash","open_positions","run_failed");
+      int h=FileOpen(g_report_folder+"\\Settings.txt",FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
       if(h!=INVALID_HANDLE){FileWriteString(h,canonical+"\r\nsymbol="+_Symbol+"\r\nclock=UTC in reports\r\n");FileClose(h);}
    }
    g_trade.SetAsyncMode(false);g_trade.SetTypeFillingBySymbol(_Symbol);
    g_trade.SetDeviationInPoints((ulong)MathCeil(InpMaxDeviationPriceUnits/_Point));
    if(!Feed(TimeCurrent(),now) && g_failed)return INIT_FAILED;
-   for(int s=0;s<2;s++)g_slots[s].seen_signal=g_slots[s].signal_time;
+   for(int s=0;s<1;s++)g_slots[s].seen_signal=g_slots[s].signal_time;
    if(!EventSetTimer(1)){Print("[NP] Cannot start exit timer.");return INIT_FAILED;}
    g_test_from=now;g_ready=true;
    Print("[NP] Research run ",g_run,". M1-derived UTC bars. Settings: ",canonical);
@@ -475,24 +447,24 @@ int OnInit() {
 void OnTick() {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;g_test_until=now;
-   for(int s=0;s<2;s++)Reconcile(s,now);
-   if(!g_failed && Feed(TimeCurrent(),now))for(int s=0;s<2;s++)Enter(s,now);
+   for(int s=0;s<1;s++)Reconcile(s,now);
+   if(!g_failed && Feed(TimeCurrent(),now))for(int s=0;s<1;s++)Enter(s,now);
    Equity(now);
 }
 void OnTimer() {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;
-   for(int s=0;s<2;s++)Reconcile(s,now);
+   for(int s=0;s<1;s++)Reconcile(s,now);
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &req,const MqlTradeResult &res) {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;
-   for(int s=0;s<2;s++)Reconcile(s,now);
+   for(int s=0;s<1;s++)Reconcile(s,now);
 }
 double OnTester() {
    // End-of-test liquidation is explicitly marked; it is not a strategy exit.
    datetime now;if(!Utc(TimeCurrent(),now))return -1e100;
-   for(int s=0;s<2;s++) {
+   for(int s=0;s<1;s++) {
       Reconcile(s,now);ulong ticket=PositionFor(s);
       if(ticket>0) {
          int i=g_slots[s].active;if(i>=0)g_records[i].integrity="END_OF_TEST_LIQUIDATION";
@@ -500,15 +472,15 @@ double OnTester() {
       }
    }
    Equity(now);
-   return g_failed?-1e100:g_r[0]+g_r[1];
+   return g_failed?-1e100:g_r[0];
 }
 void OnDeinit(const int reason) {
    EventKillTimer();
    if(g_ready){
-      datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<2;s++)Reconcile(s,now);
-      ExportTrades(NP_SELECTED_STRATEGY==0?"NR4":"EMA",NP_SELECTED_STRATEGY);
-      Print("[NP] Closed net R=",g_r[0]+g_r[1]," tick-observed combined cash DD=",g_equity_dd,
-         " failed=",g_failed,". CSV: Common\\Files\\E2\\Research\\Nasdaq\\",g_run);
+      datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<1;s++)Reconcile(s,now);
+      ExportTrades();
+      Print("[NP] Closed net R=",g_r[0]," tick-observed cash DD=",g_equity_dd,
+         " failed=",g_failed,". CSV: Common Files / ",g_report_folder);
    }
    if(g_signals!=INVALID_HANDLE){FileFlush(g_signals);FileClose(g_signals);}
    if(g_equity!=INVALID_HANDLE){FileFlush(g_equity);FileClose(g_equity);}

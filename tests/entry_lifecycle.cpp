@@ -70,7 +70,7 @@ struct {bool Save(const E2PositionMetadata&){saves++;return save_ok;}void Record
 struct {bool Register(const E2PositionMetadata&,bool){registrations++;return true;}void RecordExecuted(const string&,const E2ExecutionResult&,const E2PositionMetadata&){}}g_trade_reporter;
 int g_recovered_positions_registered=0,g_new_positions_registered=0;
 struct {int targets_attached=0,recovered_positions_validated=0,new_positions_registered=0;}g_r_verify;
-#include "../include/execution/E2EntryLifecycle.mqh"
+#include "../strategies/GoldSessionFade/include/execution/E2EntryLifecycle.mqh"
 void reset(){g_entry={};g_entry.symbol="XAUUSD";g_entry.direction=E2_DIRECTION_LONG;g_entry.submitted_stop=90;g_entry.target_r=1.5;
  g_entry_requested=1000;g_entry_requested_volume=1;g_entry_result={7,0};g_entry_pending=true;g_entry_registered=false;g_entry_restarted=false;
  g_entry_retry_ms=0;g_entry_alert_ms=0;clock_ms=1000;journal=true;delete_ok=save_ok=history_ok=position_open=modify_ok=true;

@@ -65,9 +65,9 @@ The `_T.csv` contains finalized trades from that EA session, including registere
 
 ### Optional automatic reading
 
-In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades, or use `E2_*.csv` for trades and signals. Enable it once.
+In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades. Select a single run folder for each backtest dataset. Upload gold signal files separately; EMA diagnostic/equity files are not journal imports. Enable the watch once.
 
-The app scans every 15 seconds and reads a file only after its size and modified time are unchanged across two scans. New or changed exports import automatically; duplicates are skipped. Results and failures appear in Import history / folder status. It does not alter the source files.
+The app recursively scans the selected folder every 15 seconds and reads a file only after its size and modified time are unchanged across two scans. New or changed exports import automatically; duplicates are skipped. Results and failures appear in Import history / folder status. It does not alter the source files.
 
 **The MT5 Common Files reports folder can mix multiple accounts and backtests.** If it is mixed, copy the right reports into an account-specific folder or upload manually. Filename symbol/config alone cannot reliably identify an account. The watcher does not make the EA generate missing exports or connect to MT5.
 
@@ -114,3 +114,7 @@ Do not append open trades with invented outcomes. For a broker export that lists
 Automated checks cover imports, duplicate/conflict handling, financial metrics, unknown risk, account/run isolation, editable allocations, cash flows, stable folder reading, backup/restore and local HTTP access restrictions. Actual historical E2 exports are used locally to check adapter compatibility; private trade data is not included in the repository.
 
 Windows packaging and offline smoke tests run in GitHub Actions. MT5 compilation and live broker acceptance of the separate EA protection fix remain separate from journal testing. No trading is needed to test the journal.
+
+## Updated strategy folders
+
+See [CSV exports](CSV_EXPORTS.md) for the current layout. Automatic watches now search subfolders. Use `E2_*_T.csv` for trades from both strategies; select one run folder per backtest dataset. Gold `_S.csv` files contain journal-compatible signals; EMA `_S.csv` files contain diagnostics and its `_E.csv` contains equity, so inspect those separately. Old reports remain readable.

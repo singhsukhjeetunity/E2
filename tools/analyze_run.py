@@ -1,4 +1,4 @@
-"""Analyze ONE Nasdaq research tester run (single strategy or legacy combined). Python 3.10+, standard library only."""
+"""Analyze one EMA pullback tester run. Python 3.10+, standard library only."""
 import argparse
 import csv
 import datetime as dt
@@ -6,9 +6,8 @@ import json
 import math
 import statistics
 from collections import defaultdict
-from pathlib import Path
 
-NAMES = ("NP_NR4_H1_SHORT", "NP_EMA_M30_LONG")
+NAMES = ("NP_EMA_M30_LONG",)
 UTC = dt.timezone.utc
 
 def stamp(text):
@@ -37,14 +36,6 @@ def longest_loss(trades):
         worst = max(worst, run)
     return worst
 
-def corr(x, y):
-    if len(x) < 3:
-        return None
-    ax, ay = statistics.mean(x), statistics.mean(y)
-    vx = sum((v-ax)**2 for v in x)
-    vy = sum((v-ay)**2 for v in y)
-    return sum((a-ax)*(b-ay) for a, b in zip(x, y))/math.sqrt(vx*vy) if vx*vy else None
-
 def load_trades(rows, start, end):
     if not rows:
         raise ValueError("Empty trade ledger; no trade statistics available.")
@@ -55,7 +46,7 @@ def load_trades(rows, start, end):
     ids, out = set(), []
     for t in rows:
         if t["trade_id"] in ids:
-            raise ValueError("Duplicate trade_id; do not import ALL and individual ledgers together.")
+            raise ValueError("Duplicate trade_id; import one ledger only.")
         ids.add(t["trade_id"])
         if t["trade_status"] != "FINALIZED" or t["integrity_flags"]:
             raise ValueError("Run contains unfinalized or integrity-flagged trades; inspect it before reporting.")
@@ -102,37 +93,15 @@ def analyze(rows, start, end, equity=None):
     if end <= start:
         raise ValueError("End must be after start (exclusive).")
     trades, run = load_trades(rows, start, end)
-    a, b = ([t for t in trades if t["strategy"] == n] for n in NAMES)
-    # Aligned UTC weekdays, including zero-trade days and exchange holidays.
-    # Date bounds MUST be the actual tester interval, not first/last trade dates.
-    days = [start+dt.timedelta(days=i) for i in range((end-start).days)
-            if (start+dt.timedelta(days=i)).weekday()<5]
-    sums = [defaultdict(float), defaultdict(float)]
-    for i, ts in enumerate((a,b)):
-        for t in ts:
-            if t["date"].weekday()>=5:
-                raise ValueError("Weekend exit: investigate session-close execution.")
-            sums[i][t["date"]] += t["r"]
-    daily = [[s[d] for d in days] for s in sums]
-    weekly = [defaultdict(float), defaultdict(float)]
-    for i in range(2):
-        for d, r in zip(days, daily[i]):
-            weekly[i][d-dt.timedelta(days=d.weekday())] += r
-    weeks = sorted(weekly[0])
-    overlap = sum(max(0,min(x["exit_msc"],y["exit_msc"])-max(x["entry_msc"],y["entry_msc"]))
-                  for x in a for y in b)/60000
+    if any(t["date"].weekday()>=5 for t in trades):
+        raise ValueError("Weekend exit: investigate session-close execution.")
     report = dict(run_id=run, start=str(start), end_exclusive=str(end),
-                  assumptions=["R = each trade's actual initial cash risk; not account percent.",
-                    "Correlation uses settled net R on aligned UTC weekdays, including zero-trade holidays.",
-                    "Losing streak breaks at breakeven; exact-millisecond ties ordered by trade_id.",
-                    "Closed drawdown nets simultaneous settlements; it excludes floating losses.",
-                    "Median year includes partial years when supplied dates are partial.",
-                    "This report does not establish profitability out of sample."],
-                  nr4=summarize(a,start,end), ema=summarize(b,start,end),
-                  combined=summarize(trades,start,end),
-                  daily_closed_r_correlation=corr(*daily),
-                  weekly_closed_r_correlation=corr(*[[w[k] for k in weeks] for w in weekly]),
-                  overlapping_position_minutes=overlap)
+                  assumptions=["R = actual initial cash risk, not account percent.",
+                    "Closed drawdown excludes floating losses.",
+                    "Losing streak breaks at breakeven.",
+                    "Yearly figures include partial years where supplied.",
+                    "This report does not establish out-of-sample profitability."],
+                  ema=summarize(trades,start,end))
     if equity is not None:
         if not equity or any(t["run_id"] != run for t in equity):
             raise ValueError("Missing equity rows or mismatched run.")
@@ -142,7 +111,7 @@ def analyze(rows, start, end, equity=None):
         if any(y<=x for x,y in zip(dates,dates[1:])):
             raise ValueError("Equity timestamps are not strictly increasing.")
         eq_metrics = {}
-        for key in ("nr_equity_r","ema_equity_r","combined_equity_r","combined_equity_cash"):
+        for key in ("equity_r","equity_cash"):
             vals = [0.0]+[float(t[key]) for t in equity]
             if not all(math.isfinite(v) for v in vals):
                 raise ValueError("Nonfinite equity value.")
@@ -159,7 +128,7 @@ def analyze(rows, start, end, equity=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("trades", help="ONE *_NR4_T.csv or *_EMA_T.csv (legacy *_ALL_T.csv also supported)")
+    parser.add_argument("trades", help="One E2_Trades_T.csv from an EMA run")
     parser.add_argument("--equity", help="Matching *_E.csv")
     parser.add_argument("--start", required=True, type=dt.date.fromisoformat)
     parser.add_argument("--end", required=True, type=dt.date.fromisoformat, help="Exclusive tester end date")

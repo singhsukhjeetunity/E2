@@ -1,11 +1,11 @@
 STRATEGY REFERENCE - original instruments and baseline settings
 
-All three EAs use the selected tester/chart symbol. Instrument names are
+Both EAs use the selected tester/chart symbol. Instrument names are
 not eligibility filters. These are original research settings, not evidence
 of profitability on other markets. Strategy names in exports remain stable;
 the symbol column identifies the actual instrument tested.
 
-1. XAU_Session_Fade.mq5
+1. strategies/GoldSessionFade/XAU_Session_Fade.mq5
 Original instrument: XAUUSD (gold/USD).
 Execution: M5 (required).
 Range: 12:00-12:30 UTC; ATR length 14; stop multiplier 8;
@@ -17,21 +17,14 @@ Magic: 2026001. CSV export must be enabled to obtain reports.
 Default spread cap: 40 pips; entry deviation: 2 pips.
 Pip convention: 10 quote points for 3/5 digits, otherwise 1 quote point.
 
-2. research/NasdaqPair/Nasdaq_NR4_Short.mq5
-Original instrument: Nasdaq-100 CFD; research data NSXUSD, MT5 test USTEC.
-Internal timeframe: H1 rebuilt from M1. Short only.
-NR lookback: 4; ATR length: 14; stop: 1 ATR.
-No fixed TP; scheduled session exit.
-Default fixed cash risk: 1000; magic: 2026091401.
-
-3. research/NasdaqPair/Nasdaq_EMA_Pullback_Long.mq5
+2. strategies/EMAPullback/EMA_Pullback_Long.mq5
 Original instrument: Nasdaq-100 CFD; research data NSXUSD, MT5 test USTEC.
 Internal timeframe: M30 rebuilt from M1. Long only.
 EMA fast/slow: 20/50; ATR length: 14; stop: 3 ATR; target: 0.5R.
 Scheduled session exit if still open.
 Default fixed cash risk: 1000; magic: 2026091402.
 
-COMMON NR4 / EMA BASELINE
+EMA SESSION BASELINE
 Entry window: 10:00-15:29 New York; half-day cutoff 12:30.
 Scheduled exit: 15:55 New York; half days 12:55.
 US market calendar remains part of the strategy on EVERY instrument.
@@ -41,7 +34,7 @@ For EURUSD, 0.0001 is one conventional pip; a cap of 4 is NOT 4 pips.
 Set spread/deviation appropriately for the instrument before testing.
 Indicator seed default: 2022-01-01 UTC; full M1 history required from seed.
 If history starts later, explicitly set a supported later seed and test date.
-Calendar supported: 2022-2026. Both EAs remain Strategy Tester only.
+Calendar supported: 2022-2026. EMA remains Strategy Tester only.
 Broker session guard: exit 5 minutes before the active broker session ends
 if earlier than the scheduled US exit. Editable buffer: 1-120 minutes.
 A missed exit by more than 60 seconds invalidates the run; closes keep retrying.

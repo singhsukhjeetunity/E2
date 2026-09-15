@@ -28,5 +28,5 @@ jobs:
           name: E2-Journal-Windows
           path: |
             dist/E2-Journal.exe
-            JOURNAL_GUIDE.md
+            docs/JOURNAL_GUIDE.md
           if-no-files-found: error

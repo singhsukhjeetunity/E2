@@ -1,5 +1,5 @@
-#ifndef NASDAQ_PAIR_CORE_MQH
-#define NASDAQ_PAIR_CORE_MQH
+#ifndef EMA_CORE_MQH
+#define EMA_CORE_MQH
 // Portable signal/indicator code: shared by the EA and C++ test harness.
 #ifdef __cplusplus
 #include <cmath>
@@ -21,7 +21,7 @@ void NPReset(NPState &s) {
    for(int i=0;i<32;i++){s.recent[i].start=0;s.recent[i].open=0;s.recent[i].high=0;s.recent[i].low=0;s.recent[i].close=0;s.recent[i].minutes=0;}
 }
 bool NPConsume(NPState &s,const NPBar &b,const int period_minutes,
-               const int strategy,const int nr_length,const int atr_length,
+               const int atr_length,
                const int fast_length,const int slow_length,double &risk_atr) {
    double old_fast=s.fast;
    double tr=b.high-b.low;
@@ -35,16 +35,9 @@ bool NPConsume(NPState &s,const NPBar &b,const int period_minutes,
    bool ready=s.history>0 && b.minutes==period_minutes &&
       s.recent[0].minutes==period_minutes &&
       s.recent[0].start+period_minutes*60==b.start &&
-      s.count>=100 && (strategy==0 || s.count>=slow_length);
+      s.count>=100 && s.count>=slow_length;
    bool signal=false;
-   if(ready && strategy==0 && s.history>=nr_length) {
-      double r=s.recent[0].high-s.recent[0].low;
-      bool narrow=true;
-      for(int i=1;i<nr_length;i++)
-         if(r>s.recent[i].high-s.recent[i].low)narrow=false;
-      signal=narrow && b.close<s.recent[0].low;
-   }
-   if(ready && strategy==1)
+   if(ready)
       signal=s.fast>s.slow && s.previous_close<=old_fast && b.close>s.fast;
    risk_atr=s.atr;
    for(int i=30;i>=0;i--)s.recent[i+1]=s.recent[i];

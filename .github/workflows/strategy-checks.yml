@@ -1,0 +1,16 @@
+name: Strategy and journal checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  portable-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: g++ -std=c++17 -Wall -Wextra -Werror -fsanitize=undefined,address -g tests/ema_core.cpp -o /tmp/ema-core
+      - run: /tmp/ema-core
+      - run: g++ -std=c++17 tests/entry_lifecycle.cpp -o /tmp/entry-lifecycle
+      - run: /tmp/entry-lifecycle
+      - run: g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
+      - run: /tmp/report-folders
+      - run: python3 -m unittest discover -s tests -p 'test_*.py' -v

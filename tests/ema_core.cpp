@@ -16,32 +16,29 @@ void TimeToStruct(datetime x,MqlDateTime &m) {
 }
 string IntegerToString(long long x){return std::to_string(x);}
 int StringFind(const string &s,const string &x){auto p=s.find(x);return p==string::npos?-1:(int)p;}
-#include "../NasdaqPairCore.mqh"
-#include "../NasdaqPairClock.mqh"
+#include "../strategies/EMAPullback/EMACore.mqh"
+#include "../strategies/EMAPullback/SessionClock.mqh"
 NPBar bar(long i,double close=100,int minutes=60) {
     return {i*minutes*60,100,std::fmax(102,close),std::fmin(98,close),close,minutes};
 }
 void warm(NPState &s,int minutes=60) {
     NPReset(s);double atr;
-    for(int i=0;i<100;i++)assert(!NPConsume(s,bar(i,100,minutes),minutes,0,4,14,20,50,atr));
+    for(int i=0;i<100;i++)assert(!NPConsume(s,bar(i,100,minutes),minutes,14,20,50,atr));
 }
 int main() {
     NPState s;double a;warm(s);
-    // Equal ranges are eligible NR4; breakout must close strictly below prior low.
-    assert(NPConsume(s,bar(100,97),60,0,4,14,20,50,a));
-    warm(s);assert(!NPConsume(s,bar(100,98),60,0,4,14,20,50,a));
-    warm(s);auto incomplete=bar(100,97);incomplete.minutes=59;
-    assert(!NPConsume(s,incomplete,60,0,4,14,20,50,a));
-    warm(s);assert(!NPConsume(s,bar(101,97),60,0,4,14,20,50,a));
+    warm(s,30);auto incomplete=bar(100,101,30);incomplete.minutes=29;
+    assert(!NPConsume(s,incomplete,30,14,20,50,a));
+    warm(s,30);assert(!NPConsume(s,bar(101,101,30),30,14,20,50,a));
     // Current ATR includes the current bar, with Wilder alpha rather than SMA seeding.
-    NPReset(s);NPConsume(s,bar(0),60,0,4,14,20,50,a);assert(a==4);
+    NPReset(s);NPConsume(s,bar(0),60,14,20,50,a);assert(a==4);
     auto wide=bar(1);wide.high=110;
-    NPConsume(s,wide,60,0,4,14,20,50,a);assert(std::abs(a-(4+8.0/14))<1e-12);
+    NPConsume(s,wide,60,14,20,50,a);assert(std::abs(a-(4+8.0/14))<1e-12);
     // After flat history, a close above the seeded EMA crosses and fast exceeds slow.
-    warm(s,30);assert(NPConsume(s,bar(100,101,30),30,1,4,14,20,50,a));
-    assert(!NPConsume(s,bar(101,101.5,30),30,1,4,14,20,50,a));
+    warm(s,30);assert(NPConsume(s,bar(100,101,30),30,14,20,50,a));
+    assert(!NPConsume(s,bar(101,101.5,30),30,14,20,50,a));
     NPReset(s);for(int i=0;i<99;i++)
-        assert(!NPConsume(s,bar(i,100+i*.01,30),30,1,4,14,20,50,a));
+        assert(!NPConsume(s,bar(i,100+i*.01,30),30,14,20,50,a));
     // UTC -> NY and broker round trips straddle both DST regimes.
     assert(!NPUSDst(NPDate(2024,3,10,6,59)));
     assert(NPUSDst(NPDate(2024,3,10,7)));
