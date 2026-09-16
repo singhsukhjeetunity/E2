@@ -57,6 +57,7 @@ private:
    string BasisName()const
      {
       if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return("UTC");
+      if(m_config.xau_time_basis==E2_XAU_TIME_NEW_YORK)return("NEW_YORK");
       return("SERVER");
      }
 
@@ -65,7 +66,9 @@ private:
       rule_time=server_time;
       if(m_config.xau_time_basis==E2_XAU_TIME_SERVER)return(true);
       if(m_time==NULL)return(false);
-      if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return(m_time.ServerToUtc(server_time,rule_time));
+      if(!m_time.ServerToUtc(server_time,rule_time))return(false);
+      if(m_config.xau_time_basis==E2_XAU_TIME_UTC)return(true);
+      if(m_config.xau_time_basis==E2_XAU_TIME_NEW_YORK){rule_time=E2NewYorkTime(rule_time);return(true);}
       return(false);
      }
 

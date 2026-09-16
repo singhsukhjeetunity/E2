@@ -1,5 +1,5 @@
 #property strict
-#property version "4.1"
+#property version "4.2"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "include\\core\\E2Config.mqh"
@@ -51,14 +51,6 @@ E2RVerification g_r_verify;
 string E2ActiveStrategyName(void)
   {
    return("XAU_SESSION_FADE");
-  }
-
-bool E2SymbolAllowedForStrategy(void)
-  {
-   string base=SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE);
-   string profit=SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT);
-   string s=_Symbol;StringToUpper(s);
-   return((base=="XAU"&&profit=="USD")||(StringFind(s,"XAU")>=0&&StringFind(s,"USD")>=0));
   }
 
 void E2EnforceWeekendFlat(void)
@@ -113,7 +105,6 @@ int OnInit()
    g_execution_safety.Initialize(g_configuration,g_logger);
    g_weekend_flat.Initialize(g_configuration,_Symbol,g_logger);
    g_order_executor.Initialize(g_configuration,g_symbol_info,g_account_info,g_position_guard,g_execution_safety,g_weekend_flat,g_broker_time,g_logger);
-   if(!E2SymbolAllowedForStrategy()){g_logger.Error("Selected strategy is not allowed on this symbol.","Initialization");return(INIT_PARAMETERS_INCORRECT);}
    if(g_configuration.broker_time_profile!="")
      {
       if(!g_broker_time.Initialize(g_configuration.broker_time_profile,AccountInfoString(ACCOUNT_SERVER),g_environment.IsTester(),g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
@@ -128,7 +119,7 @@ int OnInit()
      }
    else
      {
-      g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
+      g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC/New York XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
       return(INIT_PARAMETERS_INCORRECT);
      }
    g_configuration.time_policy_digest=g_broker_time.Digest();

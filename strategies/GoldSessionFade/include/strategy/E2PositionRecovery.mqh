@@ -17,6 +17,7 @@ private:
       day=0;
       if(m_config.xau_time_basis==E2_XAU_TIME_SERVER){day=E2CalendarDay(server);return(day>0);}
       datetime utc;if(m_time==NULL||!m_time.ServerToUtc(server,utc))return(false);
+      if(m_config.xau_time_basis==E2_XAU_TIME_NEW_YORK)utc=E2NewYorkTime(utc);
       day=E2CalendarDay(utc);return(day>0);
      }
    string RuleDate(const datetime value)const{int day=0;if(!RuleDay(value,day))return("");return(IntegerToString(day));}

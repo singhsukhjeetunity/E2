@@ -1,4 +1,5 @@
 """Durable local journal; imports are atomic and never overwrite trade evidence."""
+import os
 import csv
 import hashlib
 import json
@@ -193,8 +194,11 @@ class Store:
         # Never silently bind one report stream to several accounts.
         identifier = hashlib.sha256(str(path).casefold().encode()).hexdigest()
         for watch in self.rows("watches"):
-            if watch["id"] == identifier and watch["account_id"] != account["id"]:
-                raise ValueError("This folder is already assigned to another dataset. Use a separate folder per account")
+            existing = Path(watch["path"]).resolve()
+            a, b = str(path).casefold(), str(existing).casefold()
+            overlaps = a == b or a.startswith(b.rstrip(os.sep) + os.sep) or b.startswith(a.rstrip(os.sep) + os.sep)
+            if overlaps and watch["account_id"] != account["id"]:
+                raise ValueError("This folder overlaps a watch assigned to another dataset. Use separate folders per account")
         result = {"id": identifier, "account_id": account["id"], "path": str(path), "pattern": pattern,
                   "enabled": bool(data.get("enabled", True)), "status": "Waiting for two stable scans", "last_scan": None}
         with self.lock, self.connect() as db:
@@ -308,7 +312,7 @@ class Watcher:
                 folder = Path(watch["path"])
                 if not folder.is_dir():
                     raise ValueError("Folder is unavailable")
-                for path in sorted(folder.glob(watch["pattern"])):
+                for path in sorted(folder.rglob(watch["pattern"])):
                     if not path.is_file() or path.is_symlink():
                         continue
                     stat = path.stat()

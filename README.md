@@ -1,29 +1,52 @@
-# E2 — standalone EA + trading journal
+# E2 — independent strategies and trading journal
 
-The **EA trades independently in MT5**. The **journal imports CSVs and explains results**.
+| Folder | Contents |
+|---|---|
+| `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
+| `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
+| `strategies/shared/` | Shared report-folder utilities |
+| `journal/` | Local CSV trading journal |
+| `tools/` | EMA run analysis |
+| `tests/` | Portable regression tests |
+| `docs/` | Setup, settings, export and test guides |
 
-This branch, `feature/standalone-journal`, starts from the standalone `main` EA. It contains no external controller, synthetic strategies, broker runner, approval system or MT5 Python dependency. The old controller branch is retained separately as history; do not launch its services alongside this journal.
+NR4 and its EA have been removed. The old triple-moving-average strategy is not included in this revision. Historical branches and commits are retained.
 
-## Start here
+## Selected defaults
 
-Read [JOURNAL_GUIDE.md](JOURNAL_GUIDE.md). The dashboard keeps the dark E2 design and includes:
+| Strategy | Finalized baseline |
+|---|---|
+| Gold Session Fade | M5, 12:00–12:30 UTC, ATR14 × 8 stop, 1.5R target, one trade per day |
+| EMA Pullback | M30, EMA20/50, ATR14 × 3 stop, 0.5R target, one trade per New York day, spread cap 10 price units |
 
-- Account and strategy performance, yearly/monthly results, closed-trade P&L curves and drawdown.
-- Editable grade allocations, risk references and strategy notes (planning only).
-- Automatic E2 CSV recognition, preview, duplicate protection and conflict blocking.
-- Optional account-specific folder reading; no order or terminal access.
-- Manual closed trades, payouts, fees, balance transfers, backup and restore.
+Strategy selection is complete. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
 
-**Your existing EA does not need to be replaced to use the journal.** Its current CSV reports already work. This branch does not modify the EA or its trading rules. The separately published SL/TP repair on `main` still needs MT5 compilation and broker acceptance testing; see [TESTING.md](TESTING.md).
+## Install and test
+
+Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subfolders. Open and compile the desired `.mq5` entry in MetaEditor. Copying only an entry file will omit its dependencies. Remove obsolete source/compiled EA copies from your test installation to avoid selecting the wrong version.
+
+Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logic in the tester, demo and real accounts. Both accept the selected symbol; their original session rules still apply.
+
+- [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
+- [Gold checks and known limitation](docs/GOLD_TESTING.md)
+- [EMA setup and verification](docs/EMA_TESTING.md)
+- [CSV folder layout and migration](docs/CSV_EXPORTS.md)
+- [Trading journal guide](docs/JOURNAL_GUIDE.md)
+
+Launch the journal with `Open-E2-Journal.pyw`. The journal imports CSVs and visualizes performance; it does not place orders. Combine independent tests externally with explicit risk allocations and matching report clocks.
 
 ## Developer checks
 
-Python 3.10+ standard library only. No pip packages are needed to run from source.
-
-```text
-python -m unittest discover -s tests -p "test_journal.py" -v
-node --check journal/app.js
-python -m journal.app --no-browser
+```sh
+python -m unittest discover -s tests -p 'test_*.py' -v
+g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
+/tmp/ema-core
+g++ -std=c++17 tests/entry_lifecycle.cpp -o /tmp/entry-lifecycle
+/tmp/entry-lifecycle
+g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
+/tmp/report-folders
 ```
 
-The Windows workflow packages a double-click executable and tests the packaged application with a temporary journal. Windows binaries are published only if the checks pass. User data and uploaded CSVs are never committed to Git.
+Additional EMA runtime checks: `python tests/run_ema_runtime.py`, `python tests/run_ema_warmup.py`, `python tests/run_ema_entry.py`.
+
+These checks do not compile MQL5 or replace an MT5 regression backtest. Gold's previously observed holiday/weekend holds remain unresolved by this repository cleanup.

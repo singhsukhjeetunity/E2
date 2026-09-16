@@ -142,7 +142,9 @@ class JournalTests(unittest.TestCase):
 
     def test_watch_requires_stable_file_and_deduplicates_restart(self):
         reports = self.root / "reports"; reports.mkdir()
-        (reports / "E2_test_T.csv").write_bytes(report())
+        nested = reports / "GoldSessionFade" / "XAUUSD" / "run1"
+        nested.mkdir(parents=True)
+        (nested / "E2_Trades_T.csv").write_bytes(report())
         self.store.save_watch({"account_id": self.id, "path": str(reports)})
         watcher = Watcher(self.store); watcher.scan()
         self.assertEqual(self.store.rows("trades"), [])
@@ -152,6 +154,14 @@ class JournalTests(unittest.TestCase):
 
     def test_same_folder_cannot_bind_multiple_accounts(self):
         self.store.save_watch({"account_id": self.id, "path": str(self.root)})
+        other = self.store.save_account({"name": "Other", "kind": "Demo", "currency": "USD", "starting_balance": 1})
+        with self.assertRaises(ValueError):
+            self.store.save_watch({"account_id": other["id"], "path": str(self.root)})
+
+    def test_recursive_watch_rejects_overlapping_accounts(self):
+        nested = self.root / "run1"
+        nested.mkdir()
+        self.store.save_watch({"account_id": self.id, "path": str(nested)})
         other = self.store.save_account({"name": "Other", "kind": "Demo", "currency": "USD", "starting_balance": 1})
         with self.assertRaises(ValueError):
             self.store.save_watch({"account_id": other["id"], "path": str(self.root)})
