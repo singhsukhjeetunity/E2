@@ -20,3 +20,9 @@ Reference: [MetaQuotes transaction ordering](https://www.mql5.com/en/docs/event_
 ## Cleanup regression
 
 The folder reorganization changes export locations and makes run IDs unique. Trading, recovery and risk logic are unchanged. Five holiday/weekend holds observed in the earlier gold export remain an open issue; this cleanup does not claim to fix them. Rerun identical inputs after compilation and compare entries, exits and risk, ignoring changed run IDs and file paths.
+
+## Optional New York timing comparison
+
+Gold version 4.2 adds `E2_XAU_TIME_NEW_YORK` to `InpXauTimeBasis`. See the [reference settings](STRATEGY_REFERENCE.md#optional-new-york-session-clock) for the 08:00–08:30 local-time experiment and Friday-cutoff semantics. Default UTC behavior is retained. The broker offset/profile must still match the historical data.
+
+Portable clock/range checks: `python tests/run_gold_clock.py`. In MT5, compare winter and summer range timestamps, New York day recovery after restart, and Friday cutoffs. Compile in MetaEditor before running; portable checks do not compile the full EA.

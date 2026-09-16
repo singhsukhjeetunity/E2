@@ -1,7 +1,7 @@
 #ifndef E2_CORE_E2CONFIG_MQH
 #define E2_CORE_E2CONFIG_MQH
 enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
-enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1 };
+enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1,E2_XAU_TIME_NEW_YORK=2 };
 input group "=== E2 PRODUCTION ==="
 input bool InpTradingEnabled = true;             // Enable Trading
 input bool InpConfirmRealAccountTrading = false; // Required for real-account trading
@@ -87,7 +87,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
    reason="";
    if(!E2ValidClock(InpXauRangeStartHour,InpXauRangeStartMinute)||!E2ValidClock(InpXauRangeEndHour,InpXauRangeEndMinute)||
       c.xau_range_start>=c.xau_range_end){reason="XAU range clocks must be valid, same-day, and aligned to M5.";return(false);}
-   if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC)
+   if(c.xau_time_basis!=E2_XAU_TIME_SERVER&&c.xau_time_basis!=E2_XAU_TIME_UTC&&c.xau_time_basis!=E2_XAU_TIME_NEW_YORK)
       {reason="Invalid XAU time basis.";return(false);}
    if(c.xau_atr_length<1||c.xau_atr_length>1000||!MathIsValidNumber(c.xau_atr_multiplier)||c.xau_atr_multiplier<=0||
       !MathIsValidNumber(c.xau_target_r)||c.xau_target_r<=0){reason="XAU ATR length 1..1000 and positive ATR multiplier/Target R required.";return(false);}

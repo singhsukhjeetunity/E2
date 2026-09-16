@@ -90,6 +90,23 @@ Gold's pip convention is 10 quote points for 3/5-digit symbols, otherwise one qu
 
 **Known limitation:** five holiday/weekend-held gold trades remain in the earlier portfolio research. Their exit handling is not resolved by selecting this baseline. See [Gold testing notes](GOLD_TESTING.md).
 
+### Optional New York session clock
+
+`InpXauTimeBasis` now offers `E2_XAU_TIME_NEW_YORK` alongside the existing UTC and server modes. UTC remains the default. In New York mode the **range hours, Friday entry cutoff and strategy day** all use New York local time, adjusting for US daylight saving. Broker timestamps are still converted using the verified broker-time adapter first; this option does not correct an incorrect broker offset.
+
+| Input | Retained fixed-UTC baseline | New York timing experiment |
+|---|---|---|
+| `InpXauTimeBasis` | `E2_XAU_TIME_UTC` | `E2_XAU_TIME_NEW_YORK` |
+| `InpXauRangeStartHour` / minute | 12 / 0 | **8 / 0** |
+| `InpXauRangeEndHour` / minute | 12 / 30 | **8 / 30** |
+| UTC range produced | 12:00–12:30 all year | 13:00–13:30 winter; 12:00–12:30 summer |
+
+Switching the mode does **not** rewrite the numeric hour inputs: leaving 12 selected means noon New York time. The Friday block hour also needs an explicit choice: 16 New York corresponds to 20 UTC in summer and 21 UTC in winter; leaving 20 means 20:00 New York. Use `-1` only if deliberately disabling that entry cutoff. Weekend-flat still follows the broker session schedule.
+
+Select the clock/settings before a fresh backtest or while flat, with no unresolved recovery state. The configuration hash distinguishes time modes. Rule dates and range timestamps in exports use the selected clock; fill/exit timestamps retain their existing broker-time convention. The run configuration log identifies `TIME_BASIS=NEW_YORK`.
+
+This is an optional experiment, not a replacement baseline. Keep all other inputs and data fixed, and record any Friday-cutoff change separately when comparing results.
+
 ## Portfolio sizing · research reference
 
 The lower-drawdown allocation assigns **35% of the planned risk to gold and 65% to EMA**. These are shares of trade risk, not capital allocations or a daily loss limit.

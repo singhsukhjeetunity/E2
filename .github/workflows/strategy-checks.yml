@@ -17,3 +17,4 @@ jobs:
       - run: python3 tests/run_ema_runtime.py
       - run: python3 tests/run_ema_warmup.py
       - run: python3 tests/run_ema_entry.py
+      - run: python3 tests/run_gold_clock.py

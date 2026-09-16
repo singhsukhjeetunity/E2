@@ -1,5 +1,5 @@
 #property strict
-#property version "4.1"
+#property version "4.2"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "include\\core\\E2Config.mqh"
@@ -119,7 +119,7 @@ int OnInit()
      }
    else
      {
-      g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
+      g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC/New York XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
       return(INIT_PARAMETERS_INCORRECT);
      }
    g_configuration.time_policy_digest=g_broker_time.Digest();
