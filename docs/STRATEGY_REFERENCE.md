@@ -3,8 +3,9 @@
 **Gold Session Fade + EMA Pullback**  
 Reference updated **16 September 2026**
 
-> **Status: baseline retained for demo forward testing.**  
-> Demo testing is planned, not completed. Final deployment settings remain subject to review of the forward results.
+> **Status: strategy selection complete; defaults finalized.**
+>
+> Gold retains the fixed-UTC baseline. Sukh verified the EMA one-trade-per-day option and selected it as the default. Demo forward testing remains the next operating stage.
 
 ## At a glance
 
@@ -14,10 +15,10 @@ Reference updated **16 September 2026**
 | Timeframe | M5 required | Internal M30, built from completed M1 bars |
 | Stop | 8 × ATR14 | **3 × ATR14** |
 | Profit target | 1.5R | **0.5R** |
-| Status | Existing strategy, retained | Retained for demo forward testing |
+| Status | Existing strategy, retained | Finalized with one trade per New York day |
 | EA | [XAU_Session_Fade.mq5](../strategies/GoldSessionFade/XAU_Session_Fade.mq5) | [EMA_Pullback_Long.mq5](../strategies/EMAPullback/EMA_Pullback_Long.mq5) |
 
-**Decision:** retain EMA20/50, the 3.0 ATR stop, the 0.5R target and the existing session exit. The 1.25R target and alternative EMA/stop settings were research comparisons; they are not the retained baseline. Gold settings are unchanged.
+**Decision:** retain EMA20/50, the 3.0 ATR stop, the 0.5R target and the existing session exit, with one trade per New York day enabled. The 1.25R target and alternative EMA/stop settings were research comparisons; they are not the retained baseline. Gold settings are unchanged.
 
 Both EAs use the selected chart/tester symbol. Changing the symbol does not change the strategy's session rules or establish that the strategy works on that market.
 
@@ -30,16 +31,16 @@ Both EAs use the selected chart/tester symbol. Changing the symbol does not chan
 | ATR period | **14** | `InpATRLength` |
 | Stop distance | **3.0 × ATR** | `InpEMAStopATR` |
 | Target | **0.5R** | `InpEMATargetR` |
-| One trade per New York day | **Off** to retain the tested baseline; optional | `InpOneTradePerDay` |
+| One trade per New York day | **On**, verified by Sukh; can be disabled | `InpOneTradePerDay` |
 | Maximum entry delay | 5 seconds | `InpMaxEntryDelaySeconds` |
 | Broker-close buffer | 5 minutes | `InpBrokerCloseBufferMinutes` |
 | Maximum deviation | 0.5 price units | `InpMaxDeviationPriceUnits` |
-| USTEC research spread cap | **10 price units**; code default is 4 | `InpMaxSpreadPriceUnits` |
+| USTEC research spread cap | **10 price units** | `InpMaxSpreadPriceUnits` |
 | Cash risk | Set for the demo account; code default is 1,000 account-currency units | `InpEMACashRisk` |
 | Magic number | 2026091402; use a distinct number per separate instance | `InpEMAMagic` |
 | CSV export | Enabled | `InpExportCsv` |
 
-Spread and deviation are **raw price units**, not pips. For example, a cap of 4 on EURUSD does not mean four pips. The spread cap of 10 was explicitly supplied for a recent USTEC research run; save each run's settings to verify comparability. Documentation does not change the compiled defaults.
+Spread and deviation are **raw price units**, not pips. For example, a cap of 4 on EURUSD does not mean four pips. The spread cap of 10 was explicitly supplied for a recent USTEC research run; save each run's settings to verify comparability. The compiled EMA spread cap is now 10; saved MT5 presets can override defaults.
 
 ### Entry and exit rules
 
@@ -50,7 +51,7 @@ Long only. On completed M30 candles:
 3. The signal candle closes above its EMA20.
 4. Enter on the first eligible tick of the next M30 bar, within the entry-delay limit and subject to the session/execution checks.
 
-The strategy allows one active or pending trade for its instance. With `InpOneTradePerDay=true`, any filled entry on the same New York date blocks further entries for that symbol and magic, even after closure or an EA restart. Partial fills count as one trade; exits and rejected orders do not consume the allowance. Unavailable history blocks entry until it can be checked. Enabling this option changes the tested baseline and requires a fresh backtest. Stop and target distances are based on the actual fill. An open trade exits at SL, TP or the applicable session deadline.
+The strategy allows one active or pending trade for its instance. With `InpOneTradePerDay=true`, any filled entry on the same New York date blocks further entries for that symbol and magic, even after closure or an EA restart. Partial fills count as one trade; exits and rejected orders do not consume the allowance. Unavailable history blocks entry until it can be checked. Sukh verified the enabled option. Earlier reported Monte Carlo results used the older exports and have not been recalculated here. Stop and target distances are based on the actual fill. An open trade exits at SL, TP or the applicable session deadline.
 
 | Session rule | Normal US trading day | US half-day |
 |---|---|---|
@@ -122,7 +123,7 @@ The second row scales the existing baseline Monte Carlo to approximately **10% d
 
 The simulation used the earlier **333 gold + 271 EMA trade exports**, not a forward test of the current automatic-warm-up build. It excludes floating drawdown and includes gold's five weekend holds. Approximately 1% of modeled paths exceed the 99th-percentile threshold. The two EAs do not enforce a shared portfolio loss cap.
 
-## Planned demo forward test
+## Demo forward test
 
 1. Compile the current EAs and use the retained strategy settings above. Verify the broker clock, trading sessions, spread units and chosen demo cash risk.
 2. Record the starting balance, EA build, settings and start date. Save each EMA run's `_Settings.txt` alongside its exports.

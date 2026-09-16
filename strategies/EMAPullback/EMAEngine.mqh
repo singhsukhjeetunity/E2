@@ -15,13 +15,13 @@ input int InpEMAFast=20;
 input int InpEMASlow=50;
 input double InpEMAStopATR=3.0;
 input double InpEMATargetR=0.5;
-input bool InpOneTradePerDay=false; // One filled entry per New York date, symbol and magic
+input bool InpOneTradePerDay=true; // One filled entry per New York date, symbol and magic
 input group "Risk and identification"
 input double InpEMACashRisk=1000.0;
 input ulong InpEMAMagic=2026091402;
 input group "Execution and reporting"
 input int InpBrokerCloseBufferMinutes=5; // Exit before the active broker session ends
-input double InpMaxSpreadPriceUnits=4.0;
+input double InpMaxSpreadPriceUnits=10.0;
 input double InpMaxDeviationPriceUnits=0.5;
 input int InpMaxEntryDelaySeconds=5;
 input bool InpExportCsv=true;

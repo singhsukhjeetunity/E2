@@ -1,9 +1,9 @@
 # EMA pullback — chart and tester setup
 
-Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.21.
+Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.22.
 Copy the complete `strategies` folder into `MQL5/Experts/E2`, retaining its subfolders. Compile the entry in MetaEditor.
 
-Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Forward testing and final approval are still pending.
+Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Strategy selection is complete and the user has verified the daily entry limit; demo forward testing is the next stage.
 
 ## Run on a chart
 
@@ -16,7 +16,7 @@ Demo, eval/funded and personal real accounts use the same signal, risk, protecti
 
 ## Optional daily entry limit
 
-`InpOneTradePerDay` defaults to `false`. Enable it to allow only one filled entry per New York calendar day for this symbol and magic. The check reads broker deal history, so a restart or reattachment does not reset the allowance. Other symbols/magics and exit deals do not consume it. If history cannot be verified, the eligible signal is skipped. The rule is identical in tester, demo and real accounts. Test the enabled setting separately before using it.
+`InpOneTradePerDay` defaults to `true`, as verified and selected by the user. It allows only one filled entry per New York calendar day for this symbol and magic. The check reads broker deal history, so a restart or reattachment does not reset the allowance. Other symbols/magics and exit deals do not consume it. If history cannot be verified, the eligible signal is skipped. The rule is identical in tester, demo and real accounts. Disabling it permits later eligible entries after a trade closes and changes the selected baseline.
 
 Version 0.21 adds this switch to the configuration hash. Upgrade while flat with no unresolved orders or stopped checkpoint; active/stopped recovery requires the matching original build/settings.
 
