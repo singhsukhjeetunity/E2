@@ -3,6 +3,8 @@
 Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.20.
 Copy the complete `strategies` folder into `MQL5/Experts/E2`, retaining its subfolders. Compile the entry in MetaEditor.
 
+Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Forward testing and final approval are still pending.
+
 ## Run on a chart
 
 1. Select the intended symbol. The EA internally builds M30 bars from completed M1 data; the chart timeframe does not change its signal rules.

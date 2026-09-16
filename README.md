@@ -18,7 +18,7 @@ Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subf
 
 Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logic in the tester, demo and real accounts. Both accept the selected symbol; their original session rules still apply.
 
-- [Original instruments and settings](docs/STRATEGY_REFERENCE.txt)
+- [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
 - [Gold checks and known limitation](docs/GOLD_TESTING.md)
 - [EMA setup and verification](docs/EMA_TESTING.md)
 - [CSV folder layout and migration](docs/CSV_EXPORTS.md)
