@@ -30,6 +30,7 @@ Both EAs use the selected chart/tester symbol. Changing the symbol does not chan
 | ATR period | **14** | `InpATRLength` |
 | Stop distance | **3.0 × ATR** | `InpEMAStopATR` |
 | Target | **0.5R** | `InpEMATargetR` |
+| One trade per New York day | **Off** to retain the tested baseline; optional | `InpOneTradePerDay` |
 | Maximum entry delay | 5 seconds | `InpMaxEntryDelaySeconds` |
 | Broker-close buffer | 5 minutes | `InpBrokerCloseBufferMinutes` |
 | Maximum deviation | 0.5 price units | `InpMaxDeviationPriceUnits` |
@@ -49,7 +50,7 @@ Long only. On completed M30 candles:
 3. The signal candle closes above its EMA20.
 4. Enter on the first eligible tick of the next M30 bar, within the entry-delay limit and subject to the session/execution checks.
 
-The strategy allows one active or pending trade for its instance. Stop and target distances are based on the actual fill. An open trade exits at SL, TP or the applicable session deadline.
+The strategy allows one active or pending trade for its instance. With `InpOneTradePerDay=true`, any filled entry on the same New York date blocks further entries for that symbol and magic, even after closure or an EA restart. Partial fills count as one trade; exits and rejected orders do not consume the allowance. Unavailable history blocks entry until it can be checked. Enabling this option changes the tested baseline and requires a fresh backtest. Stop and target distances are based on the actual fill. An open trade exits at SL, TP or the applicable session deadline.
 
 | Session rule | Normal US trading day | US half-day |
 |---|---|---|

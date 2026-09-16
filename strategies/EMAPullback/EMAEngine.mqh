@@ -15,6 +15,7 @@ input int InpEMAFast=20;
 input int InpEMASlow=50;
 input double InpEMAStopATR=3.0;
 input double InpEMATargetR=0.5;
+input bool InpOneTradePerDay=false; // One filled entry per New York date, symbol and magic
 input group "Risk and identification"
 input double InpEMACashRisk=1000.0;
 input ulong InpEMAMagic=2026091402;
@@ -386,6 +387,33 @@ void Reconcile(const int s,const datetime now) {
    g_slots[s].active=-1;
    SaveState();
 }
+bool DailyEntryAllowed(const int s,const datetime now) {
+   if(!InpOneTradePerDay)return true;
+   datetime wall=NPNy(now);
+   datetime start=NPNyToUtc(wall-wall%86400);
+   // Query broker history on every eligible entry: survives restarts and also
+   // catches trades opened while this instance was detached. Partial fills
+   // consume the same day's allowance; exits and rejected orders do not.
+   if(!HistorySelect(NPToServer(start,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds)-1,TimeCurrent()+1)) {
+      Audit(s,now,"SKIP","daily entry history unavailable");return false;
+   }
+   for(int i=0;i<HistoryDealsTotal();i++) {
+      ulong d=HistoryDealGetTicket(i);
+      if(d==0){Audit(s,now,"SKIP","daily entry history incomplete");return false;}
+      if(HistoryDealGetString(d,DEAL_SYMBOL)!=_Symbol ||
+         (ulong)HistoryDealGetInteger(d,DEAL_MAGIC)!=Magic(s))continue;
+      long entry=HistoryDealGetInteger(d,DEAL_ENTRY);
+      if(entry!=DEAL_ENTRY_IN && entry!=DEAL_ENTRY_INOUT)continue;
+      datetime utc=0;
+      if(!Utc((datetime)HistoryDealGetInteger(d,DEAL_TIME),utc)) {
+         Audit(s,now,"SKIP","daily entry time ambiguous");return false;
+      }
+      if(NPDay(NPNy(utc))==NPDay(wall)) {
+         Audit(s,now,"SKIP","one trade per New York day reached");return false;
+      }
+   }
+   return true;
+}
 void Enter(const int s,const datetime now) {
    datetime when=g_slots[s].signal_time;
    if(when<=g_slots[s].seen_signal)return;
@@ -404,6 +432,7 @@ void Enter(const int s,const datetime now) {
    datetime deadline;
    if(!ExitDeadline(now,deadline)){Audit(s,now,"SKIP","broker session schedule unavailable");return;}
    if(now>=deadline){Audit(s,now,"SKIP","broker session exit cutoff reached");return;}
+   if(!DailyEntryAllowed(s,now))return;
    MqlTick q;if(!SymbolInfoTick(_Symbol,q)||q.ask<=q.bid||q.bid<=0)return;
    double spread=q.ask-q.bid;
    if(spread>InpMaxSpreadPriceUnits){Audit(s,now,"SKIP","spread exceeds price-unit cap");return;}
@@ -518,6 +547,7 @@ int OnInit() {
       g_cash[s]=0;g_r[s]=0;
    }
    string canonical="EMA_V4_AUTO20|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpEMAFast)+"|"+IntegerToString(InpEMASlow)+"|"+Number(InpEMAStopATR)+"|"+Number(InpEMATargetR)+"|"+Number(InpEMACashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
+   canonical+="|one_trade_per_day="+IntegerToString(InpOneTradePerDay?1:0);
    g_config=Hash(canonical);
    g_run="NP_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {

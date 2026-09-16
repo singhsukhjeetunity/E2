@@ -37,10 +37,10 @@ struct MqlTradeRequest{int action=0,type=0,type_filling=0;string symbol,comment;
 struct MqlTradeResult{unsigned long order=0;int retcode=TRADE_RETCODE_DONE;};struct MqlTradeCheckResult{string comment;};
 struct Slot{datetime signal_time=10000,seen_signal=0,last_exit_minute=0;bool signal=true,pending=false;double signal_atr=10;int active=-1;};
 Slot g_slots[1];std::vector<NPRecord>g_records;string g_run="run";
-bool g_failed=false,disk_ok=true,durable=false,owned=true;int sends=0,g_session_day=1,g_session_count=120;
+bool g_failed=false,disk_ok=true,durable=false,owned=true;int sends=0,g_session_day=0,g_session_count=120;
 int InpMaxEntryDelaySeconds=5;double InpMaxSpreadPriceUnits=4,InpEMAStopATR=3,InpEMATargetR=.5,InpEMACashRisk=1000,InpMaxDeviationPriceUnits=.5;
 bool Enabled(int){return true;}int NPCloseMinute(datetime){return 960;}
-datetime NPNy(datetime t){return t;}int NPDay(datetime){return 1;}void TimeToStruct(datetime,MqlDateTime&){}
+datetime NPNy(datetime t){return t;}int NPDay(datetime t){return t/86400;}void TimeToStruct(datetime,MqlDateTime&){}
 unsigned long PositionFor(int){return 0;}unsigned long Magic(int){return 123;}
 bool EntryOwnershipClear(){return owned;}bool ExitDeadline(datetime t,datetime &d){d=t+100;return true;}
 bool SymbolInfoTick(const string&,MqlTick&){return true;}
@@ -57,13 +57,34 @@ void Fail(const string&){g_failed=true;}
 bool SaveState(){if(!disk_ok){Fail("disk");return false;}durable=g_slots[0].pending&&g_slots[0].active>=0;return true;}
 bool OrderSend(const MqlTradeRequest &r,MqlTradeResult &out){assert(durable);assert(r.type==ORDER_TYPE_BUY&&r.sl<r.price&&r.tp>r.price);sends++;out.order=55;return true;}
 void Reconcile(int,datetime){}
+bool InpOneTradePerDay=false,history_ok=true,clock_ok=true;int InpBrokerClock=1,InpBrokerWinterUtcOffsetSeconds=0,history_queries=0;
+const int DEAL_SYMBOL=1,DEAL_MAGIC=2,DEAL_ENTRY=3,DEAL_TIME=4,DEAL_ENTRY_IN=1,DEAL_ENTRY_OUT=2,DEAL_ENTRY_INOUT=3;
+struct Deal{string symbol="USTEC";long magic=123,entry=DEAL_ENTRY_IN,time=9000;};
+std::vector<Deal> deals;
+datetime NPNyToUtc(datetime t){return t;}datetime NPToServer(datetime t,int,int){return t;}
+bool Utc(datetime t,datetime &out){out=t;return clock_ok;}
+bool HistorySelect(datetime,datetime){history_queries++;return history_ok;}
+int HistoryDealsTotal(){return deals.size();}unsigned long HistoryDealGetTicket(int i){return i+1;}
+string HistoryDealGetString(unsigned long d,int){return deals[d-1].symbol;}
+long HistoryDealGetInteger(unsigned long d,int k){auto &v=deals[d-1];return k==DEAL_MAGIC?v.magic:k==DEAL_ENTRY?v.entry:v.time;}
 #include "ema_entry.mqh"
-void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=false;durable=false;sends=0;disk_ok=true;owned=true;}
+void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=false;durable=false;sends=0;disk_ok=true;owned=true;InpOneTradePerDay=false;history_ok=clock_ok=true;history_queries=0;deals.clear();}
 int main(){
  reset();disk_ok=false;Enter(0,10000);assert(sends==0&&g_failed);
  reset();Enter(0,10000);assert(sends==1&&g_slots[0].pending);Enter(0,10000);assert(sends==1);
  g_slots[0].signal_time=10001;Enter(0,10001);assert(sends==1); // Pending intent occupies the slot.
  reset();owned=false;Enter(0,10000);assert(sends==0);
  reset();Enter(0,10006);assert(sends==0); // Stale signals cannot execute.
+ reset();deals.push_back(Deal{});Enter(0,10000);assert(sends==1&&history_queries==0); // Disabled retains baseline.
+ reset();InpOneTradePerDay=true;Enter(0,10000);assert(sends==1&&history_queries==1);
+ reset();InpOneTradePerDay=true;deals.push_back(Deal{});Enter(0,10000);assert(sends==0); // Closed earlier / recovered history.
+ reset();InpOneTradePerDay=true;deals.push_back(Deal{});deals.push_back(Deal{});assert(!DailyEntryAllowed(0,10000)); // Partial fills.
+ assert(DailyEntryAllowed(0,10000+86400)); // Next NY date allows a fresh entry.
+ reset();InpOneTradePerDay=true;deals.push_back(Deal{});deals[0].symbol="XAUUSD";assert(DailyEntryAllowed(0,10000));
+ deals[0].symbol="USTEC";deals[0].magic=999;assert(DailyEntryAllowed(0,10000));
+ deals[0].magic=123;deals[0].entry=DEAL_ENTRY_OUT;assert(DailyEntryAllowed(0,10000));
+ deals[0].entry=DEAL_ENTRY_INOUT;assert(!DailyEntryAllowed(0,10000));
+ reset();InpOneTradePerDay=true;history_ok=false;Enter(0,10000);assert(sends==0);
+ reset();InpOneTradePerDay=true;deals.push_back(Deal{});clock_ok=false;assert(!DailyEntryAllowed(0,10000));
  std::cout<<"EMA durable-before-send, pending/repeated signal and ownership entry tests passed\n";
 }

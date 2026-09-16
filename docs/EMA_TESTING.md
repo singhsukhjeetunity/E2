@@ -1,6 +1,6 @@
 # EMA pullback — chart and tester setup
 
-Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.20.
+Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.21.
 Copy the complete `strategies` folder into `MQL5/Experts/E2`, retaining its subfolders. Compile the entry in MetaEditor.
 
 Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Forward testing and final approval are still pending.
@@ -13,6 +13,12 @@ Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo
 4. Attach the EA. `WARMUP_WAIT` means history is still loading; `WARMUP_READY` means the initial history has been processed. The EA skips the signal already present at attachment, then waits for a new eligible signal.
 
 Demo, eval/funded and personal real accounts use the same signal, risk, protection, execution and recovery logic. Account mode only labels report filenames. Different feeds, spreads, permissions and contract specifications can still produce different fills/results.
+
+## Optional daily entry limit
+
+`InpOneTradePerDay` defaults to `false`. Enable it to allow only one filled entry per New York calendar day for this symbol and magic. The check reads broker deal history, so a restart or reattachment does not reset the allowance. Other symbols/magics and exit deals do not consume it. If history cannot be verified, the eligible signal is skipped. The rule is identical in tester, demo and real accounts. Test the enabled setting separately before using it.
+
+Version 0.21 adds this switch to the configuration hash. Upgrade while flat with no unresolved orders or stopped checkpoint; active/stopped recovery requires the matching original build/settings.
 
 ## Automatic history warm-up
 
