@@ -142,3 +142,9 @@ Use matching time zones and explicit risk allocations when combining exports. Di
 ---
 
 [EMA setup and recovery](EMA_TESTING.md) · [Gold checks](GOLD_TESTING.md) · [CSV guide](CSV_EXPORTS.md) · [Trading journal](JOURNAL_GUIDE.md)
+
+## Third-system research candidate: Compression Breakout
+
+The new independent EA is `strategies/CompressionBreakout/Compression_Breakout_Long.mq5`. Original symbol: USDJPY. M30, long only, 20-bar channel, ATR14 compression below 0.8 of its previous 100-value mean, 3 ATR stop, 2R target. Entries 06:00–20:00 UTC weekdays; exit after eight hours or 16:45 New York, whichever comes first, with an earlier broker-session safeguard.
+
+`InpOneTradePerDay` defaults to **false** to preserve the research screen; enable it for one filled entry per UTC date. Cash risk defaults to 1000 account-currency units and magic to 2026091703. This candidate has no finalized portfolio allocation. The gold and EMA baselines above are unchanged. See [the full setup and test guide](COMPRESSION_TESTING.md).

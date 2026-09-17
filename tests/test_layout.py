@@ -7,7 +7,7 @@ class LayoutTests(unittest.TestCase):
     def test_entry_dependencies_resolve(self):
         root = Path(__file__).resolve().parents[1]
         entries = list((root / "strategies").rglob("*.mq5"))
-        self.assertEqual({p.name for p in entries}, {"XAU_Session_Fade.mq5", "EMA_Pullback_Long.mq5"})
+        self.assertEqual({p.name for p in entries}, {"XAU_Session_Fade.mq5", "EMA_Pullback_Long.mq5", "Compression_Breakout_Long.mq5"})
         seen = set()
         def visit(path):
             path = path.resolve()

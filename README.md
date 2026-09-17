@@ -4,6 +4,7 @@
 |---|---|
 | `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
 | `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
+| `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third-system research candidate |
 | `strategies/shared/` | Shared report-folder utilities |
 | `journal/` | Local CSV trading journal |
 | `tools/` | EMA run analysis |
@@ -12,6 +13,8 @@
 
 NR4 and its EA have been removed. The old triple-moving-average strategy is not included in this revision. Historical branches and commits are retained.
 
+The compression breakout is under development on this branch; the two released baselines remain selected.
+
 ## Selected defaults
 
 | Strategy | Finalized baseline |
@@ -19,7 +22,7 @@ NR4 and its EA have been removed. The old triple-moving-average strategy is not 
 | Gold Session Fade | M5, 12:00–12:30 UTC, ATR14 × 8 stop, 1.5R target, one trade per day |
 | EMA Pullback | M30, EMA20/50, ATR14 × 3 stop, 0.5R target, one trade per New York day, spread cap 10 price units |
 
-Strategy selection is complete. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
+Selection of the first two strategies is complete. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
 
 ## Install and test
 
@@ -30,6 +33,7 @@ Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logi
 - [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
 - [Gold checks and known limitation](docs/GOLD_TESTING.md)
 - [EMA setup and verification](docs/EMA_TESTING.md)
+- [Compression breakout settings and testing](docs/COMPRESSION_TESTING.md)
 - [CSV folder layout and migration](docs/CSV_EXPORTS.md)
 - [Trading journal guide](docs/JOURNAL_GUIDE.md)
 
@@ -38,6 +42,7 @@ Launch the journal with `Open-E2-Journal.pyw`. The journal imports CSVs and visu
 ## Developer checks
 
 ```sh
+python tests/run_compression.py
 python -m unittest discover -s tests -p 'test_*.py' -v
 g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
 /tmp/ema-core
