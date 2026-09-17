@@ -1,20 +1,21 @@
 # CSV exports
 
-Only two strategy folders, under MT5's shared `Terminal/Common/Files`:
+One folder per strategy, under MT5's shared `Terminal/Common/Files`:
 
 - `E2/GoldSessionFade/`
 - `E2/EMAPullback/`
+- `E2/CompressionBreakout/` (research EA)
 
 There are no account, symbol, mode or run subfolders. Filenames identify the symbol, Test/Demo/Live mode, account number and unique run. All files from one run share the same prefix; repeated tests get distinct names. The report log prints the folder location.
 
 | Filename ending | Contents |
 |---|---|
 | `_Trades_T.csv` | Trade ledger |
-| `_Signals_S.csv` | Gold signal outcomes or EMA diagnostic events |
-| `_Equity_E.csv` | EMA sampled equity |
-| `_Settings.txt` | EMA settings |
+| `_Signals_S.csv` | Gold signal outcomes or EMA/compression diagnostic events |
+| `_Equity_E.csv` | EMA/compression sampled equity |
+| `_Settings.txt` | EMA/compression settings |
 
-Gold exports at shutdown/test completion; EMA exports signals/equity during operation and updates its trade ledger after settlement and at shutdown/test completion. Existing CSV columns and strategy identifiers are unchanged.
+Gold exports at shutdown/test completion; EMA and compression export signals/equity during operation and updates its trade ledger after settlement and at shutdown/test completion. Existing CSV columns and strategy identifiers are unchanged.
 
 ## Importing
 
