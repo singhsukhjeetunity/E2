@@ -1,0 +1,31 @@
+name: Release E2-trio
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-trio.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify source
+        run: |
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          python3 tests/run_compression.py
+          python3 tests/run_ema_runtime.py
+          python3 tests/run_ema_warmup.py
+          python3 tests/run_ema_entry.py
+          python3 tests/run_gold_clock.py
+          g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
+          /tmp/ema-core
+          g++ -std=c++17 tests/entry_lifecycle.cpp -o /tmp/entry-lifecycle
+          /tmp/entry-lifecycle
+          g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
+          /tmp/report-folders
+      - name: Publish source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create E2-trio --target "$GITHUB_SHA" --title E2-trio --notes-file docs/RELEASE_E2_TRIO.md --latest

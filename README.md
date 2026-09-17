@@ -1,10 +1,10 @@
-# E2 — independent strategies and trading journal
+# E2-trio — three independent strategies and trading journal
 
 | Folder | Contents |
 |---|---|
 | `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
 | `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
-| `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third-system research candidate |
+| `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third independent strategy |
 | `strategies/shared/` | Shared report-folder utilities |
 | `journal/` | Local CSV trading journal |
 | `tools/` | EMA run analysis |
@@ -13,7 +13,7 @@
 
 NR4 and its EA have been removed. The old triple-moving-average strategy is not included in this revision. Historical branches and commits are retained.
 
-The compression breakout is under development on this branch; the two released baselines remain selected.
+E2-trio includes Gold Session Fade, EMA Pullback and Compression Breakout as separate EAs.
 
 ## Selected defaults
 
@@ -21,14 +21,15 @@ The compression breakout is under development on this branch; the two released b
 |---|---|
 | Gold Session Fade | M5, 12:00–12:30 UTC, ATR14 × 8 stop, 1.5R target, one trade per day |
 | EMA Pullback | M30, EMA20/50, ATR14 × 3 stop, 0.5R target, one trade per New York day, spread cap 10 price units |
+| Compression Breakout | M30, 20-bar channel, ATR14 compression below 0.8 × 100-bar ATR average, 3 ATR stop, 2R target, daily toggle off |
 
-Selection of the first two strategies is complete. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
+All three strategies are included in this source release. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
 
 ## Install and test
 
 Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subfolders. Open and compile the desired `.mq5` entry in MetaEditor. Copying only an entry file will omit its dependencies. Remove obsolete source/compiled EA copies from your test installation to avoid selecting the wrong version.
 
-Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logic in the tester, demo and real accounts. Both accept the selected symbol; their original session rules still apply.
+Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logic in the tester, demo and real accounts. All three accept the selected symbol; their original session rules still apply.
 
 - [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
 - [Gold checks and known limitation](docs/GOLD_TESTING.md)

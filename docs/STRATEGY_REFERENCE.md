@@ -1,7 +1,7 @@
 # E2 · Strategy baseline
 
-**Gold Session Fade + EMA Pullback**  
-Reference updated **16 September 2026**
+**Gold Session Fade + EMA Pullback + Compression Breakout**  
+Release: **E2-trio**
 
 > **Status: strategy selection complete; defaults finalized.**
 >
@@ -108,7 +108,7 @@ Select the clock/settings before a fresh backtest or while flat, with no unresol
 
 This is an optional experiment, not a replacement baseline. Keep all other inputs and data fixed, and record any Friday-cutoff change separately when comparing results.
 
-## Portfolio sizing · research reference
+## Earlier two-strategy portfolio sizing · historical research reference
 
 The lower-drawdown allocation assigns **35% of the planned risk to gold and 65% to EMA**. These are shares of trade risk, not capital allocations or a daily loss limit.
 
@@ -130,7 +130,7 @@ The simulation used the earlier **333 gold + 271 EMA trade exports**, not a forw
 3. Let the strategies run without retuning. Review warm-up, entry timing, SL/TP placement, session exits and restart recovery.
 4. Collect trades, signals and available equity exports. Review floating drawdown and gold holiday/weekend behavior before finalizing the portfolio.
 
-Reports stay in **two simple folders**, relative to MT5 Common Files:
+Gold and EMA reports stay in **two simple folders**, relative to MT5 Common Files:
 
 | Strategy | Report folder |
 |---|---|
@@ -143,8 +143,8 @@ Use matching time zones and explicit risk allocations when combining exports. Di
 
 [EMA setup and recovery](EMA_TESTING.md) · [Gold checks](GOLD_TESTING.md) · [CSV guide](CSV_EXPORTS.md) · [Trading journal](JOURNAL_GUIDE.md)
 
-## Third-system research candidate: Compression Breakout
+## Third released strategy: Compression Breakout
 
 The new independent EA is `strategies/CompressionBreakout/Compression_Breakout_Long.mq5`. Original symbol: USDJPY. M30, long only, 20-bar channel, ATR14 compression below 0.8 of its previous 100-value mean, 3 ATR stop, 2R target. Entries 06:00–20:00 UTC weekdays; exit after eight hours or 16:45 New York, whichever comes first, with an earlier broker-session safeguard.
 
-`InpOneTradePerDay` defaults to **false** to preserve the research screen; enable it for one filled entry per UTC date. Cash risk defaults to 1000 account-currency units and magic to 2026091703. This candidate has no finalized portfolio allocation. The gold and EMA baselines above are unchanged. See [the full setup and test guide](COMPRESSION_TESTING.md).
+`InpOneTradePerDay` defaults to **false** to preserve the research screen; enable it for one filled entry per UTC date. Cash risk defaults to 1000 account-currency units and magic to 2026091703. The selected three-strategy risk split is 20% Gold / 40% EMA / 40% Compression. At a 2% combined nominal risk budget this means 0.4% / 0.8% / 0.8% of starting capital per trade (400 / 800 / 800 on 100,000). Configure cash-risk inputs explicitly; these allocations are not enforced as a shared loss cap. The preceding two-strategy sizing table is historical. The gold and EMA baselines above are unchanged. See [the full setup and test guide](COMPRESSION_TESTING.md).
