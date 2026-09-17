@@ -7,7 +7,7 @@ The pending intent is saved before submission in the terminal's local Files fold
 ## Test before updating the eval
 
 1. Wait for the currently open eval trade to close. Version 4.1 cannot reconstruct the missing intent from the old version's failed registration; do not replace the running EA during that trade.
-2. Download this branch. Copy the complete `strategies` folder into `MQL5/Experts/E2` and open `strategies/GoldSessionFade/XAU_Session_Fade.mq5` in a separate demo/test installation. Compile with MetaEditor; require zero errors.
+2. Download main or the E2-trio source release. Copy the complete `strategies` folder into `MQL5/Experts/E2` and open `strategies/GoldSessionFade/XAU_Session_Fade.mq5` in a separate demo/test installation. Compile with MetaEditor; require zero errors.
 3. Rerun your original XAUUSD M5 backtest with the same inputs. Confirm trade counts/results and inspect any changed trade, accounting for the new initial TP.
 4. On demo, confirm each order has SL and TP immediately. Look for `ENTRY_CONFIRMED` with the actual fill, original SL and final target. For a buy, final TP is fill + 1.5 × (fill − SL), rounded to the symbol's price tick.
 5. Test delayed confirmation, repeated trade events and a rejected protection modification on demo. The EA must block further entries and reconcile without resending an order.
@@ -26,3 +26,7 @@ The folder reorganization changes export locations and makes run IDs unique. Tra
 Gold version 4.2 adds `E2_XAU_TIME_NEW_YORK` to `InpXauTimeBasis`. See the [reference settings](STRATEGY_REFERENCE.md#optional-new-york-session-clock) for the 08:00–08:30 local-time experiment and Friday-cutoff semantics. Default UTC behavior is retained. The broker offset/profile must still match the historical data.
 
 Portable clock/range checks: `python tests/run_gold_clock.py`. In MT5, compare winter and summer range timestamps, New York day recovery after restart, and Friday cutoffs. Compile in MetaEditor before running; portable checks do not compile the full EA.
+
+## E2-trio allocation
+
+Gold receives **20%** of the selected **20:40:40 Gold / EMA / Compression** risk budget. At 2% total, use fixed cash risk of **400 on a 100,000 starting balance** (0.4% per trade). Source defaults are unchanged. EMA and compression each receive 800. See [portfolio allocation](STRATEGY_REFERENCE.md#selected-portfolio-allocation).

@@ -1,9 +1,11 @@
-# Compression Breakout — research EA
+# Compression Breakout — E2-trio setup and testing
 
 Entry file: `strategies/CompressionBreakout/Compression_Breakout_Long.mq5`.
 Original research instrument: **USDJPY**. The EA accepts other symbols; spread/deviation inputs are raw price units and must be appropriate to that instrument. No account-type-specific trading rules.
 
-## Rules and starting settings
+The selected allocation is **20:40:40 Gold / EMA / Compression**. Compression receives 40% of the planned risk budget: **0.8% per trade**, or **800 fixed cash risk on 100,000**, at the selected 2% total. Set the cash-risk input explicitly; the source default remains 1000. See [portfolio allocation](STRATEGY_REFERENCE.md#selected-portfolio-allocation).
+
+## Rules and retained settings
 
 | Setting | Default |
 |---|---|
@@ -40,7 +42,7 @@ With the toggle off, later signals can trade after an exit, but there is still o
 1. Copy the whole `strategies` directory to `MQL5/Experts/E2/`, preserving subfolders. Compile `Compression_Breakout_Long.mq5` in MetaEditor. It reuses the existing checkpoint codec and clock utilities, so copying its entry file alone is insufficient.
 2. Select USDJPY in Strategy Tester, preferably **Every tick based on real ticks**. The chart timeframe does not change the internal M30 signal timeframe.
 3. Set `InpBrokerClock` and `InpBrokerWinterUtcOffsetSeconds` from verified broker history: fixed UTC offset, US seasonal or EU seasonal. The offset is seconds, e.g. +2 hours is 7200. Do not infer historical offsets from the computer's local clock. See the broker-clock guidance in `EMA_TESTING.md`.
-4. Run the default strategy with the daily toggle **off** first. Then rerun the same dates and all other inputs with it **on**. Keep each run's complete export set.
+4. Use the retained baseline with the daily toggle **off**. An enabled-toggle comparison is an optional separate experiment; keep each run's complete export set.
 5. Compare signals, trades, costs, floating equity, deadline misses and the effect of the daily limit. Broker ticks/spreads, available history, lot steps and the broker-session safeguard can differ from the candle research model. Do not expect identical P&L simply because the signal formulas match.
 6. Compile and backtest successfully before demo forward testing. MT5 compilation and tick-level parity have not been established by the portable C++ checks.
 

@@ -25,11 +25,26 @@ E2-trio includes Gold Session Fade, EMA Pullback and Compression Breakout as sep
 
 All three strategies are included in this source release. EMA's daily limit was verified by the user; demo forward testing is next. Set account cash risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the selected allocation and optional settings.
 
+## Selected portfolio allocation
+
+The selected risk split is **20:40:40 — Gold Session Fade / EMA Pullback / Compression Breakout**.
+
+| Strategy | Share of risk budget | Risk per trade at 2% total | Fixed cash risk on a 100,000 account |
+|---|---:|---:|---:|
+| Gold Session Fade | 20% | 0.4% | 400 |
+| EMA Pullback | 40% | 0.8% | 800 |
+| Compression Breakout | 40% | 0.8% | 800 |
+| Total nominal allocation | 100% | 2.0% | 2,000 |
+
+These are shares of planned trade risk, not capital deposits or a daily loss limit. For another starting balance, use 0.004 / 0.008 / 0.008 times that balance. Set each EA's cash-risk input manually; source defaults and existing presets are not changed by this documentation. Fixed cash risk does not compound automatically. The three EAs do not enforce a shared portfolio loss cap.
+
+The selection is based on the earlier portfolio simulations. Their 99th-percentile drawdown is an estimate, not a guaranteed ceiling; they exclude floating drawdown and used the earlier EMA export without the daily limit. Firm-specific loss rules and withdrawals require separate assessment.
+
 ## Install and test
 
 Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subfolders. Open and compile the desired `.mq5` entry in MetaEditor. Copying only an entry file will omit its dependencies. Remove obsolete source/compiled EA copies from your test installation to avoid selecting the wrong version.
 
-Gold uses M5. EMA builds M30 bars from M1 history and uses the same trading logic in the tester, demo and real accounts. All three accept the selected symbol; their original session rules still apply.
+Gold uses M5. EMA and compression build M30 bars from M1 history and use the same trading logic in the tester, demo and real accounts. All three accept the selected symbol; their original session rules still apply.
 
 - [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
 - [Gold checks and known limitation](docs/GOLD_TESTING.md)

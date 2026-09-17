@@ -9,18 +9,20 @@ Release: **E2-trio**
 
 ## At a glance
 
-| | Gold Session Fade | EMA Pullback |
-|---|---|---|
-| Reference market | XAUUSD | Nasdaq-100 CFD: USTEC (research data: NSXUSD) |
-| Timeframe | M5 required | Internal M30, built from completed M1 bars |
-| Stop | 8 × ATR14 | **3 × ATR14** |
-| Profit target | 1.5R | **0.5R** |
-| Status | Existing strategy, retained | Finalized with one trade per New York day |
-| EA | [XAU_Session_Fade.mq5](../strategies/GoldSessionFade/XAU_Session_Fade.mq5) | [EMA_Pullback_Long.mq5](../strategies/EMAPullback/EMA_Pullback_Long.mq5) |
+| | Gold Session Fade | EMA Pullback | Compression Breakout |
+|---|---|---|---|
+| Reference market | XAUUSD | Nasdaq-100 CFD: USTEC | USDJPY |
+| Timeframe | M5 required | Internal M30 from completed M1 bars | Internal M30 from completed M1 bars |
+| Signal | Failed breakdown of the fixed UTC session range | EMA20/50 trend and EMA20 pullback recovery | 20-bar high breakout after ATR compression |
+| Stop | 8 × ATR14 | 3 × ATR14 | 3 × ATR14 |
+| Profit target | 1.5R | 0.5R | 2R |
+| One trade per day | On | On, New York date | Off; optional UTC-date toggle |
+| Risk-budget share | 20% | 40% | 40% |
+| EA | [XAU_Session_Fade.mq5](../strategies/GoldSessionFade/XAU_Session_Fade.mq5) | [EMA_Pullback_Long.mq5](../strategies/EMAPullback/EMA_Pullback_Long.mq5) | [Compression_Breakout_Long.mq5](../strategies/CompressionBreakout/Compression_Breakout_Long.mq5) |
 
 **Decision:** retain EMA20/50, the 3.0 ATR stop, the 0.5R target and the existing session exit, with one trade per New York day enabled. The 1.25R target and alternative EMA/stop settings were research comparisons; they are not the retained baseline. Gold settings are unchanged.
 
-Both EAs use the selected chart/tester symbol. Changing the symbol does not change the strategy's session rules or establish that the strategy works on that market.
+All three EAs use the selected chart/tester symbol. Changing the symbol does not change the strategy's session rules or establish that the strategy works on that market.
 
 ## EMA Pullback · retained settings
 
@@ -108,43 +110,60 @@ Select the clock/settings before a fresh backtest or while flat, with no unresol
 
 This is an optional experiment, not a replacement baseline. Keep all other inputs and data fixed, and record any Friday-cutoff change separately when comparing results.
 
-## Earlier two-strategy portfolio sizing · historical research reference
+## Compression Breakout · retained settings
 
-The lower-drawdown allocation assigns **35% of the planned risk to gold and 65% to EMA**. These are shares of trade risk, not capital allocations or a daily loss limit.
+The new independent EA is `strategies/CompressionBreakout/Compression_Breakout_Long.mq5`. Original symbol: USDJPY. M30, long only, 20-bar channel, ATR14 compression below 0.8 of its previous 100-value mean, 3 ATR stop, 2R target. Entries 06:00–20:00 UTC weekdays; exit after eight hours or 16:45 New York, whichever comes first, with an earlier broker-session safeguard.
 
-| Reference | Gold risk per trade | EMA risk per trade | Combined planned risk |
+`InpOneTradePerDay` defaults to **false** to preserve the research screen; enable it for one filled entry per UTC date. Cash risk defaults to 1000 account-currency units and magic to 2026091703. Use the [selected portfolio allocation](#selected-portfolio-allocation) below. See [the full setup and test guide](COMPRESSION_TESTING.md).
+
+| Setting | Baseline |
+|---|---|
+| Channel / compression history | 20 bars / 100 prior ATR values |
+| Compression threshold | Previous ATR < 0.8 × previous 100-value ATR mean |
+| ATR / stop / target | ATR14 / 3 × ATR / 2R |
+| Entry window | 06:00 inclusive to 20:00 exclusive UTC, weekdays |
+| Time exit | Earlier of eight hours and 16:45 New York; earlier broker-session safeguard |
+| One trade per UTC day | Off |
+| USDJPY spread / deviation | 0.03 / 0.005 raw price units |
+| Entry delay / broker-close buffer | 5 seconds / 5 minutes |
+| Automatic warm-up | 18,000 completed M1 bars at baseline |
+| Reports | UTC timestamps; verify historical broker offset independently |
+
+## Selected portfolio allocation
+
+The selected risk split is **20:40:40 — Gold Session Fade / EMA Pullback / Compression Breakout**.
+
+| Strategy | Share of risk budget | Risk per trade at 2% total | Fixed cash risk on a 100,000 account |
 |---|---:|---:|---:|
-| Earlier portfolio comparison | 0.350% | 0.650% | 1.000% |
-| Baseline Monte Carlo sizing discussed | **0.429%** | **0.797%** | **1.226%** |
+| Gold Session Fade | 20% | 0.4% | 400 |
+| EMA Pullback | 40% | 0.8% | 800 |
+| Compression Breakout | 40% | 0.8% | 800 |
+| Total nominal allocation | 100% | 2.0% | 2,000 |
 
-At a reference balance of 100,000 account-currency units, the second row means **429 cash risk per gold trade and 797 per EMA trade**. For another starting balance, multiply it by `0.00429` and `0.00797`. These amounts are fixed; they do not compound automatically.
+These are shares of planned trade risk, not capital deposits or a daily loss limit. For another starting balance, use 0.004 / 0.008 / 0.008 times that balance. Set each EA's cash-risk input manually; source defaults and existing presets are not changed by this documentation. Fixed cash risk does not compound automatically. The three EAs do not enforce a shared portfolio loss cap.
 
-The second row scales the existing baseline Monte Carlo to approximately **10% drawdown at the 99th percentile** over 3½ years. The user chose this baseline estimate rather than the stressed estimate. It remains a research sizing reference, not an applied EA setting or a guaranteed loss ceiling.
+The selection is based on the earlier portfolio simulations. Their 99th-percentile drawdown is an estimate, not a guaranteed ceiling; they exclude floating drawdown and used the earlier EMA export without the daily limit. Firm-specific loss rules and withdrawals require separate assessment.
 
-The simulation used the earlier **333 gold + 271 EMA trade exports**, not a forward test of the current automatic-warm-up build. It excludes floating drawdown and includes gold's five weekend holds. Approximately 1% of modeled paths exceed the 99th-percentile threshold. The two EAs do not enforce a shared portfolio loss cap.
+The earlier 35:65 Gold/EMA allocation and 1.226% two-strategy sizing are superseded historical comparisons, not the E2-trio operating allocation.
 
 ## Demo forward test
 
 1. Compile the current EAs and use the retained strategy settings above. Verify the broker clock, trading sessions, spread units and chosen demo cash risk.
-2. Record the starting balance, EA build, settings and start date. Save each EMA run's `_Settings.txt` alongside its exports.
+2. Record the starting balance, EA build, settings and start date. Save each EMA and compression run's `_Settings.txt` alongside its exports.
 3. Let the strategies run without retuning. Review warm-up, entry timing, SL/TP placement, session exits and restart recovery.
 4. Collect trades, signals and available equity exports. Review floating drawdown and gold holiday/weekend behavior before finalizing the portfolio.
 
-Gold and EMA reports stay in **two simple folders**, relative to MT5 Common Files:
+All three strategies have **one simple folder each**, relative to MT5 Common Files:
 
 | Strategy | Report folder |
 |---|---|
 | Gold | `E2/GoldSessionFade/` |
 | EMA | `E2/EMAPullback/` |
+| Compression | `E2/CompressionBreakout/` |
 
 Use matching time zones and explicit risk allocations when combining exports. Distinct magic numbers identify independent instances; they do not remove same-symbol netting conflicts.
 
 ---
 
-[EMA setup and recovery](EMA_TESTING.md) · [Gold checks](GOLD_TESTING.md) · [CSV guide](CSV_EXPORTS.md) · [Trading journal](JOURNAL_GUIDE.md)
+[EMA setup and recovery](EMA_TESTING.md) · [Gold checks](GOLD_TESTING.md) · [Compression setup](COMPRESSION_TESTING.md) · [CSV guide](CSV_EXPORTS.md) · [Trading journal](JOURNAL_GUIDE.md)
 
-## Third released strategy: Compression Breakout
-
-The new independent EA is `strategies/CompressionBreakout/Compression_Breakout_Long.mq5`. Original symbol: USDJPY. M30, long only, 20-bar channel, ATR14 compression below 0.8 of its previous 100-value mean, 3 ATR stop, 2R target. Entries 06:00–20:00 UTC weekdays; exit after eight hours or 16:45 New York, whichever comes first, with an earlier broker-session safeguard.
-
-`InpOneTradePerDay` defaults to **false** to preserve the research screen; enable it for one filled entry per UTC date. Cash risk defaults to 1000 account-currency units and magic to 2026091703. The selected three-strategy risk split is 20% Gold / 40% EMA / 40% Compression. At a 2% combined nominal risk budget this means 0.4% / 0.8% / 0.8% of starting capital per trade (400 / 800 / 800 on 100,000). Configure cash-risk inputs explicitly; these allocations are not enforced as a shared loss cap. The preceding two-strategy sizing table is historical. The gold and EMA baselines above are unchanged. See [the full setup and test guide](COMPRESSION_TESTING.md).

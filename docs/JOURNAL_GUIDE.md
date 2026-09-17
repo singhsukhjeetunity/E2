@@ -14,7 +14,7 @@ The executable is unsigned. Do not bypass an organisation's security restriction
 
 ### Source alternative (Python already installed)
 
-1. On GitHub select branch **feature/standalone-journal → Code → Download ZIP**.
+1. Download the **E2-trio** source release or select **main → Code → Download ZIP**.
 2. Extract the ZIP completely, outside the MT5 Experts folder.
 3. Double-click **Open-E2-Journal.pyw**. If needed, choose **Open with → Python**; use Python 3.10 or newer.
 
@@ -53,9 +53,9 @@ No renaming or column mapping is necessary. UTF-8, common Windows ANSI and BOM-m
 
 ## 4. Get new reports from the EA
 
-At a **safe planned restart**, enable `InpCsvExportEnabled`. Do not remove or restart the EA solely for this journal while an unresolved/open position is being investigated.
+At a **safe planned restart**, enable `InpCsvExportEnabled` for gold or `InpExportCsv` for EMA and compression. Do not remove or restart the EA solely for this journal while an unresolved/open position is being investigated.
 
-Current E2 writes reports when the EA shuts down or the tester finishes—not continuously after every trade. In MT5, use **File → Open Data Folder**, navigate up to the shared `Terminal\Common\Files\E2` folder. Usually:
+Gold writes reports when the EA shuts down or the tester finishes. EMA and compression update their trade ledgers after settlement and at shutdown; signals and sampled equity are also exported during operation. In MT5, use **File → Open Data Folder**, navigate up to the shared `Terminal\Common\Files\E2` folder. Usually:
 
 ```text
 C:\Users\<Windows user>\AppData\Roaming\MetaQuotes\Terminal\Common\Files\E2
@@ -65,7 +65,7 @@ The `_T.csv` contains finalized trades from that EA session, including registere
 
 ### Optional automatic reading
 
-In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades. Limit the filename pattern to a single run for each backtest dataset. Upload gold signal files separately; EMA diagnostic/equity files are not journal imports. Enable the watch once.
+In **Import centre → Automatically read a reports folder**, enter the absolute path to a folder containing **only that account's exports**. Leave pattern `E2_*_T.csv` for trades. Limit the filename pattern to a single run for each backtest dataset. Upload gold signal files separately; EMA and compression diagnostic/equity files are not journal imports. Enable the watch once.
 
 The app recursively scans the selected folder every 15 seconds and reads a file only after its size and modified time are unchanged across two scans. New or changed exports import automatically; duplicates are skipped. Results and failures appear in Import history / folder status. It does not alter the source files.
 
@@ -117,4 +117,8 @@ Windows packaging and offline smoke tests run in GitHub Actions. MT5 compilation
 
 ## Updated strategy folders
 
-See [CSV exports](CSV_EXPORTS.md) for the current layout. Automatic watches now search subfolders. Use `E2_*_T.csv` for trades from both strategies; limit the filename pattern to one run per backtest dataset. Gold `_S.csv` files contain journal-compatible signals; EMA `_S.csv` files contain diagnostics and its `_E.csv` contains equity, so inspect those separately. Old reports remain readable.
+See [CSV exports](CSV_EXPORTS.md) for the current layout. Automatic watches now search subfolders. Use `E2_*_T.csv` for trades from all three strategies; limit the filename pattern to one run per backtest dataset. Gold `_S.csv` files contain journal-compatible signals; EMA and compression `_S.csv` files contain diagnostics and their `_E.csv` files contain equity, so inspect those separately. Old reports remain readable.
+
+## E2-trio allocation
+
+Use **20:40:40 Gold / EMA / Compression**. With a 2% total planned trade-risk allocation on a 100,000 starting balance, configure **400 / 800 / 800** cash risk in the respective EAs. Journal grade percentages are planning notes, not automatic strategy weights, trade rescaling or EA controls. Preserve separate backtest datasets; use external analysis for a weighted backtest portfolio. See [the portfolio reference](STRATEGY_REFERENCE.md#selected-portfolio-allocation).
