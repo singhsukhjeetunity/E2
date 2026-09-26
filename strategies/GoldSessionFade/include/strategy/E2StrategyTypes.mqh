@@ -11,6 +11,9 @@ struct E2Candidate
    double signal_close,atr,atr_multiplier,risk_distance;
    int rule_day;datetime range_start_rule,range_end_rule;
    double range_high,range_low,extension_distance;
+   double extension_ratio,regime_trailing_ratio;
+   int regime_observations,regime_ready,regime_allowed;
+   string regime_state,regime_decision;
    datetime execution_window_start,execution_window_end;
   };
 
@@ -29,7 +32,7 @@ struct E2PositionMetadata
   };
 
 struct E2PlanVerification
-  {int candidates_received,requests_created,expired_candidates,duplicate_candidates,invalid_candidates,position_rejections,day_rejections,sizing_rejections,quote_rejections;};
+  {int candidates_received,requests_created,expired_candidates,duplicate_candidates,invalid_candidates,position_rejections,day_rejections,regime_rejections,sizing_rejections,quote_rejections;};
 struct E2PlanningAudit
   {string status,reason,request_id,execution_id;datetime planning_time;double planning_bid,planning_ask,planning_spread,raw_sl,submitted_sl,sl_adjustment_distance,requested_cash_risk,calculated_volume;int sl_adjusted;};
 struct E2ExecutionVerification
@@ -51,7 +54,7 @@ struct E2RecoveryDiagnostics
    string selected_recovery_record,recovery_failure_reason;
   };
 struct E2ReconcileVerification
-  {int signal_rows,unique_signal_candidate_ids,duplicate_signal_rows,trade_rows,unique_trade_ids,duplicate_trade_rows,total_candidates,executed_candidates,execution_failed_candidates,expired_candidates,position_rejected_candidates,day_rejected_candidates,sizing_rejected_candidates,safety_rejected_candidates,other_candidate_outcomes,candidate_outcome_sum,trade_requests,execution_attempts,execution_successes,new_positions_registered,finalized_trades,orphan_signal_rows,orphan_trade_rows,missing_signal_rows,missing_trade_rows,reconciliation_violations,write_failures;};
+  {int signal_rows,unique_signal_candidate_ids,duplicate_signal_rows,trade_rows,unique_trade_ids,duplicate_trade_rows,total_candidates,executed_candidates,execution_failed_candidates,expired_candidates,position_rejected_candidates,day_rejected_candidates,regime_blocked_candidates,sizing_rejected_candidates,safety_rejected_candidates,other_candidate_outcomes,candidate_outcome_sum,trade_requests,execution_attempts,execution_successes,new_positions_registered,finalized_trades,orphan_signal_rows,orphan_trade_rows,missing_signal_rows,missing_trade_rows,reconciliation_violations,write_failures;};
 struct E2FinancialVerification
   {int trades_checked,financial_mismatch_trades,invalid_initial_risk_trades,invalid_realized_r_trades;double gross_profit_sum,commission_sum,swap_sum,fee_sum,net_profit_sum,mt5_authoritative_profit_sum,financial_difference;};
 
