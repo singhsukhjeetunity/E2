@@ -21,6 +21,7 @@ public:
       E2ResetOrderRequest(r);ZeroMemory(a);a.status="OTHER_REJECTED";a.reason="UNCLASSIFIED";m_verify.candidates_received++;
       if(Consumed(c.candidate_id)){m_verify.duplicate_candidates++;a.reason="DUPLICATE_CANDIDATE";return(false);}
       datetime now=TimeCurrent();a.planning_time=now;
+      if(c.regime_allowed==0){m_verify.regime_rejections++;a.status="REGIME_BLOCKED";a.reason=(c.regime_state==""?"REGIME_FILTER":c.regime_state);return(false);}
       if(m_weekend!=NULL&&m_weekend.IsBlockedAt(now)){m_verify.expired_candidates++;a.status="EXPIRED";a.reason="WEEKEND_CUTOFF";m_weekend.LogEntryBlock(c.candidate_id,now);return(false);}
       datetime bar=iTime(c.symbol,PERIOD_M5,0);
       if(now<c.execution_window_start||now>=c.execution_window_end||bar!=c.execution_window_start){m_verify.expired_candidates++;a.status="EXPIRED";a.reason="EXECUTION_WINDOW_EXPIRED";return(false);}
