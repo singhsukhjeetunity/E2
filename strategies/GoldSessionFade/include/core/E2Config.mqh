@@ -2,6 +2,8 @@
 #define E2_CORE_E2CONFIG_MQH
 enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1,E2_XAU_TIME_NEW_YORK=2 };
+enum E2XauRegimeLookbackMode { E2_XAU_REGIME_LOOKBACK_3_MONTHS=0,E2_XAU_REGIME_LOOKBACK_6_MONTHS=1,E2_XAU_REGIME_LOOKBACK_12_MONTHS=2,E2_XAU_REGIME_LOOKBACK_N_OBSERVATIONS=3 };
+enum E2XauRegimeFilterMode { E2_XAU_REGIME_OFF=0,E2_XAU_REGIME_BLOCK_UNFAVOURABLE=1,E2_XAU_REGIME_FAVOURABLE_ONLY=2 };
 input group "=== E2 PRODUCTION ==="
 input bool InpTradingEnabled = true;             // Enable Trading
 input bool InpConfirmRealAccountTrading = false; // Required for real-account trading
@@ -37,6 +39,16 @@ input int InpXauTrendLookbackBars=36;
 input double InpXauTrendEfficiencyMin=0.30;
 input int InpXauBlockFridayEntriesFromHour=20; // -1 disables late-Friday entry block
 
+input group "=== XAU REGIME FILTER (RESEARCH) ==="
+input E2XauRegimeFilterMode InpXauRegimeFilterMode=E2_XAU_REGIME_OFF;
+input E2XauRegimeLookbackMode InpXauRegimeLookbackMode=E2_XAU_REGIME_LOOKBACK_6_MONTHS;
+input int InpXauRegimeObservationLookback=50;
+input int InpXauRegimeMinimumObservations=20;
+input bool InpXauRegimeAllowUntilReady=true;
+input double InpXauRegimeUnfavourableThreshold=1.20;
+input double InpXauRegimeFavourableThreshold=1.30;
+input double InpXauRegimeVeryFavourableThreshold=1.45;
+
 input group "=== BROKER TIME ADAPTER ==="
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
 input bool InpUseManualBrokerUtcOffset=false;
@@ -48,6 +60,11 @@ struct E2Config
    int xau_block_friday_entries_from_hour;
    double xau_atr_multiplier,xau_target_r,xau_trend_efficiency_min;
    E2XauTimeBasis xau_time_basis;
+   E2XauRegimeFilterMode xau_regime_filter_mode;
+   E2XauRegimeLookbackMode xau_regime_lookback_mode;
+   int xau_regime_observation_lookback,xau_regime_minimum_observations;
+   bool xau_regime_allow_until_ready;
+   double xau_regime_unfavourable_threshold,xau_regime_favourable_threshold,xau_regime_very_favourable_threshold;
    bool one_trade_per_day;
    string broker_time_profile,time_policy_digest;
    bool use_manual_broker_utc_offset;
@@ -73,6 +90,10 @@ void E2LoadConfiguration(E2Config &c)
    c.xau_trend_lookback_bars=InpXauTrendLookbackBars;c.xau_trend_efficiency_min=InpXauTrendEfficiencyMin;
    c.xau_block_friday_entries_from_hour=InpXauBlockFridayEntriesFromHour;
    c.xau_time_basis=InpXauTimeBasis;
+   c.xau_regime_filter_mode=InpXauRegimeFilterMode;c.xau_regime_lookback_mode=InpXauRegimeLookbackMode;
+   c.xau_regime_observation_lookback=InpXauRegimeObservationLookback;c.xau_regime_minimum_observations=InpXauRegimeMinimumObservations;
+   c.xau_regime_allow_until_ready=InpXauRegimeAllowUntilReady;
+   c.xau_regime_unfavourable_threshold=InpXauRegimeUnfavourableThreshold;c.xau_regime_favourable_threshold=InpXauRegimeFavourableThreshold;c.xau_regime_very_favourable_threshold=InpXauRegimeVeryFavourableThreshold;
    c.use_manual_broker_utc_offset=InpUseManualBrokerUtcOffset;
    c.broker_utc_offset_seconds=InpBrokerUtcOffsetSeconds;
    c.risk_mode=InpRiskMode;c.fixed_cash_risk=InpFixedCashRisk;c.balance_risk_percent=InpBalanceRiskPercent;
@@ -96,6 +117,17 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
       {reason="XAU trend lookback must be 2..1000 and efficiency threshold 0..1.";return(false);}
    if(c.xau_block_friday_entries_from_hour<-1||c.xau_block_friday_entries_from_hour>23)
       {reason="XAU Friday entry block hour must be -1 or 0..23.";return(false);}
+   if(c.xau_regime_filter_mode!=E2_XAU_REGIME_OFF&&c.xau_regime_filter_mode!=E2_XAU_REGIME_BLOCK_UNFAVOURABLE&&c.xau_regime_filter_mode!=E2_XAU_REGIME_FAVOURABLE_ONLY)
+      {reason="Invalid XAU regime filter mode.";return(false);}
+   if(c.xau_regime_lookback_mode!=E2_XAU_REGIME_LOOKBACK_3_MONTHS&&c.xau_regime_lookback_mode!=E2_XAU_REGIME_LOOKBACK_6_MONTHS&&c.xau_regime_lookback_mode!=E2_XAU_REGIME_LOOKBACK_12_MONTHS&&c.xau_regime_lookback_mode!=E2_XAU_REGIME_LOOKBACK_N_OBSERVATIONS)
+      {reason="Invalid XAU regime lookback mode.";return(false);}
+   if(c.xau_regime_observation_lookback<1||c.xau_regime_observation_lookback>1000||c.xau_regime_minimum_observations<1||c.xau_regime_minimum_observations>1000)
+      {reason="XAU regime observation lookback/minimum must be 1..1000.";return(false);}
+   if(c.xau_regime_lookback_mode==E2_XAU_REGIME_LOOKBACK_N_OBSERVATIONS&&c.xau_regime_minimum_observations>c.xau_regime_observation_lookback)
+      {reason="XAU regime minimum observations cannot exceed N-observation lookback.";return(false);}
+   if(!MathIsValidNumber(c.xau_regime_unfavourable_threshold)||!MathIsValidNumber(c.xau_regime_favourable_threshold)||!MathIsValidNumber(c.xau_regime_very_favourable_threshold)||
+      c.xau_regime_unfavourable_threshold<=0.0||c.xau_regime_unfavourable_threshold>=c.xau_regime_favourable_threshold||c.xau_regime_favourable_threshold>=c.xau_regime_very_favourable_threshold)
+      {reason="XAU regime thresholds must be positive and strictly increasing.";return(false);}
    if(c.risk_mode!=E2_RISK_FIXED_CASH&&c.risk_mode!=E2_RISK_BALANCE_PERCENT){reason="Risk mode is invalid.";return(false);}
    if(c.risk_mode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(c.fixed_cash_risk)||c.fixed_cash_risk<=0.0)){reason="Fixed cash risk must be positive.";return(false);}
    if(c.risk_mode==E2_RISK_BALANCE_PERCENT&&(!MathIsValidNumber(c.balance_risk_percent)||c.balance_risk_percent<=0.0)){reason="Balance risk percent must be positive.";return(false);}
@@ -107,7 +139,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
 
    return(true);
 }
-int E2ExposedInputCount(void){return(29);}
+int E2ExposedInputCount(void){return(37);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}
