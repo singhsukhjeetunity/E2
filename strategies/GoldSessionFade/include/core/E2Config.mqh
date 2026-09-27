@@ -40,13 +40,13 @@ input double InpXauTrendEfficiencyMin=0.30;
 input int InpXauBlockFridayEntriesFromHour=20; // -1 disables late-Friday entry block
 
 input group "=== XAU REGIME FILTER (RESEARCH) ==="
-input E2XauRegimeFilterMode InpXauRegimeFilterMode=E2_XAU_REGIME_OFF;
+input E2XauRegimeFilterMode InpXauRegimeFilterMode=E2_XAU_REGIME_FAVOURABLE_ONLY;
 input E2XauRegimeLookbackMode InpXauRegimeLookbackMode=E2_XAU_REGIME_LOOKBACK_6_MONTHS;
 input int InpXauRegimeObservationLookback=50;
 input int InpXauRegimeMinimumObservations=20;
 input bool InpXauRegimeAllowUntilReady=true;
 input double InpXauRegimeUnfavourableThreshold=1.20;
-input double InpXauRegimeFavourableThreshold=1.30;
+input double InpXauRegimeFavourableThreshold=1.25;
 input double InpXauRegimeVeryFavourableThreshold=1.45;
 
 input group "=== BROKER TIME ADAPTER ==="
