@@ -3,6 +3,7 @@
 
 #include "E2StrategyTypes.mqh"
 #include "E2PositionRecovery.mqh"
+#include "E2XauRegimeFilter.mqh"
 #include "..\\core\\E2Config.mqh"
 #include "..\\time\\E2TimeUtils.mqh"
 #include "..\\time\\E2BrokerTimeAdapter.mqh"
@@ -52,6 +53,7 @@ private:
    E2Config m_config;string m_symbol;
    E2WeekendFlat *m_weekend;E2BrokerTimeAdapter *m_time;E2Logger *m_logger;
    E2XauSessionRange m_range;datetime m_last;int m_atr,m_signaled_day;
+   E2XauRegimeFilter m_regime;
    E2SignalVerification m_verify;
 
    string BasisName()const
@@ -126,6 +128,7 @@ private:
       candidate.atr=values[0];candidate.atr_multiplier=m_config.xau_atr_multiplier;
       candidate.risk_distance=values[0]*m_config.xau_atr_multiplier;
       candidate.execution_window_start=known;candidate.execution_window_end=known+300;
+      if(!m_regime.Assess(candidate,true))return(false);
       m_verify.total_candidates++;m_verify.long_candidates++;
       m_signaled_day=m_range.Day();
       found=true;
@@ -137,6 +140,7 @@ public:
      {
       m_config=config;m_symbol=symbol;m_time=&time;m_weekend=&weekend;m_logger=&logger;m_last=0;m_signaled_day=0;ZeroMemory(m_verify);
       m_range.Initialize(config);
+      m_regime.Initialize(config,logger);
       m_atr=iATR(symbol,PERIOD_M5,config.xau_atr_length);
       if(m_atr==INVALID_HANDLE)return(false);
       datetime now=TimeCurrent();
