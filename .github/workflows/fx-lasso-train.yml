@@ -1,0 +1,103 @@
+name: Train FX LASSO model
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "FX symbol without a separator (for example EURUSD)"
+        required: true
+        default: EURUSD
+        type: string
+      start:
+        description: "Training data start date (YYYY-MM-DD)"
+        required: true
+        default: "2018-01-01"
+        type: string
+      end:
+        description: "Training data end date, exclusive (YYYY-MM-DD)"
+        required: true
+        default: "2026-09-26"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate inputs
+        id: inputs
+        shell: bash
+        env:
+          INPUT_SYMBOL: ${{ inputs.symbol }}
+          INPUT_START: ${{ inputs.start }}
+          INPUT_END: ${{ inputs.end }}
+        run: |
+          set -euo pipefail
+          symbol="$(printf '%s' "$INPUT_SYMBOL" | tr '[:lower:]' '[:upper:]')"
+          if [[ ! "$symbol" =~ ^[A-Z]{6}$ ]]; then
+            echo "Unsupported symbol format '$INPUT_SYMBOL'. Use six letters without a separator, for example EURUSD." >&2
+            exit 1
+          fi
+          python - "$INPUT_START" "$INPUT_END" <<'PY'
+          import datetime as dt
+          import sys
+
+          start = dt.date.fromisoformat(sys.argv[1])
+          end = dt.date.fromisoformat(sys.argv[2])
+          if start >= end:
+              raise SystemExit(f"Start date {start} must be before end date {end}.")
+          PY
+          echo "symbol=$symbol" >> "$GITHUB_OUTPUT"
+          echo "output_dir=strategies/FXLasso/artifacts/$symbol" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=fx-lasso-$symbol-$INPUT_START-to-$INPUT_END" >> "$GITHUB_OUTPUT"
+
+      - name: Install reference dependencies
+        run: python -m pip install -r strategies/FXLasso/reference/requirements.txt
+
+      - name: Train and export model
+        env:
+          SYMBOL: ${{ steps.inputs.outputs.symbol }}
+          START_DATE: ${{ inputs.start }}
+          END_DATE: ${{ inputs.end }}
+          OUTPUT_DIR: ${{ steps.inputs.outputs.output_dir }}
+        run: |
+          python strategies/FXLasso/reference/run_reference.py "$SYMBOL" \
+            --start "$START_DATE" \
+            --end "$END_DATE" \
+            --output "$OUTPUT_DIR"
+
+      - name: Verify generated artifacts
+        env:
+          SYMBOL: ${{ steps.inputs.outputs.symbol }}
+          OUTPUT_DIR: ${{ steps.inputs.outputs.output_dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for suffix in model.csv model.json predictions.csv metrics.json; do
+            file="$OUTPUT_DIR/${SYMBOL}_$suffix"
+            if [[ ! -s "$file" ]]; then
+              echo "Expected artifact is missing or empty: $file" >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.inputs.outputs.artifact_name }}
+          if-no-files-found: error
+          path: |
+            ${{ steps.inputs.outputs.output_dir }}/${{ steps.inputs.outputs.symbol }}_model.csv
+            ${{ steps.inputs.outputs.output_dir }}/${{ steps.inputs.outputs.symbol }}_model.json
+            ${{ steps.inputs.outputs.output_dir }}/${{ steps.inputs.outputs.symbol }}_predictions.csv
+            ${{ steps.inputs.outputs.output_dir }}/${{ steps.inputs.outputs.symbol }}_metrics.json
