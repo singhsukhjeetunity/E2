@@ -20,7 +20,10 @@ results pass review.
 - Entry: first tradable quote at 09:35, within `InpEntryWindowSeconds`.
 - Standard exit: stop = `InpStopATR × ATR`; target is the identical distance
   around the authoritative fill. Open positions are flattened at 15:55 ET.
-- Risk: `InpRiskPercent` of current account equity, default 0.5%.
+- Risk: selectable with `InpRiskMode`. `GF_RISK_EQUITY_PERCENT` risks
+  `InpRiskPercent` of current equity (default 0.5%); `GF_RISK_FIXED_CASH` risks
+  `InpFixedCashRisk` in account currency (default 500). Lot-step rounding can
+  make actual initial risk slightly lower than requested.
 - Frequency: at most one filled entry per New York date, symbol and magic.
 
 Broker bid/ask spread is paid naturally. Market-entry and stop slippage use the

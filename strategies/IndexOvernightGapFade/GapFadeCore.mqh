@@ -55,4 +55,11 @@ int GFRandomSide(const int ny_day,const ulong seed) {
    return ((x*2685821657736338717ULL)&1ULL)==0ULL?-1:1;
 }
 
+double GFRequestedCashRisk(const double equity,const double percent,
+                           const double fixed_cash,const bool use_fixed) {
+   if(use_fixed)return fixed_cash>0?fixed_cash:0.0;
+   if(equity<=0||percent<=0)return 0.0;
+   return equity*percent/100.0;
+}
+
 #endif

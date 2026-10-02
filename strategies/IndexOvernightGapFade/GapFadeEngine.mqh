@@ -5,6 +5,7 @@
 #include "GapFadeClock.mqh"
 
 enum GFExperimentMode { GF_FADE_1R=0, GF_RANDOM_DIRECTION_1R=1, GF_FADE_HOLD_TO_CLOSE=2 };
+enum GFRiskMode { GF_RISK_EQUITY_PERCENT=0, GF_RISK_FIXED_CASH=1 };
 
 input group "Historical broker time"
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
@@ -17,7 +18,9 @@ input double InpStopATR=0.35;
 input GFExperimentMode InpExperiment=GF_FADE_1R;
 input ulong InpRandomSeed=20261001;
 input group "Risk and execution"
+input GFRiskMode InpRiskMode=GF_RISK_EQUITY_PERCENT;
 input double InpRiskPercent=0.50;
+input double InpFixedCashRisk=500.0;
 input double InpMaxSpreadPriceUnits=10.0;
 input double InpMaxDeviationPriceUnits=1.0;
 input int InpEntryWindowSeconds=10;
@@ -162,12 +165,20 @@ bool GFUnitRisk(const int side,const double entry,const double stop,double &cash
 }
 double GFVolume(const int side,const double entry,const double stop) {
    double unit=0;if(!GFUnitRisk(side,entry,stop,unit))return 0;
-   double budget=AccountInfoDouble(ACCOUNT_EQUITY)*InpRiskPercent/100.0;
+   double budget=GFRequestedCashRisk(AccountInfoDouble(ACCOUNT_EQUITY),InpRiskPercent,
+      InpFixedCashRisk,InpRiskMode==GF_RISK_FIXED_CASH);
+   if(budget<=0)return 0;
    double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
    double volume=MathFloor((budget/unit)/step+1e-10)*step;
    volume=MathMin(volume,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX));
    if(volume<SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN))return 0;
    return NormalizeDouble(volume,8);
+}
+bool GFProtectionMatches(const ulong ticket,const double sl,const double tp) {
+   if(!PositionSelectByTicket(ticket))return false;
+   double tolerance=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)*0.51;
+   return MathAbs(PositionGetDouble(POSITION_SL)-sl)<=tolerance &&
+          MathAbs(PositionGetDouble(POSITION_TP)-tp)<=tolerance;
 }
 void GFCloseAtDeadline(const datetime now) {
    ulong ticket=0;if(!GFHasOwnPosition(ticket))return;
@@ -230,8 +241,22 @@ void GFTryEntry(const datetime now) {
    if(InpExperiment!=GF_FADE_HOLD_TO_CLOSE && GFHasOwnPosition(ticket)) {
       double actual_sl=GFRoundPrice(fill_price-side*distance);
       double actual_tp=GFRoundPrice(fill_price+side*distance);
-      if(!g_trade.PositionModify(ticket,actual_sl,actual_tp)) {
-         Print("[GF] Protection reconciliation failed; closing position.");g_trade.PositionClose(ticket);return;
+      // The market request already carries protection. A second modification can
+      // legitimately return NO_CHANGES, so verify the position before and after
+      // attempting a modification instead of treating the method's bool as proof.
+      if(!GFProtectionMatches(ticket,actual_sl,actual_tp)) {
+         ResetLastError();
+         bool sent=g_trade.PositionModify(ticket,actual_sl,actual_tp);
+         uint retcode=g_trade.ResultRetcode();
+         if(!GFProtectionMatches(ticket,actual_sl,actual_tp)) {
+            Print("[GF] Protection verification failed; sent=",sent,
+               " retcode=",retcode," ",g_trade.ResultRetcodeDescription(),
+               " lastError=",GetLastError(),". Closing position.");
+            if(!g_trade.PositionClose(ticket))
+               Print("[GF] EMERGENCY CLOSE FAILED retcode=",g_trade.ResultRetcode(),
+                  " ",g_trade.ResultRetcodeDescription());
+            return;
+         }
       }
    }
    Print("[GF] ENTRY day=",day," mode=",EnumToString(InpExperiment)," fadeSide=",fade_side,
@@ -242,7 +267,7 @@ int OnInit() {
    if(InpBrokerClock==NP_CLOCK_UNSET||InpBrokerWinterUtcOffsetSeconds<-50400||
       InpBrokerWinterUtcOffsetSeconds>50400||InpBrokerWinterUtcOffsetSeconds%60!=0||
       InpATRLength<2||InpATRLength>100||InpMinGapATR<0||InpMaxGapATR<=InpMinGapATR||
-      InpStopATR<=0||InpRiskPercent<=0||InpRiskPercent>5||InpMaxSpreadPriceUnits<=0||
+      InpStopATR<=0||InpRiskPercent<=0||InpRiskPercent>5||InpFixedCashRisk<=0||InpMaxSpreadPriceUnits<=0||
       InpMaxDeviationPriceUnits<0||InpEntryWindowSeconds<0||InpEntryWindowSeconds>55||InpMagic==0)
       return INIT_PARAMETERS_INCORRECT;
    datetime utc=0;if(!GFUtc(TimeCurrent(),utc))return INIT_FAILED;
