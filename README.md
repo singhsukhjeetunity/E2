@@ -1,10 +1,11 @@
-# E2-trio — three independent strategies and trading journal
+# E2 portfolio — selected trio and independent research strategies
 
 | Folder | Contents |
 |---|---|
 | `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
 | `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
 | `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third independent strategy |
+| `strategies/IndexClosingMomentum/` | US-index closing-momentum research EA, baselines and exports |
 | `strategies/shared/` | Shared report-folder utilities |
 | `journal/` | Local CSV trading journal |
 | `tools/` | EMA run analysis |
@@ -13,7 +14,9 @@
 
 NR4 and its EA have been removed. The old triple-moving-average strategy is not included in this revision. Historical branches and commits are retained.
 
-E2-trio includes Gold Session Fade, EMA Pullback and Compression Breakout as separate EAs.
+The selected E2 trio remains Gold Session Fade, EMA Pullback and Compression
+Breakout. Index Closing Momentum is included only as an unselected research EA
+and has no portfolio allocation.
 
 ## Selected defaults
 
@@ -50,6 +53,7 @@ Gold uses M5. EMA and compression build M30 bars from M1 history and use the sam
 - [Gold checks and known limitation](docs/GOLD_TESTING.md)
 - [EMA setup and verification](docs/EMA_TESTING.md)
 - [Compression breakout settings and testing](docs/COMPRESSION_TESTING.md)
+- [Index closing momentum research protocol](docs/INDEX_CLOSING_MOMENTUM_TESTING.md)
 - [CSV folder layout and migration](docs/CSV_EXPORTS.md)
 - [Trading journal guide](docs/JOURNAL_GUIDE.md)
 
@@ -59,6 +63,8 @@ Launch the journal with `Open-E2-Journal.pyw`. The journal imports CSVs and visu
 
 ```sh
 python tests/run_compression.py
+g++ -std=c++17 -Wall -Wextra -Werror tests/momentum_core.cpp -o /tmp/momentum-core
+/tmp/momentum-core
 python -m unittest discover -s tests -p 'test_*.py' -v
 g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
 /tmp/ema-core
