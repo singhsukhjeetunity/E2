@@ -66,6 +66,24 @@ closed and floating drawdown, yearly results, long/short split, gap-size bins,
 and sensitivity to doubled spread/slippage. Reject any result that depends on
 one instrument, one year, or a narrow parameter cell.
 
+## CSV exports
+
+With `InpExportCsv=true`, each run writes into MT5 Common Files under
+`E2/IndexOvernightGapFade/`:
+
+- `*_Signals_S.csv`: every setup, no-signal day, skip, order rejection, entry,
+  exit and protection failure, timestamped in UTC with the gap and direction
+  details where applicable.
+- `*_Trades_T.csv`: E2 Journal V1 trade ledger containing direction, actual
+  entry fill, initial SL/TP, volume, requested/actual cash risk, exit time,
+  net profit after trading charges, net R, exit reason and integrity flags.
+- `*_Settings.txt`: the canonical configuration used for the run.
+
+The trade file is refreshed at each lifecycle update so completed trades can
+be imported by the existing E2 journal. Hold-to-close experiments
+carry `HOLD_TO_CLOSE_NOMINAL_RISK` because their sizing distance is not a live
+protective stop.
+
 ## Compile and attach
 
 Copy the whole `strategies` directory into `MQL5/Experts/E2/`, compile
