@@ -15,9 +15,9 @@ Copy this entire directory to `MQL5/Experts/E2/ResearchCandidates/`. Compile eac
 
 Broker/futures/ETF/CFD prices, spreads and session definitions differ. A published futures or SPY return is **not** a backtest of these EAs on a CFD feed.
 
-## Simplified inputs (v1.10)
+## Simplified inputs (v1.10; IBS v1.11 update)
 
-Settings are grouped and labeled in plain language: strategy parameters, risk/execution, historical feed clock, exits, CSV reports and calendar exceptions. Reference-session clocks, ATR period (14), 90-day lookback, 80% minute coverage, 60-second entry grace and 10-point deviation are fixed implementation constants. Default signal rules are unchanged. Only daily IBS exposes maximum holding days; the others use their existing session/fix deadline. Friday flattening remains adjustable on/off, at fixed 20:00 UTC. Review and re-save old `.set` files: removed custom parameters no longer override these fixed defaults.
+Settings are grouped and labeled in plain language: strategy parameters, risk/execution, historical feed clock, exits, CSV reports and calendar exceptions. Reference-session clocks, ATR period (14), 90-day lookback, 80% minute coverage, 60-second intraday entry grace and 10-point deviation are fixed implementation constants. Default signal rules are unchanged. IBS additionally exposes its post-close entry-expiry window (default 180 minutes); leave it fixed during initial testing. Only daily IBS exposes maximum holding days; the others use their existing session/fix deadline. Friday flattening remains adjustable on/off, at fixed 20:00 UTC. Review and re-save old `.set` files: removed custom parameters no longer override these fixed defaults.
 
 ## Automatic CSV exports
 
@@ -68,7 +68,7 @@ Source: [Quantified Strategies, February 2026 public rules](https://www.linkedin
 
 Published: buy if close < 10-session highest high − 25-session mean high–low range and IBS < 0.30. IBS = (close−low)/(high−low). Sell when close exceeds the previous session's high. The current completed session is included in the high/range windows. Zero-range bars have IBS 0.5.
 
-**Execution difference:** this EA observes the complete closing M1 bar and trades on the next available tick within 60 seconds after session end. It cannot know the final close and execute at that same close. If the instrument is closed then, the entry is skipped; it is never silently deferred to next morning. Delayed strength exits are recovered from completed sessions after the position's opening time. A 3 daily ATR stop, five-calendar-day holding cap and Friday flattening are added risk overlays; none should inherit the published return statistics.
+**Execution difference (IBS v1.11):** this EA observes the complete closing M1 bar, then waits for the first eligible tick within a scheduled broker trading session, up to `InpEntryExpiryMinutes` after the reference-session close (default 180; permitted 1–360). Quotes alone do not authorize an order. Rejected orders retain the signal and retry at most once per 60 seconds. Entry is marked processed only on successful execution; deal history prevents duplicate entry after restart/early exit. Signal expiry prevents chasing it the following morning or after a weekend. The signal is reconstructed from the latest completed reference-session bar after restart. A missing/unavailable trade schedule fails closed. The actual later fill determines SL placement, volume sizing and cash risk; there is no assumed closing-price fill. This is a delayed-entry CFD research variant, not a replica of published same-close performance. The supplied US500 specification has trading 00:00–22:59 Mon–Thu and 00:00–22:55 Fri while quote hours continue: a 23:00 broker-time close signal therefore usually waits until midnight. Weekly session metadata cannot predict holiday-specific closures; broker rejections remain authoritative. Delayed strength exits are recovered from completed sessions after the position's opening time. A 3 daily ATR stop, five-calendar-day holding cap and Friday flattening are added risk overlays; none should inherit the published return statistics.
 
 ### 3. EURJPY Gotobi
 

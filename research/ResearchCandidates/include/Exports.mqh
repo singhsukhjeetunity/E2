@@ -1,5 +1,8 @@
 #ifndef RC_EXPORTS_MQH
 #define RC_EXPORTS_MQH
+#ifndef RC_REPORT_VERSION
+#define RC_REPORT_VERSION "1.10"
+#endif
 // History is authoritative: aggregate every fill/partial exit by position ID.
 struct RCReportTrade {
    ulong position;
@@ -139,7 +142,7 @@ bool RCExportSettings() {
    if(h==INVALID_HANDLE){Print("CSV settings file cannot open: ",GetLastError());return false;}
    ResetLastError();FileWrite(h,"setting","value");
    FileWrite(h,"strategy",RC_NAME);FileWrite(h,"symbol",_Symbol);FileWrite(h,"run_id",rc_run);
-   FileWrite(h,"version","1.10");
+   FileWrite(h,"version",RC_REPORT_VERSION);
    FileWrite(h,"InpMagic",InpMagic);
    FileWrite(h,"InpRiskPercent",InpRiskPercent);
    FileWrite(h,"InpCashRisk",InpCashRisk);

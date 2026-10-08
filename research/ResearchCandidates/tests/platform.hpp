@@ -13,6 +13,7 @@
 using string=std::string;
 using datetime=long long;
 using ENUM_TIMEFRAMES=int;
+using ENUM_DAY_OF_WEEK=int;
 using ENUM_DEAL_ENTRY=int;
 using ENUM_DEAL_TYPE=int;
 using ENUM_ORDER_TYPE=int;
@@ -89,6 +90,8 @@ struct TestDeal {
 };
 std::vector<TestDeal> test_deals;
 std::vector<MqlRates> test_minutes,test_m15,test_m30;
+bool test_session_closed=false,test_order_rejected=false;
+bool SymbolInfoSessionTrade(const string&,int,uint i,datetime &from,datetime &to){if(i>0||test_session_closed)return false;from=0;to=86400;return true;}
 datetime TimeCurrent(){return test_now;}
 long long AccountInfoInteger(int){return test_mode;}
 double AccountInfoDouble(int property){return property==ACCOUNT_EQUITY?test_cash:test_free;}
@@ -150,6 +153,7 @@ int CopyRates(const string&,int frame,int shift,int count,std::vector<MqlRates> 
 class CTrade {
    ulong magic=0;
    bool enter(int side,double lots,const string &symbol,double stop) {
+      if(test_order_rejected)return false;
       ulong ticket=test_positions.size()+100;
       test_positions.push_back({ticket,magic,symbol,test_now,stop,lots});
       test_deals.push_back({test_deals.size()+1,magic,symbol,test_now,DEAL_ENTRY_IN,side});return true;
