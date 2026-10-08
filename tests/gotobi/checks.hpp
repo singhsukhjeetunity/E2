@@ -3,7 +3,12 @@ int main(int argc,char **argv) {
    assert(OnInit()==INIT_PARAMETERS_INCORRECT);
    InpBrokerClockVerified=true;assert(OnInit()==INIT_SUCCEEDED);
    assert(InpMagic>=420601&&InpMagic<=420605);
-   InpRiskPercent=-1;assert(OnInit()==INIT_PARAMETERS_INCORRECT);InpRiskPercent=.23;
+   InpFixedCashRisk=0;assert(OnInit()==INIT_PARAMETERS_INCORRECT);InpFixedCashRisk=1000;
+   InpBalanceRiskPercent=0;assert(OnInit()==INIT_SUCCEEDED); // Inactive percent does not disable cash mode.
+   InpRiskMode=E2_RISK_BALANCE_PERCENT;assert(OnInit()==INIT_PARAMETERS_INCORRECT);
+   InpBalanceRiskPercent=.23;InpFixedCashRisk=0;assert(OnInit()==INIT_SUCCEEDED);
+   InpRiskMode=(E2RiskMode)2;assert(OnInit()==INIT_PARAMETERS_INCORRECT);
+   InpRiskMode=E2_RISK_FIXED_CASH;InpFixedCashRisk=1000;
    // CSV ownership, partial fills/exits, fee accounting, restart rebuild and no overwrite.
    InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
    test_now=RCDate(2025,10,8,12);
@@ -80,13 +85,15 @@ int main(int argc,char **argv) {
    // Broker history survives process-local reset; foreign positions are untouched.
    InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
    InpSessionDST=RC_FIXED;InpSessionWinterUTCMinutes=0;
-   InpCashRisk=100;InpOneEntryPerDay=true;InpFridayFlat=false;InpMaxSpreadPoints=30;
+   InpRiskMode=E2_RISK_FIXED_CASH;InpFixedCashRisk=100;InpOneEntryPerDay=true;InpFridayFlat=false;InpMaxSpreadPoints=30;
+   InpBalanceRiskPercent=99;test_balance=200000; // Cash sizing ignores the inactive percent and account balance.
    datetime now=RCDate(2025,10,8,12);test_now=now;
    test_positions.push_back({9,999,"TEST",now,90,.01});
    test_mode=0;assert(!RCEnter(1,1,0,now)); // Netting ownership conflict.
    test_mode=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
    assert(RCEnter(1,1,0,now));assert(test_positions.size()==2);
    assert(test_positions.back().stop>0&&test_positions.back().lots<=.10);
+   assert(test_positions.back().lots>=.09);
    RCCloseOwn();assert(test_positions.size()==1&&test_positions[0].magic==999);
    rc_last_minute=0;rc_last_bid=0;assert(!RCEnter(1,1,0,now)); // Durable daily limit.
    InpOneEntryPerDay=false;assert(!RCEnter(1,1,0,now,now)); // Unique signal/fix limit.
@@ -161,7 +168,8 @@ int main(int argc,char **argv) {
    rc_ready=true;rc_cache_key=RCDayKey(test_now)*2;
    test_tick={100,100.02};rc_last_bid=100;
    test_now=RCDate(2025,7,3,15,55);_Point=.001;_Digits=3;test_tick={160,160.01};
-   InpCashRisk=0;InpRiskPercent=.23;test_cash=100000;
+   InpRiskMode=E2_RISK_BALANCE_PERCENT;InpFixedCashRisk=9999;InpBalanceRiskPercent=.23;
+   test_balance=100000;test_cash=50000; // Percentage follows balance, not floating equity or inactive cash input.
    OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
    auto live_entry=test_positions.back();
    double planned_loss=1000*live_entry.lots*(test_tick.ask-live_entry.stop);
@@ -178,7 +186,11 @@ int main(int argc,char **argv) {
       InpEntryUTCMinute=entry_minute;assert(RCValidate());
       test_deals.clear();test_positions.clear();
       test_now=RCDate(2025,7,3)+entry_minute*60-1;OnTick();assert(test_positions.empty());
+      test_balance=200000;
       test_now++;OnTick();assert(test_positions.size()==1);
+      auto scaled=test_positions.back();
+      double scaled_loss=1000*scaled.lots*(test_tick.ask-scaled.stop);
+      assert(scaled_loss<=460+1e-8&&scaled_loss>=454-1e-8);
       RCCloseOwn();OnTick();assert(test_positions.empty()); // Signal cannot re-enter.
    }
    InpEntryUTCMinute=1440;assert(!RCValidate());InpEntryUTCMinute=955;

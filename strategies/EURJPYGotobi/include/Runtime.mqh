@@ -4,8 +4,10 @@
 #include "Core.mqh"
 #include "Clock.mqh"
 input group "1. Risk and execution"
-input double InpRiskPercent=0.23; // Risk per trade (% of equity)
-input double InpCashRisk=0; // Fixed cash risk (0 = use percentage)
+enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
+input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Risk Mode
+input double InpFixedCashRisk=1000.0; // Fixed Risk (account currency)
+input double InpBalanceRiskPercent=1.0; // Balance Risk (%)
 input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD; // Maximum spread (broker points)
 input bool InpOneEntryPerDay=true; // Maximum one entry per day
 input ulong InpMagic=RC_DEFAULT_MAGIC; // Unique strategy ID
@@ -181,7 +183,8 @@ bool RCEnter(const int direction,const double distance,const double target_r,con
    double profit=0;
    ENUM_ORDER_TYPE side=direction>0?ORDER_TYPE_BUY:ORDER_TYPE_SELL;
    if(!OrderCalcProfit(side,_Symbol,1.0,entry,stop,profit)||profit>=0)return false;
-   double budget=InpCashRisk>0?InpCashRisk:AccountInfoDouble(ACCOUNT_EQUITY)*InpRiskPercent/100;
+   double budget=InpRiskMode==E2_RISK_FIXED_CASH?InpFixedCashRisk:
+                 AccountInfoDouble(ACCOUNT_BALANCE)*InpBalanceRiskPercent/100;
    double lots=RCVolume(budget,-profit,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN),
                         SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP));
    if(lots<=0)return false;
@@ -265,7 +268,10 @@ bool RCRecentBars(const ENUM_TIMEFRAMES frame,const int count,RCBar &bars[]) {
 }
 int OnInit() {
    if(!InpBrokerClockVerified){Print(RC_NAME,": verify broker UTC/DST inputs, then set InpBrokerClockVerified=true.");return INIT_PARAMETERS_INCORRECT;}
-   if(InpMagic==0||InpRiskPercent<=0||InpCashRisk<0||InpMaxSpreadPoints<=0||InpATRPeriod<1||InpATRPeriod>100||
+   if(InpRiskMode!=E2_RISK_FIXED_CASH&&InpRiskMode!=E2_RISK_BALANCE_PERCENT)return INIT_PARAMETERS_INCORRECT;
+   if(InpRiskMode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(InpFixedCashRisk)||InpFixedCashRisk<=0))return INIT_PARAMETERS_INCORRECT;
+   if(InpRiskMode==E2_RISK_BALANCE_PERCENT&&(!MathIsValidNumber(InpBalanceRiskPercent)||InpBalanceRiskPercent<=0))return INIT_PARAMETERS_INCORRECT;
+   if(InpMagic==0||InpMaxSpreadPoints<=0||InpATRPeriod<1||InpATRPeriod>100||
       InpStopATR<=0||InpTargetR<0||InpSessionOpenMinute<0||InpSessionCloseMinute>1440||
       InpSessionOpenMinute>=InpSessionCloseMinute||InpEarlyCloseMinute<=InpSessionOpenMinute||
       InpEarlyCloseMinute>InpSessionCloseMinute||InpHistoryDays<30||InpHistoryDays>365||
@@ -275,7 +281,8 @@ int OnInit() {
       InpSessionWinterUTCMinutes< -720||InpSessionWinterUTCMinutes>840||!RCValidate())return INIT_PARAMETERS_INCORRECT;
    rc_trade.SetExpertMagicNumber(InpMagic);rc_trade.SetDeviationInPoints(InpDeviationPoints);
    rc_trade.SetAsyncMode(false);rc_trade.SetTypeFillingBySymbol(_Symbol);
-   Print(RC_NAME," v",RC_REPORT_VERSION," risk_percent=",InpRiskPercent," cash_risk=",InpCashRisk,
+   Print(RC_NAME," v",RC_REPORT_VERSION," risk_mode=",(int)InpRiskMode,
+         " fixed_cash_risk=",InpFixedCashRisk," balance_risk_percent=",InpBalanceRiskPercent,
          " broker_winter_utc_minutes=",InpBrokerWinterUTCMinutes," broker_dst=",(int)InpBrokerDST);
    if(!RCExportInit())return INIT_FAILED;
    return INIT_SUCCEEDED;

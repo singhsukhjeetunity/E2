@@ -6,7 +6,7 @@
 | `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
 | `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third independent strategy |
 | `strategies/EURJPYGotobi/` | Fourth EA: 50-pip EURJPY Gotobi, headers, setup guide and sizing evidence |
-| `presets/` | Gotobi 50-pip / 0.23% preset; broker clock must be verified |
+| `presets/` | Gotobi 50-pip preset with editable cash / balance-percent risk; broker clock must be verified |
 | `strategies/shared/` | Shared report-folder utilities |
 | `journal/` | Local CSV trading journal |
 | `tools/` | EMA run analysis |
@@ -24,13 +24,13 @@ E2 includes Gold Session Fade, EMA Pullback, Compression Breakout and EURJPY Got
 | Gold Session Fade | M5, 12:00–12:30 UTC, ATR14 × 8 stop, 1.5R target, one trade per day |
 | EMA Pullback | M30, EMA20/50, ATR14 × 3 stop, 0.5R target, one trade per New York day, spread cap 10 price units |
 | Compression Breakout | M30, 20-bar channel, ATR14 compression below 0.8 × 100-bar ATR average, 3 ATR stop, 2R target, daily toggle off |
-| EURJPY Gotobi | M1, 15:55 UTC entry, 00:55 UTC exit, 50-pip stop, 200-pip safety TP, 0.23% equity risk |
+| EURJPY Gotobi | M1, 15:55 UTC entry, 00:55 UTC exit, 50-pip stop, 200-pip safety TP, configurable cash / balance-percent risk |
 
 All four strategies are included in this source release. Set risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the trio allocation and [Gotobi setup](docs/GOTOBI_INSTALL.md) for the fourth EA.
 
 ## Selected portfolio allocation
 
-The table below is the existing **three-system** allocation. Gotobi is a separate addition at 0.23% equity risk per trade; its standalone Monte Carlo sizing does not establish a four-system portfolio drawdown limit. No existing trio settings were changed. See [Gotobi sizing](strategies/EURJPYGotobi/robustness/MONTE_CARLO_50.md).
+The table below is the existing **three-system** allocation. Gotobi has configurable cash / balance-percent risk. Its standalone Monte Carlo sizing is guidance and does not establish a four-system portfolio drawdown limit. No existing trio settings were changed. See [Gotobi sizing](strategies/EURJPYGotobi/robustness/MONTE_CARLO_50.md).
 
 The selected risk split is **20:40:40 — Gold Session Fade / EMA Pullback / Compression Breakout**.
 

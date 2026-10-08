@@ -1,10 +1,10 @@
-# E2 EURJPY Gotobi v1.14
+# E2 EURJPY Gotobi v1.15
 
-Fourth independent EA, packaged on user instruction after selecting 50-pip / 15:55 UTC. [Installation and preset](../../docs/GOTOBI_INSTALL.md). Source defaults now use 50 pips and 0.23% of current equity per trade, `InpCashRisk=0`. Entry/exit rules are unchanged. The production trio's code and allocation are unchanged. Earlier results and parameter screens remain in `BASELINE.md` and `robustness/` as historical evidence.
+Fourth independent EA, packaged on user instruction after selecting 50-pip / 15:55 UTC. [Installation and preset](../../docs/GOTOBI_INSTALL.md). Risk controls now match Gold Fade: `InpRiskMode`, `InpFixedCashRisk` and `InpBalanceRiskPercent`. Fixed cash is the default mode; amounts are editable, with generic defaults 1000 account-currency units / 1%. These are not selected account allocations. Entry/exit rules are unchanged. The production trio's code and allocation are unchanged. Earlier results and parameter screens remain in `BASELINE.md` and `robustness/` as historical evidence.
 
 ## Installation
 
-Copy the entire folder, including `include/`, into `MQL5/Experts/E2/EURJPYGotobi/`. Compile `EURJPY_Gotobi.mq5` with MetaEditor; attach to EURJPY M1. Load `presets/EURJPYGotobi_50p_023pct.set`, verify the trading server's UTC/DST profile, and set `InpBrokerClockVerified=true`. Existing chart inputs and presets override new source defaults. No compiled EX5 is included. The preset's clock profile is a placeholder.
+Copy the entire folder, including `include/`, into `MQL5/Experts/E2/EURJPYGotobi/`. Compile `EURJPY_Gotobi.mq5` with MetaEditor; attach to EURJPY M1. Load `presets/EURJPYGotobi_50p_configurable.set`, verify the trading server's UTC/DST profile, and set `InpBrokerClockVerified=true`. Existing chart inputs and presets override new source defaults. No compiled EX5 is included. The preset's clock profile is a placeholder.
 
 ## Fixed setup
 
@@ -13,7 +13,7 @@ Copy the entire folder, including `include/`, into `MQL5/Experts/E2/EURJPYGotobi
 | Stop / safety TP | 50 / 200 pips |
 | Entry UTC minute | 955 = 15:55 |
 | Following-day fix exit | 00:55 UTC |
-| Risk | 0.23% of current equity; fixed cash disabled |
+| Risk | Editable Fixed cash / Balance percent selector; cash mode default |
 | Spread cap | 30 broker points (3 pips on standard 3-digit EURJPY) |
 | Magic | 420603 |
 | Friday flatten | 20:00 UTC |

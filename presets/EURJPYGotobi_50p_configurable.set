@@ -1,12 +1,13 @@
-; E2 EURJPY Gotobi v1.14 - 50 pips, 15:55 UTC, 0.23% of current equity
+; E2 EURJPY Gotobi v1.15 - 50 pips, 15:55 UTC, editable risk like Gold Fade
 ; Broker clock values below are placeholders: verify for your account before enabling.
 InpEntryUTCMinute=955
 InpStopPips=50.0
 InpSafetyTargetPips=200.0
 InpPipSize=0.0
 InpExcludedJapaneseDates=
-InpRiskPercent=0.23
-InpCashRisk=0.0
+InpRiskMode=0
+InpFixedCashRisk=1000.0
+InpBalanceRiskPercent=1.0
 InpMaxSpreadPoints=30.0
 InpOneEntryPerDay=true
 InpMagic=420603
