@@ -1,0 +1,14 @@
+[
+  {
+    "filename": "02-EURJPY_Test_5053221205_1451606400_172_0_Settings.csv",
+    "sha256": "027b346ba6928370216c721b117126cd80ff44cfff86f63f5fa0d03d0e88f9ac"
+  },
+  {
+    "filename": "01-EURJPY_Test_5053221205_1451606400_172_0_Equity_E.csv",
+    "sha256": "7a0402ced175fd87594a1c77ebb6fb55bcca941ae4633711c434b43029329c72"
+  },
+  {
+    "filename": "03-EURJPY_Test_5053221205_1451606400_172_0_Trades_T.csv",
+    "sha256": "ed176a2657ad4d0d88678e5e690611b7c637d06f360e91da87d488e73c0422c8"
+  }
+]

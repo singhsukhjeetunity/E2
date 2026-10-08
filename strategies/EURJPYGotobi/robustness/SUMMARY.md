@@ -49,3 +49,7 @@ Before locking one configuration: verify broker historical UTC/DST profile, real
 ## Sources
 
 Read-only uploaded settings, trades and equity for runs 1451606400_140_0 (baseline), 1451606400_172_0 (50), 1451606400_33_0 (70), 1451606400_226_0 (15:40), and 1451606400_45_0 (16:10). Original uploads unchanged. Detailed earlier run reports are retained in this directory.
+
+## Subsequent user selection
+
+The user selected 50-pip / 15:55 for continued work. See [Monte Carlo sizing](MONTE_CARLO_50.md) for standalone percentage-risk estimates by horizon. This replaces the provisional stop preference above; source defaults and production allocations remain unchanged.
