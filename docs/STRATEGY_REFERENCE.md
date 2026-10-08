@@ -69,7 +69,7 @@ The cash-session exit is retained. It does not imply that the broker's CFD stops
 - The supplied research settings used EU seasonal time (`3`) and a winter offset of `7200` seconds (UTC+2). These are research-feed settings, not automatic settings for another broker.
 - EMA reports use UTC. The US session/calendar applies on every selected instrument.
 - Automatic warm-up requires **31,440 completed M1 bars** at this baseline. There is no indicator-seed input. `WARMUP_WAIT` means more history is needed; `WARMUP_READY` confirms processing is complete. The signal already present at attachment is skipped.
-- The implemented exchange calendar covers **2022–2026**. Extend and verify it before testing or operating in 2027.
+- The exchange calendar is rule-based with no 2022–2026 year restriction. Verify historical feed clocks and exceptional closures when extending tests; see [EMA calendar notes](EMA_TESTING.md).
 
 Tester, demo and real accounts use the same EMA trading rules. Different broker feeds, costs and contract specifications can still change the results.
 

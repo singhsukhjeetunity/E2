@@ -1,6 +1,6 @@
 # EMA pullback — chart and tester setup
 
-Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.22.
+Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.24.
 Copy the complete `strategies` folder into `MQL5/Experts/E2`, retaining its subfolders. Compile the entry in MetaEditor.
 
 Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Strategy selection is complete and the user has verified the daily entry limit; demo forward testing is the next stage.
@@ -56,7 +56,13 @@ Before deployment, compile in MetaEditor and verify on MT5:
 
 Portable tests exercise the actual checkpoint/storage functions, history aggregation/warm-up and entry submission code against deterministic fake APIs. These do not compile the whole MQL5 EA or replace broker-side tests.
 
-The exchange calendar remains explicitly limited to **2022–2026**. Scheduled exits use the earlier cash-session deadline or broker session end minus the buffer. More than 60 seconds overdue flags the trade and stops new entries; close attempts continue. Failed closes retry every five seconds. End-of-test liquidation remains explicitly flagged.
+There is no longer a 2022–2026 year fence. Select any tester period for which MT5 has sufficient M1 history, including the warm-up before its start. The calendar computes recurring cash-market holidays and early closes by year, including the historical introduction of MLK/Juneteenth and known exceptional full closures. US DST uses the historical 1970–2006 rules (including 1974/1975), then the post-2007 rules. EU seasonal mode uses September ends before 1996 and October thereafter; it is a broker profile, not a guarantee of every country's or broker's historical policy. Verify old feed offsets; use fixed UTC for genuinely UTC data.
+
+The strategy's 09:30 New York entry-session convention is retained even for data before 1985. The calendar is a rule-based model, not an exhaustive historical exchange notice archive: unusual historical intraday closures and pre-1981 broker/EU policies require independent verification. Future years assume current recurring rules; new unscheduled closures or rule changes need updates. Calendar calculation is cached by New York day to avoid slowing long tests.
+
+References: [NYSE current calendar](https://www.nyse.com/trade/hours-calendars), [NIST DST rules](https://www.nist.gov/pml/time-and-frequency-division/popular-links/daylight-saving-time-dst), and [historical NYSE calendar implementation](https://github.com/rsheftel/pandas_market_calendars/blob/master/pandas_market_calendars/holidays/nyse.py). The shared clock/calendar change also applies to Compression; its signals and risk inputs are unchanged.
+
+Scheduled exits use the earlier cash-session deadline or broker session end minus the buffer. More than 60 seconds overdue flags the trade; tester runs fail, while live closes continue and future entries wait for confirmed settlement. Failed closes retry every five seconds. End-of-test liquidation remains explicitly flagged. See [live recovery instructions](LIVE_RECOVERY_UPDATE.md).
 
 ## E2-trio allocation
 
