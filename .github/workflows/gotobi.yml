@@ -1,4 +1,4 @@
-name: Gotobi candidate checks
+name: Gotobi checks
 on:
   push:
     paths: ['strategies/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']

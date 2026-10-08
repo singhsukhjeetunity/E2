@@ -3,7 +3,7 @@ int main() {
    assert(OnInit()==INIT_PARAMETERS_INCORRECT);
    InpBrokerClockVerified=true;assert(OnInit()==INIT_SUCCEEDED);
    assert(InpMagic>=420601&&InpMagic<=420605);
-   InpRiskPercent=-1;assert(OnInit()==INIT_PARAMETERS_INCORRECT);InpRiskPercent=.25;
+   InpRiskPercent=-1;assert(OnInit()==INIT_PARAMETERS_INCORRECT);InpRiskPercent=.23;
    // CSV ownership, partial fills/exits, fee accounting, restart rebuild and no overwrite.
    InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
    test_now=RCDate(2025,10,8,12);
@@ -148,7 +148,15 @@ int main() {
    rc_ready=true;rc_cache_key=RCDayKey(test_now)*2;
    test_tick={100,100.02};rc_last_bid=100;
    test_now=RCDate(2025,7,3,15,55);_Point=.001;_Digits=3;test_tick={160,160.01};
+   InpCashRisk=0;InpRiskPercent=.23;test_cash=100000;
    OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
+   auto live_entry=test_positions.back();
+   double planned_loss=1000*live_entry.lots*(test_tick.ask-live_entry.stop);
+   assert(planned_loss<=230+1e-8&&planned_loss>=225-1e-8); // Lot rounding stays within percentage budget.
+   double tick_size=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE);
+   assert(test_tick.ask-live_entry.stop>=.50-1e-8&&test_tick.ask-live_entry.stop<=.50+tick_size+1e-8);
+   // Existing execution computes target from rounded stop distance (4R), then rounds target outward.
+   assert(live_entry.target-test_tick.ask>=2.00-1e-8&&live_entry.target-test_tick.ask<=2.00+5*tick_size+1e-8);
    test_now=RCDate(2025,7,4,0,55);rc_last_close_attempt=0;OnTick();
    assert(test_positions.empty());
 

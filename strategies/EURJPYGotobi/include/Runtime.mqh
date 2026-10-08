@@ -4,7 +4,7 @@
 #include "Core.mqh"
 #include "Clock.mqh"
 input group "1. Risk and execution"
-input double InpRiskPercent=0.25; // Risk per trade (% of equity)
+input double InpRiskPercent=0.23; // Risk per trade (% of equity)
 input double InpCashRisk=0; // Fixed cash risk (0 = use percentage)
 input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD; // Maximum spread (broker points)
 input bool InpOneEntryPerDay=true; // Maximum one entry per day
@@ -113,7 +113,7 @@ void RCCloseOwn() {
    for(int i=PositionsTotal()-1;i>=0;i--) {
       ulong ticket=PositionGetTicket(i);if(ticket==0||!RCIsOwn())continue;
       if(!RCTradeOK(rc_trade.PositionClose(ticket,InpDeviationPoints)))
-         Print("Research exit retry required: ",ticket," ",rc_trade.ResultRetcodeDescription());
+         Print(RC_NAME," exit retry required: ",ticket," ",rc_trade.ResultRetcodeDescription());
    }
 }
 datetime RCOverlayDeadline(const datetime opened_utc) {
@@ -187,7 +187,7 @@ bool RCEnter(const int direction,const double distance,const double target_r,con
    if(lots<=0)return false;
    double margin=0;if(!OrderCalcMargin(side,_Symbol,lots,entry,margin)||margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE))return false;
    bool sent=direction>0?rc_trade.Buy(lots,_Symbol,0,stop,target,RC_NAME):rc_trade.Sell(lots,_Symbol,0,stop,target,RC_NAME);
-   if(!RCTradeOK(sent)){Print("Research entry rejected: ",rc_trade.ResultRetcodeDescription());return false;}
+   if(!RCTradeOK(sent)){Print(RC_NAME," entry rejected: ",rc_trade.ResultRetcodeDescription());return false;}
    Print(RC_NAME," entry ",direction," lots=",lots," SL=",stop," TP=",target," risk_budget=",budget);
    RCManage(utc);return true;
 }
@@ -264,7 +264,7 @@ bool RCRecentBars(const ENUM_TIMEFRAMES frame,const int count,RCBar &bars[]) {
    return true;
 }
 int OnInit() {
-   if(!InpBrokerClockVerified){Print("Set a verified historical broker UTC/DST profile before running research EA.");return INIT_PARAMETERS_INCORRECT;}
+   if(!InpBrokerClockVerified){Print(RC_NAME,": verify broker UTC/DST inputs, then set InpBrokerClockVerified=true.");return INIT_PARAMETERS_INCORRECT;}
    if(InpMagic==0||InpRiskPercent<=0||InpCashRisk<0||InpMaxSpreadPoints<=0||InpATRPeriod<1||InpATRPeriod>100||
       InpStopATR<=0||InpTargetR<0||InpSessionOpenMinute<0||InpSessionCloseMinute>1440||
       InpSessionOpenMinute>=InpSessionCloseMinute||InpEarlyCloseMinute<=InpSessionOpenMinute||
@@ -275,7 +275,8 @@ int OnInit() {
       InpSessionWinterUTCMinutes< -720||InpSessionWinterUTCMinutes>840||!RCValidate())return INIT_PARAMETERS_INCORRECT;
    rc_trade.SetExpertMagicNumber(InpMagic);rc_trade.SetDeviationInPoints(InpDeviationPoints);
    rc_trade.SetAsyncMode(false);rc_trade.SetTypeFillingBySymbol(_Symbol);
-   Print(RC_NAME," CANDIDATE: setup and validation status documented in strategies/EURJPYGotobi/README.md");
+   Print(RC_NAME," v",RC_REPORT_VERSION," risk_percent=",InpRiskPercent," cash_risk=",InpCashRisk,
+         " broker_winter_utc_minutes=",InpBrokerWinterUTCMinutes," broker_dst=",(int)InpBrokerDST);
    if(!RCExportInit())return INIT_FAILED;
    return INIT_SUCCEEDED;
 }

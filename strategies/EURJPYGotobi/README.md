@@ -1,40 +1,37 @@
-# EURJPY Gotobi
+# E2 EURJPY Gotobi v1.14
 
-Retained candidate for further development. Moved into `strategies/EURJPYGotobi/` on user instruction after screening five candidates. EuroFX reversal, daily IBS, S&P failed breakout and DAX gap reversal were rejected; their source/research folders were removed. Historical evidence remains available in Git history. Moving this EA does not change E2's three-system allocation, certify it for live trading or attach it to an account.
+Fourth independent EA, packaged on user instruction after selecting 50-pip / 15:55 UTC. [Installation and preset](../../docs/GOTOBI_INSTALL.md). Source defaults now use 50 pips and 0.23% of current equity per trade, `InpCashRisk=0`. Entry/exit rules are unchanged. The production trio's code and allocation are unchanged. Earlier results and parameter screens remain in `BASELINE.md` and `robustness/` as historical evidence.
 
-## Install and baseline test
+## Installation
 
-Copy this entire folder into `MQL5/Experts/E2/EURJPYGotobi/`, keeping `include/`. Compile `EURJPY_Gotobi.mq5` with MetaEditor. Test EURJPY, M1, real ticks, visual mode/optimisation off. Use a verified historical feed clock: `InpBrokerWinterUTCMinutes`, `InpBrokerDST`, then `InpBrokerClockVerified=true`. A current clock setting does not establish the historical profile.
+Copy the entire folder, including `include/`, into `MQL5/Experts/E2/EURJPYGotobi/`. Compile `EURJPY_Gotobi.mq5` with MetaEditor; attach to EURJPY M1. Load `presets/EURJPYGotobi_50p_023pct.set`, verify the trading server's UTC/DST profile, and set `InpBrokerClockVerified=true`. Existing chart inputs and presets override new source defaults. No compiled EX5 is included. The preset's clock profile is a placeholder.
 
-For comparable screening: 2023–2025, starting USD balance 100000, cash risk 1000, stop 60 pips, safety TP 200 pips, maximum spread 30 broker points, pip size 0 (automatic), one entry/day, Friday flattening on and CSV export on. Positive cash risk overrides percent risk. Standard three-digit EURJPY uses 10 points per pip; size overrides are available for other conventions. Broker commission, financing, slippage and minimum-lot rejection must match intended execution.
+## Fixed setup
 
-## Rules and clocks
+| Input / rule | Selected value |
+|---|---|
+| Stop / safety TP | 50 / 200 pips |
+| Entry UTC minute | 955 = 15:55 |
+| Following-day fix exit | 00:55 UTC |
+| Risk | 0.23% of current equity; fixed cash disabled |
+| Spread cap | 30 broker points (3 pips on standard 3-digit EURJPY) |
+| Magic | 420603 |
+| Friday flatten | 20:00 UTC |
+| CSV export | On |
 
-Buy at the configured UTC entry minute (default 955 = 15:55 UTC) on the calendar day before eligible Japanese payment dates; close at 00:55 UTC (09:55 Japan) the following day. Eligible Japanese dates: 5/10/15/20/25/30; weekend dates roll back to the preceding Friday. No nonexistent 30th day. Japanese bank holidays are manual exclusions using `InpExcludedJapaneseDates` as `YYYYMMDD|YYYYMMDD`; no automatic holiday rescheduling. Sunday entries before Monday fixes are skipped. Entries must occur within the fixed 60-second grace window. Stops/targets are pip-based; ATR stop/target inputs are hidden and unused.
+Buy on the day before eligible Japanese payment dates 5/10/15/20/25/30. Weekend dates roll to the preceding Friday; nonexistent 30ths and Sunday entries are skipped. Manual Japanese holiday exclusions: `InpExcludedJapaneseDates=YYYYMMDD|YYYYMMDD`; no automatic calendar/rescheduling. Entry grace is 60 seconds. One owned position and one entry per day; entry uniqueness is recovered from deal history. No grid or martingale. Netting accounts reject entry when another position occupies EURJPY. Timed exits require tradable ticks and a connected terminal. Protective SL and safety TP accompany the initial order.
 
-Default magic 420603. One owned position per EA/symbol and restart-safe deal-history entry limits. No grid, averaging or martingale. Netting accounts cannot safely host another strategy concurrently on EURJPY. Protective SL is included in the initial order. Timed/fix and Friday exits require tradable ticks; a closed market or disconnected terminal can delay closure. Fixed Friday flatten is 20:00 UTC. Defaults are starting points, not optimised parameters.
+## CSV and journal
 
-## Reports
+Automatic CSV output: `Terminal/Common/Files/E2/EURJPYGotobi/`, printed in Experts. Unique filenames include symbol, mode, account and run ID. `_Trades_T.csv` is compatible with the E2 Journal and includes owned trades, partial fills/exits, manual/broker closes, commission/swap/fees and actual-entry risk/R when available. `_Equity_E.csv` samples account-wide equity approximately once per minute; `_Settings.csv` records settings. Tester equity writes are buffered. Unexpected termination may leave buffered output incomplete. After a live restart, older entries can have blank risk/R with `INITIAL_RISK_UNAVAILABLE`; current FX conversions are not substituted for historical entry risk.
 
-Automatic CSV output now goes to `Terminal/Common/Files/E2/EURJPYGotobi/`. The Journal prints the absolute location. Unique filenames include symbol, mode, account and run ID:
+## Evidence and checks
 
-- `_Trades_T.csv`: E2 ledger columns, one position per row, actual-entry cash risk and net R, partial fills/exits, commission/swap/fees. Historical owned entries and manual/broker exits are reconstructed. Unassignable account-level charges cannot be allocated to a position.
-- `_Equity_E.csv`: account equity, balance and free margin, approximately once per minute. Samples do not capture every intraminute drawdown. Live samples include the whole account.
-- `_Settings.csv`: strategy, clock and risk configuration.
-
-Backtests buffer equity writes and finalize the trade ledger at completion/shutdown. Live/demo ledger refresh and flush behavior are unchanged. Use local tester agents for local reports. Unexpected process termination can leave buffered output incomplete. Original entry-risk conversion snapshots are in memory: after a live restart, old entries retain recovered P&L but risk/R can be blank with `INITIAL_RISK_UNAVAILABLE`; no current conversion is passed off as the historical initial risk. Existing exports from the old research location are not moved or deleted.
-
-## Status and next work
-
-[Observed baseline](BASELINE.md): 709 trades, +49.82R, PF 1.40 over 2016–2025. The 2023–2025 subset has 212 trades, +10.21R, PF 1.22. Source costs show zero commission; Japanese holiday exclusions are blank. These results are not independent profitability certification. The remaining initial screen is complete. Next: verify feed clock, data continuity, costs and Japanese calendar, assess a small predeclared robustness set, then evaluate correlation and combined drawdown with E2. Keep 2026 for final out-of-sample evaluation after rules are frozen.
-
-No source entry/exit/risk defaults changed in the relocation. Build v1.13 exposes `InpEntryUTCMinute` for the predeclared timing checks; default 955 remains unchanged. Use 940 for 15:40 UTC and 970 for 16:10 UTC. Exit remains fixed at 00:55 UTC. Run timing checks with the 60-pip baseline stop and all other settings identical; do not combine timing and stop changes or expand the grid. Native MetaEditor compilation, real fills and end-to-end portfolio acceptance remain to verify.
-
-## Portable checks
+[50-pip Monte Carlo sizing](robustness/MONTE_CARLO_50.md) documents the standalone ten-year 0.23% allocation and three-year alternative. [Completed screen](robustness/SUMMARY.md) retains the five predefined runs. Zero commission in the source reports, weak recent margins and manual holidays remain limitations. Native compilation, broker-specific execution and combined E2 drawdown are not established by packaging. Preserve 2026 as the final holdout; no new optimization was performed.
 
 ```sh
 python tests/gotobi/run_checks.py
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The portable API shim exercises the actual EA and included runtime, ownership, sizing, export/recovery, clocks and session reconstruction. It is not an MQL5 compiler or a broker-fill simulator. Incremental completed-session reconstruction is checked against full-window rebuilds across year/DST changes and a missing session. The production trio's files are unchanged.
+The portable API shim exercises the actual source's signals, ownership, sizing, exports/recovery, clocks and exits. It is not an MQL5 compiler.

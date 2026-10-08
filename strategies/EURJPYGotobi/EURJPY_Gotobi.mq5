@@ -1,7 +1,7 @@
 #property strict
-#property version "1.13"
-#property description "Gotobi EURJPY: 15:55 UTC before fix, 00:55 UTC fix exit, 60-pip SL and 200-pip safety TP."
-#define RC_NAME "RC EURJPY Gotobi"
+#property version "1.14"
+#property description "E2 Gotobi EURJPY: 15:55 UTC entry, 00:55 UTC exit, 50-pip SL, 200-pip safety TP, 0.23% equity risk."
+#define RC_NAME "E2 EURJPY Gotobi"
 #define RC_DEFAULT_MAGIC 420603
 #define RC_DEFAULT_SPREAD 30
 #define RC_DEFAULT_DST RC_FIXED
@@ -9,12 +9,12 @@
 #define RC_DEFAULT_OPEN 0
 #define RC_DEFAULT_CLOSE 1440
 #define RC_GOTOBI
-#define RC_REPORT_VERSION "1.13"
+#define RC_REPORT_VERSION "1.14"
 input group "Strategy: Tokyo fix (UTC)"
 input int InpEntryUTCMinute=955; // Entry UTC minutes (15:40=940, 15:55=955, 16:10=970)
 int InpFixUTCMinute=55; // Fixed 00:55 UTC exit
 
-input double InpStopPips=60; // Stop distance (pips)
+input double InpStopPips=50; // Stop distance (pips)
 input double InpSafetyTargetPips=200; // Safety profit target (pips)
 input double InpPipSize=0; // 0: 10 points for 3/5 digits, one point otherwise. Override if needed.
 input string InpExcludedJapaneseDates=""; // Holiday dates NOT automatically rescheduled.

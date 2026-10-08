@@ -81,7 +81,7 @@ datetime test_now=0,history_since=0,history_until=0;
 int test_mode=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
 double test_cash=100000,test_free=100000,test_min_lot=.01;
 MqlTick test_tick;
-struct TestPosition {ulong ticket,magic;string symbol;datetime time;double stop,lots;};
+struct TestPosition {ulong ticket,magic;string symbol;datetime time;double stop,lots;double target=0;};
 std::vector<TestPosition> test_positions;int selected=-1;
 struct TestDeal {
  ulong ticket,magic;string symbol;datetime time;int entry,type;
@@ -154,10 +154,10 @@ int CopyRates(const string&,int frame,int shift,int count,std::vector<MqlRates> 
 }
 class CTrade {
    ulong magic=0;
-   bool enter(int side,double lots,const string &symbol,double stop) {
+   bool enter(int side,double lots,const string &symbol,double stop,double target) {
       if(test_order_rejected)return false;
       ulong ticket=test_positions.size()+100;
-      test_positions.push_back({ticket,magic,symbol,test_now,stop,lots});
+      test_positions.push_back({ticket,magic,symbol,test_now,stop,lots,target});
       test_deals.push_back({test_deals.size()+1,magic,symbol,test_now,DEAL_ENTRY_IN,side});return true;
    }
 public:
@@ -167,8 +167,8 @@ public:
    void SetTypeFillingBySymbol(const string&){}
    uint ResultRetcode(){return TRADE_RETCODE_DONE;}
    string ResultRetcodeDescription(){return "mock";}
-   bool Buy(double lots,const string &symbol,double,double stop,double,const string&){return enter(0,lots,symbol,stop);}
-   bool Sell(double lots,const string &symbol,double,double stop,double,const string&){return enter(1,lots,symbol,stop);}
+   bool Buy(double lots,const string &symbol,double,double stop,double target,const string&){return enter(0,lots,symbol,stop,target);}
+   bool Sell(double lots,const string &symbol,double,double stop,double target,const string&){return enter(1,lots,symbol,stop,target);}
    bool PositionClose(ulong ticket,ulong) {
       auto it=std::find_if(test_positions.begin(),test_positions.end(),[&](auto p){return p.ticket==ticket;});
       if(it==test_positions.end())return false;
