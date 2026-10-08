@@ -3,9 +3,12 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import sys
 
 test_root = Path(__file__).resolve().parent
 root = test_root.parents[1] / "strategies" / "EURJPYGotobi"
+sys.path.insert(0, str(test_root.parents[1]))
+from journal.model import parse_csv
 
 def portable(text):
     text = re.sub(r'^#property.*\n', '', text, flags=re.M)
@@ -30,5 +33,11 @@ with tempfile.TemporaryDirectory() as directory:
         # MQL event hooks may legitimately leave one parameter unused.
         subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter',
                         str(target), '-o', str(binary)], check=True)
-        subprocess.run([str(binary)], check=True)
+        ledger = tmp / 'actual-export.csv'
+        subprocess.run([str(binary), str(ledger)], check=True)
+        imported = parse_csv(ledger.read_bytes(), {'id': 'portable', 'kind': 'Backtest'})
+        assert not imported['errors'], imported['errors']
+        assert len(imported['rows']) == 1
+        assert imported['rows'][0]['net'] == 89 and imported['rows'][0]['r'] == .89
+        print('Actual EA finalized CSV imports into the E2 Journal with reconciled profit and R.')
         print(entry.name + ': portable signal, clock, risk, ownership and recovery checks passed')

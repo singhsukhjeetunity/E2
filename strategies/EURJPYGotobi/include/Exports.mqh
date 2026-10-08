@@ -46,7 +46,8 @@ string RCStamp(const datetime server) {
    datetime utc=0;
    if(!RCUtc(server,InpBrokerDST,InpBrokerWinterUTCMinutes,utc))return "";
    MqlDateTime d;TimeToStruct(utc,d);
-   return StringFormat("%04d-%02d-%02dT%02d:%02d:%02dZ",d.year,d.mon,d.day,d.hour,d.min,d.sec);
+   // UTC values, using the same timezone-free representation as the E2 Journal.
+   return StringFormat("%04d-%02d-%02d %02d:%02d:%02d",d.year,d.mon,d.day,d.hour,d.min,d.sec);
 }
 int RCRecordIndex(const ulong position) {
    for(int i=0;i<ArraySize(rc_records);i++)if(rc_records[i].position==position)return i;

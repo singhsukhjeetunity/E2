@@ -10,6 +10,7 @@
 #include <map>
 #include <sstream>
 #include <cstdarg>
+#include <fstream>
 using string=std::string;
 using datetime=long long;
 using ENUM_TIMEFRAMES=int;

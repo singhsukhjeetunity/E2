@@ -1,4 +1,4 @@
-int main() {
+int main(int argc,char **argv) {
    // Verified configuration, unique magic and parameter rejection.
    assert(OnInit()==INIT_PARAMETERS_INCORRECT);
    InpBrokerClockVerified=true;assert(OnInit()==INIT_SUCCEEDED);
@@ -22,6 +22,19 @@ int main() {
    assert(rows.size()==2&&rows[1][10]=="FINALIZED");
    assert(std::abs(std::stod(rows[1][8])-89)<1e-9); // 100 gross - 5 commissions - 5 swap - 1 fees.
    assert(std::abs(std::stod(rows[1][9])-100)<1e-9&&std::abs(std::stod(rows[1][19])-.89)<1e-9);
+   if(argc>1) {
+      std::ofstream ledger(argv[1]);
+      for(const auto &row:rows) {
+         for(size_t i=0;i<row.size();i++) {
+            if(i)ledger<<',';
+            ledger<<'"';
+            for(char c:row[i]){if(c=='"')ledger<<'"';ledger<<c;}
+            ledger<<'"';
+         }
+         ledger<<'\n';
+      }
+      assert(ledger.good());
+   }
    rc_records.clear();assert(RCExportTrades());assert(mock_files[path]==rows); // Idempotent history recovery.
    rc_entry_risks.clear();test_deals[0].sl=0;assert(RCExportTrades());rows=mock_files[path];
    assert(rows[1][9].empty()&&rows[1][19].empty()&&rows[1][21]=="INITIAL_RISK_UNAVAILABLE");
