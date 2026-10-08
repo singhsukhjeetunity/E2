@@ -8,7 +8,7 @@ User instruction, 2026-10-08: assess the five research candidates sequentially, 
 2. US Index Daily IBS — ELIMINATED; EA removed on user instruction
 3. EURJPY Gotobi — RETAINED for later optimisation; not yet promoted
 4. S&P 500 Failed Breakout — REJECTED from shortlist; source file retained pending explicit removal
-5. DAX Gap Reversal
+5. DAX Gap Reversal — REJECTED from shortlist; source retained pending explicit removal
 
 ## Evaluation rules
 
@@ -31,4 +31,6 @@ EURJPY Gotobi: user retained it after reviewing run 1451606400_140_0 (2016–202
 
 S&P 500 Failed Breakout: user rejected it and requested steps for the final candidate. Uploaded trade ledger run 1672531200_234_0 contains 346 finalized trades, -11.76698572R, PF 0.91423011 and 41.62% winners. This quick ledger check is not a full data/clock/cost audit. No optimisation or promotion. No remote deletion requested on this turn.
 
-Next: DAX Gap Reversal, unchanged baseline, on 2023–2025. EURJPY Gotobi remains retained; defer its optimisation until the DAX screen is complete.
+DAX Gap Reversal: user rejected it. Uploaded v1.10 run 1672531200_106_0 contains 159 finalized trades, -36.66451140R, PF 0.64673608, 33.33% winners and negative results in all three years. Cash P&L reconciles to balance. A July–September 2025 export/data gap remains unresolved, so no clean full-period performance claim is made. No rescue optimisation or promotion. No remote deletion requested on this turn.
+
+Initial five-candidate screen is complete. Only EURJPY Gotobi is retained for further research. Next phase: validate its feed clock, continuity, costs and Japanese calendar, then assess a small predeclared robustness set and E2 portfolio contribution before any move into strategies. Do not broadly tune rejected candidates.
