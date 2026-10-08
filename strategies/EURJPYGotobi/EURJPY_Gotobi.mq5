@@ -1,5 +1,5 @@
 #property strict
-#property version "1.15"
+#property version "1.16"
 #property description "E2 Gotobi EURJPY: 15:55 UTC entry, 00:55 UTC exit, 50-pip SL, 200-pip safety TP, configurable cash or balance-percent risk."
 #define RC_NAME "E2 EURJPY Gotobi"
 #define RC_DEFAULT_MAGIC 420603
@@ -9,7 +9,7 @@
 #define RC_DEFAULT_OPEN 0
 #define RC_DEFAULT_CLOSE 1440
 #define RC_GOTOBI
-#define RC_REPORT_VERSION "1.15"
+#define RC_REPORT_VERSION "1.16"
 input group "Strategy: Tokyo fix (UTC)"
 input int InpEntryUTCMinute=955; // Entry UTC minutes (15:40=940, 15:55=955, 16:10=970)
 int InpFixUTCMinute=55; // Fixed 00:55 UTC exit

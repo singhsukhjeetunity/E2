@@ -1,4 +1,6 @@
-# Install E2 EURJPY Gotobi v1.15
+# Install E2 EURJPY Gotobi v1.16
+
+Current v1.16 source is included in `E2-four-live-recovery-source.zip`; follow [the recovery upgrade guide](LIVE_RECOVERY_UPDATE.md) for that package. The standalone v1.15 archive below remains an earlier Gotobi-only release.
 
 This release adds Gotobi as a separate fourth EA. It does not replace the three existing EAs or change their risk inputs. Default Gotobi settings: 50-pip stop, 200-pip safety TP, entry 15:55 UTC, fix exit 00:55 UTC, Friday flatten 20:00 UTC, editable risk mode like Gold Fade: Fixed cash or Balance percent. Cash mode is the default; generic inputs 1000 account-currency units and 1% must be set for your account. Source installation requires MetaEditor compilation; no compiled EX5 is supplied.
 
@@ -9,7 +11,7 @@ This release adds Gotobi as a separate fourth EA. It does not replace the three 
 3. Open a **EURJPY M1** chart (use your broker's EURJPY suffix if present). Attach `EURJPY_Gotobi`. Load `MQL5/Presets/E2/EURJPYGotobi_50p_configurable.set` through the Inputs tab. Do not load the old fixed-1000 research preset.
 4. Verify `InpBrokerWinterUTCMinutes` and `InpBrokerDST` against this trading server's year-round clock, then set `InpBrokerClockVerified=true`. DST enum: 0=fixed offset, 1=EU, 2=US. UTC+2 winter is 120 minutes; these preset values are placeholders, not a verified broker profile. Comparing server time with UTC today alone does not establish the DST rule. The same verified profile on the existing E2 EAs can be reused if they run on this same server.
 5. Confirm `InpStopPips=50`, `InpEntryUTCMinute=955`, `InpMagic=420603`. Choose **Risk Mode**: `E2_RISK_FIXED_CASH` (0) uses **Fixed Risk (account currency)** / `InpFixedCashRisk`; `E2_RISK_BALANCE_PERCENT` (1) uses **Balance Risk (%)** / `InpBalanceRiskPercent`. Enter your account allocation. The inactive amount is ignored. The preset’s 1000 / 1% are generic defaults, not the Monte Carlo allocation. Allow algorithmic trading in the EA properties and enable terminal **Algo Trading**. Keep MT5 connected on the VPS for entries and timed exits.
-6. In **Experts**, confirm `E2 EURJPY Gotobi v1.15`, the risk_mode, fixed_cash_risk and balance_risk_percent you selected. Verify the printed broker-clock values and CSV location. A broker-clock verification error means initialization was refused. No immediate entry is expected unless it is an eligible date at the entry minute.
+6. In **Experts**, confirm the installed Gotobi version (v1.16 for the recovery package), the risk_mode, fixed_cash_risk and balance_risk_percent you selected. Verify the printed broker-clock values and CSV location. A broker-clock verification error means initialization was refused. No immediate entry is expected unless it is an eligible date at the entry minute.
 
 Existing MT5 chart inputs and saved presets override source defaults. Install just one instance per account for EURJPY with this magic; do not attach duplicates. Magic 420603 is distinct from the existing trio. On netting accounts another strategy on EURJPY prevents Gotobi entry. The three existing EAs' charts/settings can remain as installed.
 

@@ -1,5 +1,5 @@
 #property strict
-#property version "4.2"
+#property version "4.3"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "include\\core\\E2Config.mqh"
@@ -191,6 +191,9 @@ void OnTimer()
    g_trade_reporter.Reconcile();
    g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
    E2EnforceWeekendFlat();
+   static datetime last_health=0;
+   datetime now=TimeCurrent();
+   if(now-last_health>=300){last_health=now;Print("[HEALTH] Gold initialized=",g_initialized," entry_pending=",g_entry_pending," regime_observations=",g_xau_engine.RegimeObservations()," minimum_observations=",g_configuration.xau_regime_minimum_observations);}
   }
 
 void OnTradeTransaction(const MqlTradeTransaction &transaction,const MqlTradeRequest &request,const MqlTradeResult &result)

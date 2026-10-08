@@ -11,9 +11,9 @@ const string _Symbol="XAUUSD";
 const int MQL_TESTER=1;long MQLInfoInteger(int){return 0;}
 enum {ACCOUNT_LOGIN,ACCOUNT_SERVER,FILE_WRITE=4,FILE_READ=8,FILE_CSV=16,FILE_ANSI=32,FILE_REWRITE=64,INVALID_HANDLE=-1};
 enum {DEAL_SYMBOL,DEAL_MAGIC,DEAL_ENTRY,DEAL_TYPE,DEAL_TIME,DEAL_ORDER,DEAL_COMMENT,DEAL_POSITION_ID,DEAL_VOLUME,DEAL_PRICE,
-      ORDER_STATE,ORDER_VOLUME_INITIAL,ORDER_VOLUME_CURRENT,POSITION_IDENTIFIER,POSITION_SYMBOL,POSITION_MAGIC,
+      ORDER_STATE,ORDER_SYMBOL,ORDER_MAGIC,ORDER_VOLUME_INITIAL,ORDER_VOLUME_CURRENT,POSITION_IDENTIFIER,POSITION_SYMBOL,POSITION_MAGIC,
       SYMBOL_TRADE_TICK_SIZE,POSITION_VOLUME,POSITION_SL,POSITION_TP};
-enum {DEAL_ENTRY_IN=100,DEAL_ENTRY_OUT,DEAL_ENTRY_OUT_BY,DEAL_TYPE_BUY,ORDER_STATE_FILLED,ORDER_STATE_CANCELED,ORDER_STATE_REJECTED,ORDER_STATE_EXPIRED};
+enum {DEAL_ENTRY_IN=100,DEAL_ENTRY_OUT,DEAL_ENTRY_OUT_BY,DEAL_ENTRY_INOUT,DEAL_TYPE_BUY,ORDER_STATE_FILLED,ORDER_STATE_CANCELED,ORDER_STATE_REJECTED,ORDER_STATE_EXPIRED};
 enum E2TradeDirection {E2_DIRECTION_NONE,E2_DIRECTION_LONG,E2_DIRECTION_SHORT};
 struct E2PositionMetadata {string candidate_id,execution_id,symbol,time_policy_digest;E2TradeDirection direction;
  datetime signal_time,entry_time,range_start_rule,range_end_rule;unsigned long entry_deal,position_id,position_ticket;
@@ -26,6 +26,7 @@ unsigned long clock_ms=1000;
 bool journal=false,delete_ok=true,save_ok=true,order_active=false,history_ok=true,position_open=true,modify_ok=true;
 double sl=90,tp=116.5,position_volume=1,expected_volume=1;
 int registrations=0,modifications=0,saves=0;
+long terminal_state=ORDER_STATE_FILLED;
 struct Deal {unsigned long id,order,pid,magic;long entry,type;double volume,price;};
 std::vector<Deal> deals;
 std::vector<string> disk,temp_disk;size_t read_index=0;
@@ -55,7 +56,8 @@ string HistoryDealGetString(unsigned long,int key){return key==DEAL_SYMBOL?"XAUU
 long HistoryDealGetInteger(unsigned long id,int k){auto& d=deal(id);switch(k){case DEAL_MAGIC:return d.magic;case DEAL_ENTRY:return d.entry;case DEAL_TYPE:return d.type;case DEAL_TIME:return 1001;case DEAL_ORDER:return d.order;case DEAL_POSITION_ID:return d.pid;}return 0;}
 double HistoryDealGetDouble(unsigned long id,int k){return k==DEAL_VOLUME?deal(id).volume:deal(id).price;}
 bool OrderSelect(unsigned long){return order_active;}bool HistoryOrderSelect(unsigned long){return history_ok;}
-long HistoryOrderGetInteger(unsigned long,int){return ORDER_STATE_FILLED;}
+long HistoryOrderGetInteger(unsigned long,int key){return key==ORDER_MAGIC?77:terminal_state;}
+string HistoryOrderGetString(unsigned long,int){return "XAUUSD";}
 double HistoryOrderGetDouble(unsigned long,int k){return k==ORDER_VOLUME_INITIAL?expected_volume:0;}
 int PositionsTotal(){return position_open?1:0;}unsigned long PositionGetTicket(int){return 42;}
 long PositionGetInteger(int k){return k==POSITION_IDENTIFIER?42:77;}
@@ -74,10 +76,14 @@ struct {int targets_attached=0,recovered_positions_validated=0,new_positions_reg
 void reset(){g_entry={};g_entry.symbol="XAUUSD";g_entry.direction=E2_DIRECTION_LONG;g_entry.submitted_stop=90;g_entry.target_r=1.5;
  g_entry_requested=1000;g_entry_requested_volume=1;g_entry_result={7,0};g_entry_pending=true;g_entry_registered=false;g_entry_restarted=false;
  g_entry_retry_ms=0;g_entry_alert_ms=0;clock_ms=1000;journal=true;delete_ok=save_ok=history_ok=position_open=modify_ok=true;
- order_active=false;sl=90;tp=115;position_volume=expected_volume=1;registrations=modifications=saves=0;deals.clear();}
+ order_active=false;terminal_state=ORDER_STATE_FILLED;sl=90;tp=115;position_volume=expected_volume=1;registrations=modifications=saves=0;deals.clear();}
 void filled(){deals.push_back({8,7,42,77,DEAL_ENTRY_IN,DEAL_TYPE_BUY,1,101});}
 void retry(){clock_ms+=1001;E2ReconcileEntry();}
 int main(){
+ reset();position_open=false;terminal_state=ORDER_STATE_REJECTED;expected_volume=0;E2ReconcileEntry();assert(!g_entry_pending&&registrations==0);
+ reset();terminal_state=ORDER_STATE_REJECTED;expected_volume=0;E2ReconcileEntry();assert(g_entry_pending); // Owned position prevents zero-fill release.
+ reset();position_open=false;terminal_state=ORDER_STATE_CANCELED;expected_volume=.4;E2ReconcileEntry();assert(g_entry_pending); // Partial fills still reconcile.
+ reset();position_open=false;terminal_state=ORDER_STATE_REJECTED;expected_volume=0;deals={{8,7,42,88,DEAL_ENTRY_IN,DEAL_TYPE_BUY,.4,100}};E2ReconcileEntry();assert(g_entry_pending); // Conflicting fill evidence must never release intent.
  reset();E2ReconcileEntry();assert(g_entry_pending&&registrations==0);filled();retry();assert(!g_entry_pending&&registrations==1&&tp==117.5&&sl==90);retry();assert(registrations==1);
  reset();filled();modify_ok=false;E2ReconcileEntry();assert(g_entry_pending&&registrations==0);modify_ok=true;retry();assert(!g_entry_pending&&registrations==1);
  reset();filled();save_ok=false;E2ReconcileEntry();assert(tp==117.5&&g_entry_pending);save_ok=true;retry();assert(registrations==1&&!g_entry_pending);
@@ -97,5 +103,5 @@ int main(){
  auto saved=disk;disk[2]="wrong-server";assert(!E2LoadEntryIntent());disk=saved;
  disk.pop_back();assert(!E2LoadEntryIntent());disk=saved;
  disk[11]="nan";assert(!E2LoadEntryIntent());
- std::cout<<"14 production reconciliation and durable-journal scenarios passed\n";
+ std::cout<<"Production reconciliation and durable-journal scenarios passed\n";
 }

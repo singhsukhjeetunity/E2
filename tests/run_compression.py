@@ -13,7 +13,10 @@ def absolute_includes(code):
 with tempfile.TemporaryDirectory() as tmp:
     p=Path(tmp)
     # Exact entry and daily-limit code; simulate terminal restarts with retained broker deals.
-    (p/'ema_entry.mqh').write_text(s[s.index('bool DailyEntryAllowed('):s.index('void Equity(')])
+    (p/'ema_entry.mqh').write_text(s[s.index('bool DefiniteRejection('):s.index('void Equity(')])
+    clock=(root/'strategies/EMAPullback/SessionClock.mqh').read_text()
+    deadline=clock[clock.index('bool NPExitOverdue('):clock.index('bool NPRetryClose(')]
+    (p/'ema_deadline.mqh').write_text(deadline+s[s.index('void MarkOverdue('):s.index('bool ClosePosition(')])
     h=(root/'tests/ema_entry.cpp').read_text()
     for a,b in [('InpEMAStopATR','InpStopATR'),('InpEMATargetR','InpTargetR'),('InpEMACashRisk','InpCashRisk')]:h=h.replace(a,b)
     h=h.replace('bool Enabled(int){','bool CBEntryWindow(datetime){return true;}\nbool Enabled(int){').replace('Next NY date','Next UTC date').replace('EMA durable','Compression daily limit and durable')
@@ -22,6 +25,7 @@ with tempfile.TemporaryDirectory() as tmp:
     storage=s[s.index('string Hash('):s.index('void Fail(')]+s[s.index('int StateFlags('):s.index('void FinalBar(')]
     (p/'ema_storage_under_test.mqh').write_text(storage)
     h=(root/'tests/ema_runtime.cpp').read_text().replace('InpEMAMagic','InpMagic').replace('EMA warm-up','Compression warm-up')
+    h=h.replace('return "NP_EMA_M30_LONG"','return "CB_COMPRESSION_M30_LONG"').replace('r.strategy="NP_EMA_M30_LONG"','r.strategy="CB_COMPRESSION_M30_LONG"')
     compile_run(p,'runtime',absolute_includes(h))
     # Exact minute feed and bootstrap: replace only API scaffolding and indicator names.
     (p/'ema_slot.mqh').write_text(s[s.index('struct NPSlot'):s.index('NPSlot g_slots')])

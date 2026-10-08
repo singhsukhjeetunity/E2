@@ -94,7 +94,7 @@ bool NPDecode(const string payload,NPCheckpoint &c) {
    c.record.closing=false;
    if(c.last_exit<0 || (c.pending && !c.active))return false;
    if(c.active) {
-      if(c.record.strategy!="NP_EMA_M30_LONG"||!MathIsValidNumber(c.record.net)||c.record.report_id==""||c.record.id==""||c.record.slot!=0||c.record.requested<=0||c.record.deadline<=0)return false;
+      if((c.record.strategy!="NP_EMA_M30_LONG"&&c.record.strategy!="CB_COMPRESSION_M30_LONG")||!MathIsValidNumber(c.record.net)||c.record.report_id==""||c.record.id==""||c.record.slot!=0||c.record.requested<=0||c.record.deadline<=0)return false;
       if(c.record.status!="UNCONFIRMED"&&c.record.status!="OPEN"&&c.record.status!="FINALIZED")return false;
       if(!MathIsValidNumber(c.record.requested_distance)||c.record.requested_distance<=0||
          !MathIsValidNumber(c.record.requested_risk)||c.record.requested_risk<=0)return false;
