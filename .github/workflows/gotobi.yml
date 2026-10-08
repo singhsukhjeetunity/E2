@@ -1,0 +1,15 @@
+name: Gotobi checks
+on:
+  push:
+    paths: ['strategies/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
+  pull_request:
+    paths: ['strategies/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable-gotobi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tests/gotobi/run_checks.py

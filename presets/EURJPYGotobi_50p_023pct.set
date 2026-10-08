@@ -1,0 +1,17 @@
+; E2 EURJPY Gotobi v1.14 - 50 pips, 15:55 UTC, 0.23% of current equity
+; Broker clock values below are placeholders: verify for your account before enabling.
+InpEntryUTCMinute=955
+InpStopPips=50.0
+InpSafetyTargetPips=200.0
+InpPipSize=0.0
+InpExcludedJapaneseDates=
+InpRiskPercent=0.23
+InpCashRisk=0.0
+InpMaxSpreadPoints=30.0
+InpOneEntryPerDay=true
+InpMagic=420603
+InpBrokerClockVerified=false
+InpBrokerWinterUTCMinutes=120
+InpBrokerDST=1
+InpFridayFlat=true
+InpExportCsv=true
