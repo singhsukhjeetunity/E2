@@ -45,3 +45,7 @@ Illustrative extra commission of 7 account-currency units per round-trip lot, no
 242/273 entries occur at second 40, another 22 at second 20. This is consistent with generated tick timing but is not proof of tester mode. The settings CSV does not record tester tick model, real-tick share, exact requested date range or historical data quality. MetaQuotes documents fallback to generated ticks if real ticks are absent/inconsistent: https://www.mql5.com/en/docs/runtime/testing and https://www.mql5.com/en/book/automation/tester/tester_ticks .
 
 Obtain tester HTML report and relevant Journal lines. If this was OHLC/generated ticks, rerun unchanged rules on verified real ticks with intended costs and 2022–2025 coverage, with sufficient warm-up. Do not use 2026 or tune filters/stops to rescue this result. If execution/data checks confirm this baseline, eliminate this implementation and proceed to US Index Daily IBS. A negative estimate is evidence of baseline failure, not a statistical proof that every member of the strategy family has no edge.
+
+## Final shortlist decision
+
+User decided to drop this implementation without further optimisation or expanding the period. On explicit user instruction, its EA entry file was removed from the remote research branch. This result record is retained. Execution-model validation gaps remain unresolved; the shortlist decision does not prove that all versions of EuroFX reversal lack an edge. Next candidate: US Index Daily IBS on the same 2023–2025 segment.

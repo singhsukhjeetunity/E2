@@ -4,7 +4,7 @@ User instruction, 2026-10-08: assess the five research candidates sequentially, 
 
 ## Order
 
-1. EuroFX Extreme Reversal (EURUSD)
+1. EuroFX Extreme Reversal (EURUSD) — ELIMINATED; EA removed on user instruction
 2. US Index Daily IBS
 3. EURJPY Gotobi
 4. S&P 500 Failed Breakout
@@ -23,4 +23,6 @@ User instruction, 2026-10-08: assess the five research candidates sequentially, 
 
 ## Current state
 
-EuroFX Extreme Reversal: awaiting the first native MT5 baseline backtest and exported trades/equity/settings. No profitability verdict yet.
+EuroFX Extreme Reversal: eliminated on user instruction after its 2023–2025 baseline returned -2.62R, PF 0.86, 43.2% winners. Removed the EA from the remote research branch; retained the result record. Tester-model concerns remain unresolved, so this rejects the implementation from the shortlist without claiming the entire source family lacks an edge. No further optimisation or time-range expansion.
+
+US Index Daily IBS: next candidate, awaiting unchanged-baseline MT5 test on the same 2023–2025 segment.

@@ -1,4 +1,4 @@
-# Five independent E2 research EAs
+# Independent E2 research candidates
 
 These are **research implementations, not validated system 4 or replicas of the reported backtests**. The original E2 files, allocation, journal and deployment are untouched. Nothing in this directory auto-attaches an EA or changes the live portfolio.
 
@@ -8,7 +8,6 @@ Copy this entire directory to `MQL5/Experts/E2/ResearchCandidates/`. Compile eac
 
 | EA | Intended market | Default magic | Reference session | Signal data |
 |---|---|---:|---|---|
-| `EuroFX_Extreme_Reversal.mq5` | EURUSD / Euro FX | 420601 | 00:00–22:00 UTC | Two completed reference sessions and tick crossing |
 | `US_Index_Daily_IBS.mq5` | US500 / SPY | 420602 | 09:30–16:00 New York | Completed regular-session daily bars |
 | `EURJPY_Gotobi.mq5` | EURJPY | 420603 | Entry 15:55 UTC, exit following 00:55 UTC | Japanese date and execution ticks |
 | `SP500_Failed_Breakout.mq5` | US500 / ES | 420604 | 09:30–16:00 New York | Previous reference session and completed M15 bars |
@@ -53,7 +52,9 @@ Fill `InpClosedDates` with reference-session holiday dates as `YYYYMMDD|YYYYMMDD
 
 ## Source rules versus implementation choices
 
-### 1. EuroFX extreme reversal
+### 1. EuroFX extreme reversal — eliminated; EA removed
+
+**Eliminated on user instruction after the negative 2023–2025 baseline. The EA was removed from this branch; the baseline record is retained under `results/`. Historical description follows for provenance.**
 
 Source: [Unger Academy, June 2026 winning strategy](https://ungeracademy.com/blog/trading-strategies-strategy-of-the-month-june-2026).
 
