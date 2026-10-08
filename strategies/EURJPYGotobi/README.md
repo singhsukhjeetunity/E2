@@ -10,7 +10,7 @@ For comparable screening: 2023–2025, starting USD balance 100000, cash risk 10
 
 ## Rules and clocks
 
-Buy at 15:55 UTC on the calendar day before eligible Japanese payment dates; close at 00:55 UTC (09:55 Japan) the following day. Eligible Japanese dates: 5/10/15/20/25/30; weekend dates roll back to the preceding Friday. No nonexistent 30th day. Japanese bank holidays are manual exclusions using `InpExcludedJapaneseDates` as `YYYYMMDD|YYYYMMDD`; no automatic holiday rescheduling. Sunday entries before Monday fixes are skipped. Entries must occur within the fixed 60-second grace window. Stops/targets are pip-based; ATR stop/target inputs are hidden and unused.
+Buy at the configured UTC entry minute (default 955 = 15:55 UTC) on the calendar day before eligible Japanese payment dates; close at 00:55 UTC (09:55 Japan) the following day. Eligible Japanese dates: 5/10/15/20/25/30; weekend dates roll back to the preceding Friday. No nonexistent 30th day. Japanese bank holidays are manual exclusions using `InpExcludedJapaneseDates` as `YYYYMMDD|YYYYMMDD`; no automatic holiday rescheduling. Sunday entries before Monday fixes are skipped. Entries must occur within the fixed 60-second grace window. Stops/targets are pip-based; ATR stop/target inputs are hidden and unused.
 
 Default magic 420603. One owned position per EA/symbol and restart-safe deal-history entry limits. No grid, averaging or martingale. Netting accounts cannot safely host another strategy concurrently on EURJPY. Protective SL is included in the initial order. Timed/fix and Friday exits require tradable ticks; a closed market or disconnected terminal can delay closure. Fixed Friday flatten is 20:00 UTC. Defaults are starting points, not optimised parameters.
 
@@ -28,7 +28,7 @@ Backtests buffer equity writes and finalize the trade ledger at completion/shutd
 
 [Observed baseline](BASELINE.md): 709 trades, +49.82R, PF 1.40 over 2016–2025. The 2023–2025 subset has 212 trades, +10.21R, PF 1.22. Source costs show zero commission; Japanese holiday exclusions are blank. These results are not independent profitability certification. The remaining initial screen is complete. Next: verify feed clock, data continuity, costs and Japanese calendar, assess a small predeclared robustness set, then evaluate correlation and combined drawdown with E2. Keep 2026 for final out-of-sample evaluation after rules are frozen.
 
-No source entry/exit/risk defaults changed in this relocation. Native MetaEditor compilation, real fills and end-to-end portfolio acceptance remain to verify.
+No source entry/exit/risk defaults changed in the relocation. Build v1.13 exposes `InpEntryUTCMinute` for the predeclared timing checks; default 955 remains unchanged. Use 940 for 15:40 UTC and 970 for 16:10 UTC. Exit remains fixed at 00:55 UTC. Run timing checks with the 60-pip baseline stop and all other settings identical; do not combine timing and stop changes or expand the grid. Native MetaEditor compilation, real fills and end-to-end portfolio acceptance remain to verify.
 
 ## Portable checks
 

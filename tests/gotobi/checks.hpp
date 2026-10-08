@@ -152,5 +152,14 @@ int main() {
    test_now=RCDate(2025,7,4,0,55);rc_last_close_attempt=0;OnTick();
    assert(test_positions.empty());
 
+   // Predeclared timing variants: no early entry, one successful entry at the configured time.
+   for(int entry_minute:{940,970}) {
+      InpEntryUTCMinute=entry_minute;assert(RCValidate());
+      test_deals.clear();test_positions.clear();
+      test_now=RCDate(2025,7,3)+entry_minute*60-1;OnTick();assert(test_positions.empty());
+      test_now++;OnTick();assert(test_positions.size()==1);
+      RCCloseOwn();OnTick();assert(test_positions.empty()); // Signal cannot re-enter.
+   }
+   InpEntryUTCMinute=1440;assert(!RCValidate());InpEntryUTCMinute=955;
    std::cout<<RC_NAME<<": checks OK\n";
 }
