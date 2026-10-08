@@ -32,6 +32,8 @@ const int ACCOUNT_MARGIN_MODE=10,ACCOUNT_MARGIN_MODE_RETAIL_HEDGING=11;
 const int ACCOUNT_SERVER=1,ACCOUNT_LOGIN=2,POSITION_SYMBOL=3,POSITION_MAGIC=4,POSITION_TYPE=5,POSITION_IDENTIFIER=6,POSITION_TYPE_BUY=7,ORDER_SYMBOL=8,ORDER_MAGIC=9;
 string _Symbol="USTEC";unsigned long InpEMAMagic=2026091402;
 bool tester=false,g_state_ready=false,g_failed=false,write_fail=false,move_fail=false;
+bool InpResetStoppedWhenFlat=false,history_available=true,owned_order=false;
+datetime TimeCurrent(){return 2000;}bool HistorySelect(datetime,datetime){return history_available;}
 int g_instance_lock=-1,error=0,next_handle=1;
 string g_state_file,g_scope,g_config="settings";
 struct Slot {datetime last_exit_minute=0;int active=-1;bool pending=false;};
@@ -42,7 +44,7 @@ int PositionsTotal(){return positions.size();}
 unsigned long PositionGetTicket(int i){selected=positions[i];return i+1;}
 string PositionGetString(int){return selected.symbol;}
 long PositionGetInteger(int k){return k==POSITION_MAGIC?selected.magic:(k==POSITION_TYPE?selected.type:selected.pid);}
-int OrdersTotal(){return 0;}unsigned long OrderGetTicket(int){return 0;}string OrderGetString(int){return "";}long OrderGetInteger(int){return 0;}
+int OrdersTotal(){return owned_order?1:0;}unsigned long OrderGetTicket(int){return 1;}string OrderGetString(int){return _Symbol;}long OrderGetInteger(int){return InpEMAMagic;}
 long MQLInfoInteger(int){return tester;}
 string AccountInfoString(int){return "Broker";}long AccountInfoInteger(int){return 123;}
 template<class... T>void Print(T...){}
@@ -59,14 +61,22 @@ bool FileDelete(const string &p,int f){files.erase(key(p,f));return true;}
 bool FileMove(const string &a,int af,const string &b,int bf){if(move_fail)return false;files[key(b,bf)]=files[key(a,af)];files.erase(key(a,af));return true;}
 unsigned long PositionFor(int,unsigned long pid=0){for(auto &p:positions)if(p.magic==InpEMAMagic&&(pid==0||p.pid==pid))return 1;return 0;}
 // Generated directly from EMAEngine.mqh by run_ema_runtime.py.
+string Strategy(int){return "NP_EMA_M30_LONG";}
 #include "ema_storage_under_test.mqh"
-void fresh(){g_state_ready=false;g_failed=false;g_instance_lock=-1;g_state_file="";g_scope="";g_last_checkpoint="";g_slots[0]=Slot{};g_records.clear();}
+void fresh(){g_state_ready=false;g_failed=false;g_storage_paused=false;g_export_paused=false;g_instance_lock=-1;g_state_file="";g_scope="";g_last_checkpoint="";g_slots[0]=Slot{};g_records.clear();}
 void detach(){FileClose(g_instance_lock);fresh();}
 void pending(){NPRecord r{};r.report_id="original-run_trade";r.id="NP1_1_0";r.strategy="NP_EMA_M30_LONG";r.status="UNCONFIRMED";r.requested=100;r.deadline=1000;r.requested_distance=30;r.requested_risk=100;r.sl=70;r.tp=115;g_records={r};g_slots[0].active=0;g_slots[0].pending=true;}
 int main(){
  assert(NPWarmupMinutes(14,20,50)==31440);
  assert(NPWarmupMinutes(100,20,50)==61440);
  assert(InitializeState());string path=key(g_state_file,FILE_COMMON);assert(files.count(path));
+ g_failed=true;assert(ApplyStoppedReset()&&g_failed); // Opt-in required.
+ InpResetStoppedWhenFlat=true;g_slots[0].pending=true;assert(ApplyStoppedReset()&&g_failed);g_slots[0].pending=false;
+ g_slots[0].active=0;assert(ApplyStoppedReset()&&g_failed);g_slots[0].active=-1;
+ positions={{"USTEC",InpEMAMagic,17,POSITION_TYPE_BUY}};assert(ApplyStoppedReset()&&g_failed);positions.clear();
+ owned_order=true;assert(ApplyStoppedReset()&&g_failed);owned_order=false;
+ history_available=false;assert(ApplyStoppedReset()&&g_failed);history_available=true;
+ assert(ApplyStoppedReset()&&!g_failed);InpResetStoppedWhenFlat=false;
  pending();assert(SaveState());string durable=files[path];detach();assert(InitializeState());assert(g_slots[0].pending&&g_records[0].report_id=="original-run_trade");
  // Confirmed fill retains initial protection/risk for restart and offline exit.
  auto &r=g_records[0];r.status="OPEN";r.position=17;r.volume=2;r.fill=100;r.risk_cash=100;r.entry=101;g_slots[0].pending=false;assert(SaveState());
@@ -74,9 +84,13 @@ int main(){
  // A second attachment cannot take over the lock.
  int lock=g_instance_lock;assert(!InitializeState());g_instance_lock=lock;
  // A failed replacement leaves the prior valid checkpoint intact.
- durable=files[path];g_records[0].last_close_attempt=999;move_fail=true;assert(!SaveState());assert(files[path]==durable);move_fail=false;
+ durable=files[path];g_records[0].last_close_attempt=999;move_fail=true;assert(!SaveState());assert(files[path]==durable&&g_storage_paused&&!g_failed);move_fail=false;
+ assert(SaveState());assert(!g_storage_paused&&!g_failed); // Storage recovers without a latched stop.
  detach();g_config="different";assert(!InitializeState());FileClose(g_instance_lock);fresh();g_config="settings";
  assert(InitializeState());g_records[0].status="FINALIZED";g_records[0].exit=999;g_records[0].net=50;positions.clear();assert(SaveState());detach();assert(InitializeState());assert(g_records[0].status=="FINALIZED");
+ // The shared codec recognizes both families; this engine still rejects the other family.
+ durable=files[path];g_records[0].strategy=Strategy(0)=="NP_EMA_M30_LONG"?"CB_COMPRESSION_M30_LONG":"NP_EMA_M30_LONG";
+ assert(SaveState());detach();assert(!InitializeState());FileClose(g_instance_lock);fresh();files[path]=durable;assert(InitializeState());
  // Corruption must not be treated as an empty account.
  detach();files[path]+="broken";files[path][0]='X';assert(!InitializeState());FileClose(g_instance_lock);fresh();files.erase(path);
  positions={{"USTEC",InpEMAMagic,17,POSITION_TYPE_BUY}};assert(!InitializeState());FileClose(g_instance_lock);fresh();positions.clear();

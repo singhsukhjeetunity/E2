@@ -290,6 +290,8 @@ int OnInit() {
 void OnTick() {
    RCExportTick();
    datetime utc=RCNow();if(utc==0)return;
+   static datetime last_health=0;
+   if(utc-last_health>=300){last_health=utc;Print("[HEALTH] Gotobi utc=",utc," owned_position=",RCHasOwn()," entry_utc_minute=",InpEntryUTCMinute," spread_cap_points=",InpMaxSpreadPoints);}
    RCManage(utc);RCProcess(utc);
    MqlTick tick;if(SymbolInfoTick(_Symbol,tick))rc_last_bid=tick.bid;
 }

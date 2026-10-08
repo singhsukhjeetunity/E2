@@ -1,4 +1,6 @@
-# E2 EURJPY Gotobi v1.15
+# E2 EURJPY Gotobi v1.16
+
+The [four-system recovery update](../../docs/LIVE_RECOVERY_UPDATE.md) packages the current source and adds periodic Gotobi health messages; risk and signal rules are unchanged from v1.15.
 
 Fourth independent EA, packaged on user instruction after selecting 50-pip / 15:55 UTC. [Installation and preset](../../docs/GOTOBI_INSTALL.md). Risk controls now match Gold Fade: `InpRiskMode`, `InpFixedCashRisk` and `InpBalanceRiskPercent`. Fixed cash is the default mode; amounts are editable, with generic defaults 1000 account-currency units / 1%. These are not selected account allocations. Entry/exit rules are unchanged. The production trio's code and allocation are unchanged. Earlier results and parameter screens remain in `BASELINE.md` and `robustness/` as historical evidence.
 

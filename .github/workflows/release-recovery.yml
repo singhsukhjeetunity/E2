@@ -1,0 +1,33 @@
+name: Release four-system recovery update
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-recovery.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify four EAs
+        run: |
+          python3 -m unittest discover -s tests -p 'test_*.py' -v
+          python3 tests/run_ema_runtime.py
+          python3 tests/run_ema_warmup.py
+          python3 tests/run_ema_entry.py
+          python3 tests/run_compression.py
+          python3 tests/run_gold_clock.py
+          python3 tests/run_gold_regime.py
+          python3 tests/gotobi/run_checks.py
+          g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
+          /tmp/ema-core
+          g++ -std=c++17 tests/entry_lifecycle.cpp -o /tmp/entry-lifecycle
+          /tmp/entry-lifecycle
+          g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
+          /tmp/report-folders
+      - run: python3 tools/package_recovery.py --output dist/E2-four-live-recovery-source.zip
+      - name: Publish source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create E2-live-recovery-v1 dist/E2-four-live-recovery-source.zip --target "$GITHUB_SHA" --title "E2 four-system live recovery update" --notes-file docs/LIVE_RECOVERY_UPDATE.md --latest

@@ -26,6 +26,7 @@ input double InpMaxSpreadPriceUnits=0.03;
 input double InpMaxDeviationPriceUnits=0.005;
 input int InpMaxEntryDelaySeconds=5;
 input bool InpExportCsv=true;
+input bool InpResetStoppedWhenFlat=false; // One-time operator reset; refuses unresolved orders/positions
 
 struct NPSlot {
    CBState indicators;
@@ -100,6 +101,7 @@ bool CashRisk(const int s,const double volume,const double fill,const double sl,
 // local state; demo and real terminals use the SAME Common Files mechanism.
 int StateFlags() {return MQLInfoInteger(MQL_TESTER)?0:FILE_COMMON;}
 string g_last_checkpoint="";
+bool g_storage_paused=false,g_export_paused=false;
 bool SaveState() {
    if(g_instance_lock==INVALID_HANDLE)return false;
    NPCheckpoint c;ZeroMemory(c);
@@ -108,17 +110,19 @@ bool SaveState() {
    c.pending=g_slots[0].pending;
    if(c.active)c.record=g_records[g_slots[0].active];
    string payload=NPEncode(c);
-   if(payload==g_last_checkpoint)return true;
+   if(payload==g_last_checkpoint&&!g_storage_paused)return true;
    string text=payload+"\r\n"+Hash(payload)+"\r\n";
    string temp=g_state_file+".tmp";
    int h=FileOpen(temp,FILE_WRITE|FILE_TXT|FILE_UNICODE|StateFlags());
-   if(h==INVALID_HANDLE){Fail("Cannot write compression recovery state; new entries blocked");return false;}
+   if(h==INVALID_HANDLE){if(!g_storage_paused)Print("[IO_PAUSED] Cannot write compression recovery state; retrying, new entries blocked.");g_storage_paused=true;return false;}
    ResetLastError();uint written=FileWriteString(h,text);FileFlush(h);int error=GetLastError();FileClose(h);
    if(written!=(uint)(StringLen(text)*2)||error!=0 ||
       !FileMove(temp,StateFlags(),g_state_file,StateFlags()|FILE_REWRITE)) {
-      Fail("Cannot commit compression recovery state; new entries blocked");return false;
+      if(!g_storage_paused)Print("[IO_PAUSED] Cannot commit compression recovery state; retrying, new entries blocked.");
+      g_storage_paused=true;return false;
    }
-   g_last_checkpoint=payload;return true;
+   if(g_storage_paused)Print("[IO_RESUMED] compression recovery storage is writable.");
+   g_storage_paused=false;g_last_checkpoint=payload;return true;
 }
 bool EntryOwnershipClear() {
    bool netting=AccountInfoInteger(ACCOUNT_MARGIN_MODE)!=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
@@ -151,6 +155,7 @@ bool InitializeState() {
       string payload=FileReadString(h),checksum=FileReadString(h);FileClose(h);
       NPCheckpoint c;ZeroMemory(c);
       if(checksum!=Hash(payload)||!NPDecode(payload,c)||c.scope!=g_scope){Print("[CB] Invalid recovery checkpoint. Preserve the file and reconcile the account.");return false;}
+      if(c.active&&c.record.strategy!=Strategy(0)){Print("[STATE] Recovery strategy identity mismatch.");return false;}
       if(c.config!=g_config&&(c.active||c.failed)){Print("[CB] Restore the saved inputs before recovering an active/stopped EA.");return false;}
       g_failed=c.failed;g_slots[0].last_exit_minute=c.last_exit;
       if(c.active) {
@@ -170,6 +175,18 @@ bool InitializeState() {
    return SaveState();
 }
 
+bool ApplyStoppedReset() {
+   if(!g_failed||!InpResetStoppedWhenFlat)return true;
+   if(g_slots[0].active>=0||g_slots[0].pending||PositionFor(0)>0||
+      !EntryOwnershipClear()||!HistorySelect(0,TimeCurrent())) {
+      Print("[STOP_RESET_REFUSED] Reconcile retained intent, positions/orders and broker history first.");
+      return true; // Remain stopped, but continue managing/reconciling existing exposure.
+   }
+   g_failed=false;
+   if(!SaveState())return false;
+   Print("[STOP_RESET] Operator requested reset; no owned positions/orders or unresolved intent remain.");
+   return true;
+}
 void FinalBar(const int s) {
    if(!g_slots[s].has_bar)return;
    double atr=0;
@@ -255,7 +272,9 @@ void MarkOverdue(const int k,const datetime now) {
       g_records[k].integrity+="EXIT_DEADLINE_MISSED";
       Audit(g_records[k].slot,now,"EXIT_DEADLINE_MISSED",Stamp(g_records[k].deadline));
    }
-   Fail("Exit deadline missed; this run is invalid");
+   // A late exit invalidates a research run, but is not a permanent live stop.
+   // Live entries remain occupied until broker-confirmed closure and durable reconciliation.
+   if(MQLInfoInteger(MQL_TESTER))Fail("Exit deadline missed; this run is invalid");
 }
 bool ClosePosition(const int s,const ulong ticket,const string reason) {
    int i=g_slots[s].active;
@@ -273,6 +292,7 @@ bool ClosePosition(const int s,const ulong ticket,const string reason) {
       {Audit(s,now,"CLOSE_PENDING",g_trade.ResultRetcodeDescription());return false;}
    return true;
 }
+bool ResolveUnfilled(const int s,const datetime now);
 void Reconcile(const int s,const datetime now) {
    int k=g_slots[s].active;if(k<0)return;
    if(g_records[k].status=="FINALIZED"){if(SaveState() && ExportTrades()){g_slots[s].active=-1;SaveState();}return;}
@@ -296,8 +316,13 @@ void Reconcile(const int s,const datetime now) {
          if(first==0||when<first){first=when;first_msc=HistoryDealGetInteger(d,DEAL_TIME_MSC);}
       }
       if(pid==0 || volume<=0) {
+         if(ResolveUnfilled(s,now))return;
          datetime request_utc=0;Utc(g_records[k].requested,request_utc);
-         if(now-request_utc>30)Fail("Entry not authoritatively confirmed; order is never resent");
+         static datetime last_pending_notice=0;
+         if(now-request_utc>30&&now-last_pending_notice>=30) {
+            last_pending_notice=now;
+            Audit(s,now,"ENTRY_PENDING","Waiting for authoritative broker confirmation; slot remains reserved, no resend");
+         }
          return;
       }
       if(OrderSelect(order)||!HistoryOrderSelect(order))return;
@@ -384,6 +409,35 @@ void Reconcile(const int s,const datetime now) {
    g_slots[s].active=-1;
    SaveState();
 }
+bool DefiniteRejection(const uint code) {
+   return code==TRADE_RETCODE_REQUOTE||code==TRADE_RETCODE_REJECT||code==TRADE_RETCODE_INVALID||
+          code==TRADE_RETCODE_INVALID_VOLUME||code==TRADE_RETCODE_INVALID_PRICE||code==TRADE_RETCODE_INVALID_STOPS||
+          code==TRADE_RETCODE_TRADE_DISABLED||code==TRADE_RETCODE_MARKET_CLOSED||code==TRADE_RETCODE_NO_MONEY||
+          code==TRADE_RETCODE_PRICE_CHANGED||code==TRADE_RETCODE_PRICE_OFF||code==TRADE_RETCODE_INVALID_FILL||
+          code==TRADE_RETCODE_TOO_MANY_REQUESTS||code==TRADE_RETCODE_CLIENT_DISABLES_AT||code==TRADE_RETCODE_SERVER_DISABLES_AT;
+}
+bool ResolveUnfilled(const int s,const datetime now) {
+   int k=g_slots[s].active;
+   if(k<0||!g_slots[s].pending)return false;
+   ulong order=g_records[k].order;
+   if(order==0||OrderSelect(order)||PositionFor(s)>0||!HistoryOrderSelect(order))return false;
+   if(HistoryOrderGetString(order,ORDER_SYMBOL)!=_Symbol||
+      (ulong)HistoryOrderGetInteger(order,ORDER_MAGIC)!=Magic(s))return false;
+   long state=HistoryOrderGetInteger(order,ORDER_STATE);
+   if(state!=ORDER_STATE_CANCELED&&state!=ORDER_STATE_REJECTED&&state!=ORDER_STATE_EXPIRED)return false;
+   if(MathAbs(HistoryOrderGetDouble(order,ORDER_VOLUME_INITIAL)-
+              HistoryOrderGetDouble(order,ORDER_VOLUME_CURRENT))>1e-8)return false;
+   if(!HistorySelect(g_records[k].requested-1,TimeCurrent()+1))return false;
+   for(int i=0;i<HistoryDealsTotal();i++) {
+      ulong deal=HistoryDealGetTicket(i);
+      long entry=HistoryDealGetInteger(deal,DEAL_ENTRY);
+      if((ulong)HistoryDealGetInteger(deal,DEAL_ORDER)==order&&
+         (entry==DEAL_ENTRY_IN||entry==DEAL_ENTRY_INOUT))return false;
+   }
+   Audit(s,now,"ENTRY_REJECTED_CONFIRMED","Terminal broker order with zero executed volume; reservation released, no resend");
+   g_records[k].status="REJECTED";g_slots[s].active=-1;g_slots[s].pending=false;
+   SaveState();return true;
+}
 bool DailyEntryAllowed(const int s,const datetime now) {
    if(!InpOneTradePerDay)return true;
    datetime wall=now;
@@ -415,7 +469,7 @@ void Enter(const int s,const datetime now) {
    datetime when=g_slots[s].signal_time;
    if(when<=g_slots[s].seen_signal)return;
    g_slots[s].seen_signal=when;
-   if(!Enabled(s)||!g_slots[s].signal||g_failed)return;
+   if(!Enabled(s)||!g_slots[s].signal||g_failed||g_storage_paused||g_export_paused)return;
    if(now<when||now-when>InpMaxEntryDelaySeconds){Audit(s,now,"SKIP","late signal");return;}
    if(!CBEntryWindow(now))return;
    if(g_slots[s].active>=0 || PositionFor(s)>0){Audit(s,now,"SKIP","strategy already occupied");return;}
@@ -463,12 +517,22 @@ void Enter(const int s,const datetime now) {
    g_records[n].requested_risk=cash;g_records[n].deadline=deadline;
    Audit(s,now,"EXIT_DEADLINE",Stamp(deadline));
    g_slots[s].active=n;g_slots[s].pending=true; // Reserve before submission, never resend.
-   if(!SaveState())return; // Durable intent BEFORE submission. Never resend on restart.
+   if(!SaveState()) {
+      // Submission never occurred. Roll back only this unsent in-memory reservation.
+      g_slots[s].active=-1;g_slots[s].pending=false;ArrayResize(g_records,n);
+      return;
+   }
    bool ok=OrderSend(req,result);g_records[n].order=result.order;
    SaveState();
    if(!ok || (result.retcode!=TRADE_RETCODE_DONE && result.retcode!=TRADE_RETCODE_PLACED &&
               result.retcode!=TRADE_RETCODE_DONE_PARTIAL)) {
-      g_records[n].integrity="ORDER_SEND_UNCONFIRMED";Fail("OrderSend result "+IntegerToString((int)result.retcode));
+      g_records[n].integrity="ORDER_SEND_UNCONFIRMED";
+      if(result.order==0&&result.deal==0&&DefiniteRejection(result.retcode)) {
+         Audit(s,now,"ENTRY_REJECTED_CONFIRMED","Broker refusal "+IntegerToString((int)result.retcode)+"; no resend of consumed signal");
+         g_records[n].status="REJECTED";g_slots[s].active=-1;g_slots[s].pending=false;
+         SaveState();return;
+      }
+      Audit(s,now,"ENTRY_PENDING","OrderSend result "+IntegerToString((int)result.retcode)+"; broker reconciliation required, no resend");
    }
    Reconcile(s,now);
 }
@@ -502,7 +566,7 @@ void Equity(const datetime now) {
 bool ExportTrades() {
    if(!InpExportCsv)return true;
    int h=FileOpen(g_report_base+"_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
-   if(h==INVALID_HANDLE){Fail("Cannot export trade ledger");return false;}
+   if(h==INVALID_HANDLE){if(!g_export_paused)Print("[IO_PAUSED] Cannot export trade ledger; retrying, new entries blocked.");g_export_paused=true;return false;}
    ResetLastError();
    FileWrite(h,"schema_version","trade_id","strategy","config_hash","symbol","direction",
       "fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status","run_id",
@@ -518,7 +582,9 @@ bool ExportTrades() {
          g_records[i].exit_reason,g_records[i].integrity);
    }
    FileFlush(h);int error=GetLastError();FileClose(h);
-   if(error!=0){Fail("Trade export write failed");return false;}
+   if(error!=0){if(!g_export_paused)Print("[IO_PAUSED] Trade export write failed; retrying, new entries blocked.");g_export_paused=true;return false;}
+   if(g_export_paused)Print("[IO_RESUMED] Trade ledger export recovered.");
+   g_export_paused=false;
    return true;
 }
 int OnInit() {
@@ -565,6 +631,8 @@ int OnInit() {
    g_trade.SetDeviationInPoints((ulong)MathCeil(InpMaxDeviationPriceUnits/_Point));
    if(!InitializeState())return INIT_FAILED;
    Reconcile(0,now);
+   if(!ApplyStoppedReset())return INIT_FAILED;
+   if(g_failed)Print("[STOPPED_STATE_RESTORED] New entries blocked; reconcile the cause. InpResetStoppedWhenFlat is available only after verified closure.");
    if(!g_failed)Feed(TimeCurrent(),now);
    if(!EventSetTimer(1)){Print("[CB] Cannot start exit timer.");return INIT_FAILED;}
    g_test_from=now;g_ready=true;
@@ -584,6 +652,14 @@ void OnTimer() {
    datetime now;if(!Utc(TimeCurrent(),now))return;
    for(int s=0;s<1;s++)Reconcile(s,now);
    SaveState();
+   static datetime last_health=0;
+   if(now-last_health>=300) {
+      last_health=now;
+      Print("[HEALTH] Compression hard_stopped=",g_failed,
+            " storage_paused=",g_storage_paused," export_paused=",g_export_paused,
+            " seeded=",g_seeded," active=",g_slots[0].active," pending=",g_slots[0].pending,
+            " last_m1_server=",g_last_server_minute);
+   }
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &req,const MqlTradeResult &res) {
    if(!g_ready)return;

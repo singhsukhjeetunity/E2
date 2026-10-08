@@ -47,6 +47,8 @@ The selection is based on the earlier portfolio simulations. Their 99th-percenti
 
 ## Install and test
 
+The [live recovery update](docs/LIVE_RECOVERY_UPDATE.md) fixes restart and transient execution/storage blockers and adds periodic health messages. Follow its upgrade instructions; retain your current risk and broker-clock settings.
+
 Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subfolders. Open and compile the desired `.mq5` entry in MetaEditor. Copying only an entry file will omit its dependencies. Remove obsolete source/compiled EA copies from your test installation to avoid selecting the wrong version.
 
 Gold uses M5. EMA and compression build M30 bars from M1 history and use the same trading logic in the tester, demo and real accounts. All three accept the selected symbol; their original session rules still apply.

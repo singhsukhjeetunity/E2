@@ -116,7 +116,32 @@ void E2ReconcileEntry()
       volume+=v;weighted+=v*HistoryDealGetDouble(d,DEAL_PRICE);
       if(first==0||d<first){first=d;entry_time=(datetime)HistoryDealGetInteger(d,DEAL_TIME);}
      }
-   if(first==0||volume<=0||pid==0){E2EntryAlert("Waiting for authoritative entry deal; order will not be resent");return;}
+   if(first==0||volume<=0||pid==0){
+      // A broker-confirmed terminal zero-fill order is not an unresolved execution.
+      bool owned_position=false;
+      for(int i=0;i<PositionsTotal();i++) {
+         if(PositionGetTicket(i)>0&&PositionGetString(POSITION_SYMBOL)==g_entry.symbol&&
+            (ulong)PositionGetInteger(POSITION_MAGIC)==g_configuration.expert_magic_number)owned_position=true;
+      }
+      if(order>0&&!owned_position&&!OrderSelect(order)&&HistoryOrderSelect(order)) {
+         long state=HistoryOrderGetInteger(order,ORDER_STATE);
+         double filled=HistoryOrderGetDouble(order,ORDER_VOLUME_INITIAL)-HistoryOrderGetDouble(order,ORDER_VOLUME_CURRENT);
+         bool any_fill=false;
+         for(int i=0;i<HistoryDealsTotal();i++) {
+            ulong d=HistoryDealGetTicket(i);
+            if(d>0&&(ulong)HistoryDealGetInteger(d,DEAL_ORDER)==order&&
+               (HistoryDealGetInteger(d,DEAL_ENTRY)==DEAL_ENTRY_IN||
+                HistoryDealGetInteger(d,DEAL_ENTRY)==DEAL_ENTRY_INOUT))any_fill=true;
+         }
+         if(HistoryOrderGetString(order,ORDER_SYMBOL)==g_entry.symbol&&
+            (ulong)HistoryOrderGetInteger(order,ORDER_MAGIC)==g_configuration.expert_magic_number&&
+            !any_fill&&(state==ORDER_STATE_REJECTED||state==ORDER_STATE_CANCELED||state==ORDER_STATE_EXPIRED)&&MathAbs(filled)<=1e-8) {
+            Print("[E2][ENTRY_REJECTED_CONFIRMED] Zero-fill terminal order; clearing intent, signal is not resent.");
+            E2ClearEntryIntent();return;
+         }
+      }
+      E2EntryAlert("Waiting for authoritative entry deal; order will not be resent");return;
+   }
    // Wait until all partial fills of this immediate order are settled.
    if(OrderSelect(order)||!HistoryOrderSelect(order)){E2EntryAlert("Waiting for final order history");return;}
    long state=HistoryOrderGetInteger(order,ORDER_STATE);

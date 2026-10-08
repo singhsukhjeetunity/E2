@@ -32,12 +32,19 @@ const int SYMBOL_TRADE_STOPS_LEVEL=1,SYMBOL_VOLUME_STEP=2,SYMBOL_VOLUME_MIN=3,SY
 const int SYMBOL_FILLING_FOK=1,SYMBOL_FILLING_IOC=2,SYMBOL_TRADE_EXECUTION_MARKET=4;
 const int TRADE_ACTION_DEAL=1,ORDER_TYPE_BUY=2,ORDER_FILLING_FOK=3,ORDER_FILLING_IOC=4,ORDER_FILLING_RETURN=5;
 const int TRADE_RETCODE_DONE=100,TRADE_RETCODE_PLACED=101,TRADE_RETCODE_DONE_PARTIAL=102;
+enum {TRADE_RETCODE_REQUOTE=10004,TRADE_RETCODE_REJECT=10006,TRADE_RETCODE_INVALID=10013,TRADE_RETCODE_INVALID_VOLUME,TRADE_RETCODE_INVALID_PRICE,TRADE_RETCODE_INVALID_STOPS,TRADE_RETCODE_TRADE_DISABLED,TRADE_RETCODE_MARKET_CLOSED,TRADE_RETCODE_NO_MONEY,TRADE_RETCODE_PRICE_CHANGED,TRADE_RETCODE_PRICE_OFF,TRADE_RETCODE_INVALID_FILL,TRADE_RETCODE_TOO_MANY_REQUESTS,TRADE_RETCODE_CLIENT_DISABLES_AT,TRADE_RETCODE_SERVER_DISABLES_AT};
+enum {ORDER_SYMBOL=30,ORDER_MAGIC,ORDER_STATE,ORDER_VOLUME_INITIAL,ORDER_VOLUME_CURRENT,ORDER_STATE_CANCELED,ORDER_STATE_REJECTED,ORDER_STATE_EXPIRED};
 struct MqlDateTime{int hour=11,min=0;};struct MqlTick{double ask=100,bid=99.9;};
 struct MqlTradeRequest{int action=0,type=0,type_filling=0;string symbol,comment;unsigned long magic=0,deviation=0;double volume=0,price=0,sl=0,tp=0;};
-struct MqlTradeResult{unsigned long order=0;int retcode=TRADE_RETCODE_DONE;};struct MqlTradeCheckResult{string comment;};
+struct MqlTradeResult{unsigned long order=0,deal=0;int retcode=TRADE_RETCODE_DONE;};struct MqlTradeCheckResult{string comment;};
 struct Slot{datetime signal_time=10000,seen_signal=0,last_exit_minute=0;bool signal=true,pending=false;double signal_atr=10;int active=-1;};
 Slot g_slots[1];std::vector<NPRecord>g_records;string g_run="run";
 bool g_failed=false,disk_ok=true,durable=false,owned=true;int sends=0,g_session_day=0,g_session_count=120;
+bool g_storage_paused=false,g_export_paused=false;
+bool tester=false;const int MQL_TESTER=1234;int MQLInfoInteger(int){return tester;}
+int StringFind(const string &s,const string &x){auto p=s.find(x);return p==string::npos?-1:(int)p;}
+template<class... T>void Print(const T&...){}
+bool order_active=false,order_history=true,send_ok=true;int broker_retcode=TRADE_RETCODE_DONE,order_state=ORDER_STATE_REJECTED;double executed=0;unsigned long send_ticket=55;
 int InpMaxEntryDelaySeconds=5;double InpMaxSpreadPriceUnits=4,InpEMAStopATR=3,InpEMATargetR=.5,InpEMACashRisk=1000,InpMaxDeviationPriceUnits=.5;
 bool Enabled(int){return true;}int NPCloseMinute(datetime){return 960;}
 datetime NPNy(datetime t){return t;}int NPDay(datetime t){return t/86400;}void TimeToStruct(datetime,MqlDateTime&){}
@@ -54,11 +61,17 @@ bool OrderCheck(const MqlTradeRequest&,MqlTradeCheckResult&){return true;}
 string Strategy(int){return "NP_EMA_M30_LONG";}datetime TimeCurrent(){return 10000;}
 string Stamp(datetime t){return std::to_string(t);}void Audit(int,datetime,const string&,const string&){}
 void Fail(const string&){g_failed=true;}
-bool SaveState(){if(!disk_ok){Fail("disk");return false;}durable=g_slots[0].pending&&g_slots[0].active>=0;return true;}
-bool OrderSend(const MqlTradeRequest &r,MqlTradeResult &out){assert(durable);assert(r.type==ORDER_TYPE_BUY&&r.sl<r.price&&r.tp>r.price);sends++;out.order=55;return true;}
+bool SaveState(){if(!disk_ok){g_storage_paused=true;return false;}g_storage_paused=false;durable=g_slots[0].pending&&g_slots[0].active>=0;return true;}
+bool OrderSend(const MqlTradeRequest &r,MqlTradeResult &out){assert(durable);assert(r.type==ORDER_TYPE_BUY&&r.sl<r.price&&r.tp>r.price);sends++;out.order=send_ticket;out.retcode=broker_retcode;return send_ok;}
+bool OrderSelect(unsigned long){return order_active;}
+bool HistoryOrderSelect(unsigned long){return order_history;}
+string HistoryOrderGetString(unsigned long,int){return _Symbol;}
+long HistoryOrderGetInteger(unsigned long,int k){return k==ORDER_MAGIC?123:order_state;}
+double HistoryOrderGetDouble(unsigned long,int k){return k==ORDER_VOLUME_INITIAL?1:1-executed;}
+double MathAbs(double x){return std::abs(x);}
 void Reconcile(int,datetime){}
 bool InpOneTradePerDay=false,history_ok=true,clock_ok=true;int InpBrokerClock=1,InpBrokerWinterUtcOffsetSeconds=0,history_queries=0;
-const int DEAL_SYMBOL=1,DEAL_MAGIC=2,DEAL_ENTRY=3,DEAL_TIME=4,DEAL_ENTRY_IN=1,DEAL_ENTRY_OUT=2,DEAL_ENTRY_INOUT=3;
+const int DEAL_SYMBOL=1,DEAL_MAGIC=2,DEAL_ENTRY=3,DEAL_TIME=4,DEAL_ORDER=5,DEAL_ENTRY_IN=1,DEAL_ENTRY_OUT=2,DEAL_ENTRY_INOUT=3;
 struct Deal{string symbol="USTEC";long magic=123,entry=DEAL_ENTRY_IN,time=9000;};
 std::vector<Deal> deals;
 datetime NPNyToUtc(datetime t){return t;}datetime NPToServer(datetime t,int,int){return t;}
@@ -66,11 +79,20 @@ bool Utc(datetime t,datetime &out){out=t;return clock_ok;}
 bool HistorySelect(datetime,datetime){history_queries++;return history_ok;}
 int HistoryDealsTotal(){return deals.size();}unsigned long HistoryDealGetTicket(int i){return i+1;}
 string HistoryDealGetString(unsigned long d,int){return deals[d-1].symbol;}
-long HistoryDealGetInteger(unsigned long d,int k){auto &v=deals[d-1];return k==DEAL_MAGIC?v.magic:k==DEAL_ENTRY?v.entry:v.time;}
+long HistoryDealGetInteger(unsigned long d,int k){auto &v=deals[d-1];return k==DEAL_ORDER?55:k==DEAL_MAGIC?v.magic:k==DEAL_ENTRY?v.entry:v.time;}
+#include "ema_deadline.mqh"
 #include "ema_entry.mqh"
-void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=false;durable=false;sends=0;disk_ok=true;owned=true;InpOneTradePerDay=false;history_ok=clock_ok=true;history_queries=0;deals.clear();}
+void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=g_storage_paused=g_export_paused=false;durable=false;sends=0;disk_ok=true;owned=true;InpOneTradePerDay=false;history_ok=clock_ok=true;history_queries=0;deals.clear();order_active=false;order_history=send_ok=true;broker_retcode=TRADE_RETCODE_DONE;executed=0;send_ticket=55;}
 int main(){
- reset();disk_ok=false;Enter(0,10000);assert(sends==0&&g_failed);
+ reset();tester=false;g_records.resize(1);g_records[0].deadline=100;MarkOverdue(0,161);assert(!g_failed&&g_records[0].integrity=="EXIT_DEADLINE_MISSED");
+ tester=true;MarkOverdue(0,162);assert(g_failed);tester=false; // Backtests still invalidate late exits.
+ reset();disk_ok=false;Enter(0,10000);assert(sends==0&&!g_failed&&g_storage_paused&&g_slots[0].active<0&&!g_slots[0].pending);
+ disk_ok=true;assert(SaveState());g_slots[0].signal_time=10001;Enter(0,10001);assert(sends==1); // Fresh signal after storage recovery.
+ reset();send_ticket=0;send_ok=false;broker_retcode=TRADE_RETCODE_MARKET_CLOSED;Enter(0,10000);assert(sends==1&&!g_failed&&!g_slots[0].pending&&g_slots[0].active<0);
+ reset();send_ticket=0;send_ok=false;broker_retcode=10012;Enter(0,10000);assert(sends==1&&!g_failed&&g_slots[0].pending);assert(!ResolveUnfilled(0,10001)); // Timeout is not proof of no execution.
+ reset();Enter(0,10000);order_active=true;assert(!ResolveUnfilled(0,10001));order_active=false;
+ executed=.1;assert(!ResolveUnfilled(0,10001));executed=0;history_ok=false;assert(!ResolveUnfilled(0,10001));history_ok=true;
+ deals.push_back(Deal{});assert(!ResolveUnfilled(0,10001));deals.clear();assert(ResolveUnfilled(0,10001));assert(!g_slots[0].pending&&g_slots[0].active<0&&!g_failed);
  reset();Enter(0,10000);assert(sends==1&&g_slots[0].pending);Enter(0,10000);assert(sends==1);
  g_slots[0].signal_time=10001;Enter(0,10001);assert(sends==1); // Pending intent occupies the slot.
  reset();owned=false;Enter(0,10000);assert(sends==0);

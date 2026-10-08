@@ -108,13 +108,13 @@ private:
       if(!RuleTime(bar.time,rule_open)){m_verify.time_failures++;return(false);}
       m_range.Observe(rule_open,bar.high,bar.low);
       m_verify.bars_observed++;
-      if(!emit)return(true);
+      // Rebuild/update regime observations even when old signals must not be traded.
       if(m_signaled_day==m_range.Day())return(true);
       if(!m_range.Signal(rule_open,bar.close))return(true);
       if(!TrendEfficient(bar.time,m_config.xau_trend_efficiency_min))return(true);
       datetime known=bar.time+300;
       if(FridayEntryBlocked(known))return(true);
-      if(m_weekend.IsBlockedAt(known)||m_weekend.IsBlockedAt(TimeCurrent())){m_weekend.LogExpire("XAU_SF|"+IntegerToString((long)bar.time),known);return(true);}
+      if(m_weekend.IsBlockedAt(known)||(emit&&m_weekend.IsBlockedAt(TimeCurrent()))){if(emit)m_weekend.LogExpire("XAU_SF|"+IntegerToString((long)bar.time),known);return(true);}
       int shift=iBarShift(m_symbol,PERIOD_M5,bar.time,true);double values[];
       if(shift<1||CopyBuffer(m_atr,0,shift,1,values)!=1||values[0]<=0.0||!MathIsValidNumber(values[0]))return(false);
       ZeroMemory(candidate);
@@ -128,10 +128,10 @@ private:
       candidate.atr=values[0];candidate.atr_multiplier=m_config.xau_atr_multiplier;
       candidate.risk_distance=values[0]*m_config.xau_atr_multiplier;
       candidate.execution_window_start=known;candidate.execution_window_end=known+300;
-      if(!m_regime.Assess(candidate,true))return(false);
-      m_verify.total_candidates++;m_verify.long_candidates++;
+      if(!m_regime.Assess(candidate,emit))return(false);
+      if(emit){m_verify.total_candidates++;m_verify.long_candidates++;}
       m_signaled_day=m_range.Day();
-      found=true;
+      found=emit;
       return(true);
      }
 public:
@@ -145,8 +145,9 @@ public:
       if(m_atr==INVALID_HANDLE)return(false);
       datetime now=TimeCurrent();
       MqlRates bars[];ArraySetAsSeries(bars,false);
-      int count=CopyRates(symbol,PERIOD_M5,now-2*86400,now-1,bars);
-      if(count<0)return(false);
+      datetime replay_start=m_regime.ReplayStart(now);
+      int count=CopyRates(symbol,PERIOD_M5,replay_start,now-1,bars);
+      if(count<=0){logger.Error("Regime reconstruction history unavailable; load M5 history and reattach.","XAU_SF_HISTORY");return(false);}
       datetime rule_now;int today=0;
       if(!RuleTime(now,rule_now))return(false);
       today=E2CalendarDay(rule_now);
@@ -154,10 +155,10 @@ public:
         {
          if(bars[i].time+300>now)continue;
          datetime rule_bar;if(!RuleTime(bars[i].time,rule_bar))return(false);
-         if(E2CalendarDay(rule_bar)!=today)continue;
          E2Candidate unused;bool found;if(!Process(bars[i],false,unused,found))return(false);
         }
       m_last=iTime(symbol,PERIOD_M5,1);
+      logger.Info("rebuiltObservations="+IntegerToString(m_regime.ObservationCount())+", minimumObservations="+IntegerToString(m_config.xau_regime_minimum_observations)+", oldSignalsTraded=0.","XAU_REGIME_REBUILT");
       logger.Info("timeBasis="+BasisName()+", ruleDay="+IntegerToString(today)+", rangeFrozen="+IntegerToString((int)m_range.Frozen())+", rangeValid="+IntegerToString((int)m_range.Valid())+", restartSignalsReplayed=0.","XAU_SF_STATE");
       return(true);
      }
@@ -182,6 +183,7 @@ public:
       return(ArraySize(out)>0);
      }
    E2SignalVerification SignalVerification()const{return(m_verify);}
+   int RegimeObservations()const{return(m_regime.ObservationCount());}
    void Shutdown(){if(m_atr!=INVALID_HANDLE){IndicatorRelease(m_atr);m_atr=INVALID_HANDLE;}}
   };
 
