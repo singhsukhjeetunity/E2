@@ -1,17 +1,19 @@
 #property strict
-#property version "1.00"
+#property version "1.10"
 #property description "Public daily IBS/range pullback; next-tick execution and configurable risk overlay."
 #define RC_NAME "RC daily IBS pullback"
 #define RC_DEFAULT_MAGIC 420602
+#define RC_DAILY_IBS
 #define RC_DEFAULT_SPREAD 300
 #define RC_DEFAULT_DST RC_US
 #define RC_DEFAULT_OFFSET -300
 #define RC_DEFAULT_OPEN 570
 #define RC_DEFAULT_CLOSE 960
-input int InpHighSessions=10;
-input int InpRangeSessions=25;
-input double InpRangeBandMultiple=1.0;
-input double InpMaximumIBS=0.30;
+input group "Strategy parameters"
+input int InpHighSessions=10; // High lookback (sessions)
+input int InpRangeSessions=25; // Range lookback (sessions)
+input double InpRangeBandMultiple=1.0; // Pullback range multiplier
+input double InpMaximumIBS=0.30; // Maximum IBS (0 to 1)
 #include "include/Runtime.mqh"
 datetime rc_processed_close=0;
 bool RCValidate(){return InpHighSessions>0&&InpHighSessions<=60&&InpRangeSessions>0&&InpRangeSessions<=60&&
@@ -41,4 +43,11 @@ void RCProcess(const datetime utc) {
    rc_processed_close=end;
    if(RCPullback(rc_days,rc_count,InpHighSessions,InpRangeSessions,InpRangeBandMultiple,InpMaximumIBS))
       RCEnter(1,InpStopATR*RCATR(rc_days,rc_count,InpATRPeriod),InpTargetR,utc,end);
+}
+
+void RCWriteStrategySettings(const int h) {
+   FileWrite(h,"InpHighSessions",InpHighSessions);
+   FileWrite(h,"InpRangeSessions",InpRangeSessions);
+   FileWrite(h,"InpRangeBandMultiple",InpRangeBandMultiple);
+   FileWrite(h,"InpMaximumIBS",InpMaximumIBS);
 }

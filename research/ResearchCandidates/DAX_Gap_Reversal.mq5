@@ -1,5 +1,5 @@
 #property strict
-#property version "1.00"
+#property version "1.10"
 #property description "Research DAX true opening gap fade, previous completed M30 bar confirmation."
 #define RC_NAME "RC DAX gap reversal"
 #define RC_DEFAULT_MAGIC 420605
@@ -8,7 +8,8 @@
 #define RC_DEFAULT_OFFSET 60
 #define RC_DEFAULT_OPEN 480
 #define RC_DEFAULT_CLOSE 1320
-input int InpEntryWindowMinutes=180;
+input group "Strategy parameters"
+input int InpEntryWindowMinutes=180; // Entry window after session open (minutes)
 #include "include/Runtime.mqh"
 datetime rc_open_day=0;
 double rc_session_open=0;
@@ -35,4 +36,8 @@ void RCProcess(const datetime utc) {
    bool triggered=direction>0?(rc_last_bid<=previous.high&&tick.bid>previous.high):
                               (rc_last_bid>=previous.low&&tick.bid<previous.low);
    if(triggered)RCEnter(direction,InpStopATR*RCATR(bars,count,InpATRPeriod),InpTargetR,utc,previous.start+1800);
+}
+
+void RCWriteStrategySettings(const int h) {
+   FileWrite(h,"InpEntryWindowMinutes",InpEntryWindowMinutes);
 }

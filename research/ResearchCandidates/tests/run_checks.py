@@ -12,7 +12,7 @@ def portable(text):
     text = text.replace('input ', '').replace('#include <Trade/Trade.mqh>', '')
     text = re.sub(r'const RCBar &([a-z_]+)\[\]', r'const std::vector<RCBar> &\1', text)
     text = re.sub(r'RCBar &([a-z_]+)\[\]', r'std::vector<RCBar> &\1', text)
-    text = re.sub(r'(RCBar|MqlRates) ([a-z_]+)\[\];', r'std::vector<\1> \2;', text)
+    text = re.sub(r'(RCBar|MqlRates|RCReportTrade|RCEntryRisk) ([a-z_]+)\[\];', r'std::vector<\1> \2;', text)
     return text
 
 with tempfile.TemporaryDirectory() as directory:

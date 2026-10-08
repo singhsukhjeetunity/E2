@@ -1,5 +1,5 @@
 #property strict
-#property version "1.00"
+#property version "1.10"
 #property description "Research reconstruction: two-session extremes, daily momentum and efficiency filters."
 #define RC_NAME "RC EuroFX extreme reversal"
 #define RC_DEFAULT_MAGIC 420601
@@ -8,11 +8,12 @@
 #define RC_DEFAULT_OFFSET 0
 #define RC_DEFAULT_OPEN 0
 #define RC_DEFAULT_CLOSE 1320
-input int InpExtremeSessions=2;
-input int InpMomentumSessions=5;
-input int InpEfficiencySessions=10;
-input double InpMaximumEfficiency=0.35;
-input double InpMaximumMomentumATR=1.5;
+input group "Strategy parameters"
+input int InpExtremeSessions=2; // Prior sessions for extreme levels
+input int InpMomentumSessions=5; // Momentum lookback (sessions)
+input int InpEfficiencySessions=10; // Efficiency lookback (sessions)
+input double InpMaximumEfficiency=0.35; // Maximum efficiency ratio
+input double InpMaximumMomentumATR=1.5; // Maximum momentum (ATR multiples)
 #include "include/Runtime.mqh"
 bool RCValidate() {
    return InpExtremeSessions>=1&&InpExtremeSessions<=30&&InpMomentumSessions>=1&&InpMomentumSessions<=30&&
@@ -31,4 +32,12 @@ void RCProcess(const datetime utc) {
    // Crossing a level from inside the range; attach/restart outside it never chases.
    int direction=rc_last_bid<high&&tick.bid>=high?-1:rc_last_bid>low&&tick.bid<=low?1:0;
    if(direction!=0)RCEnter(direction,InpStopATR*atr,InpTargetR,utc);
+}
+
+void RCWriteStrategySettings(const int h) {
+   FileWrite(h,"InpExtremeSessions",InpExtremeSessions);
+   FileWrite(h,"InpMomentumSessions",InpMomentumSessions);
+   FileWrite(h,"InpEfficiencySessions",InpEfficiencySessions);
+   FileWrite(h,"InpMaximumEfficiency",InpMaximumEfficiency);
+   FileWrite(h,"InpMaximumMomentumATR",InpMaximumMomentumATR);
 }

@@ -16,13 +16,38 @@ Copy this entire directory to `MQL5/Experts/E2/ResearchCandidates/`. Compile eac
 
 Broker/futures/ETF/CFD prices, spreads and session definitions differ. A published futures or SPY return is **not** a backtest of these EAs on a CFD feed.
 
+## Simplified inputs (v1.10)
+
+Settings are grouped and labeled in plain language: strategy parameters, risk/execution, historical feed clock, exits, CSV reports and calendar exceptions. Reference-session clocks, ATR period (14), 90-day lookback, 80% minute coverage, 60-second entry grace and 10-point deviation are fixed implementation constants. Default signal rules are unchanged. Only daily IBS exposes maximum holding days; the others use their existing session/fix deadline. Friday flattening remains adjustable on/off, at fixed 20:00 UTC. Review and re-save old `.set` files: removed custom parameters no longer override these fixed defaults.
+
+## Automatic CSV exports
+
+`InpExportCsv=true` by default. Each local test/demo/live run creates unique filenames and prints their absolute location in the Journal:
+
+```text
+Terminal/Common/Files/E2/ResearchCandidates/<magic>/
+    <symbol>_<mode>_<account>_<unique-run>_Trades_T.csv
+    <symbol>_<mode>_<account>_<unique-run>_Equity_E.csv
+    <symbol>_<mode>_<account>_<unique-run>_Settings.csv
+```
+
+In MT5 choose **File → Open Data Folder**, go up to `Terminal`, then open `Common/Files/E2/ResearchCandidates/`. The Journal's absolute path is authoritative for other installation layouts. Use local tester agents; remote/cloud reports are not guaranteed to appear locally.
+
+- **Trades:** E2 journal columns, one row per owned position, weighted partial-fill prices, UTC entry/exit time, direction, SL/TP, initial cash risk, gross profit, commission, swap, deal fees, net profit and net R. Ownership comes from entries, so manual/broker exits with a different magic are included. Foreign positions are excluded; merged/reversed positions are invalid. Partial exits stay `OPEN` until fully settled. Account-level commission adjustments without a position ID cannot be assigned to a trade.
+- **Equity:** account balance, equity and free margin on the first tick, approximately once per minute, and at completion/shutdown. Live equity includes all strategies on the account; this sampling does not capture every intraminute extreme.
+- **Settings:** complete strategy/clock/risk/execution configuration, including fixed constants.
+
+Trade history is rebuilt after transactions (at most once a minute), at tester completion and at shutdown. Export errors are logged; initial file creation failures block startup when export is enabled. Repeated runs preserve earlier reports. After an interrupted process, the next run recovers owned position history into its own report.
+
+Initial cash risk is captured per actual entry fill/SL with account-currency conversion at entry. Entries predating a live restart retain historical P&L but have blank risk/R and `INITIAL_RISK_UNAVAILABLE`: their in-memory entry conversion snapshot is gone. Missing SL/risk likewise yields blanks. A normal uninterrupted backtest captures its entries. UTC text timestamps are canonical; millisecond columns preserve broker deal timestamps. The E2 column layout is reused, but support for research strategy names depends on the dashboard importer.
+
 ## Clock and data setup
 
 Set `InpBrokerWinterUTCMinutes` and `InpBrokerDST` to the **historical feed's** verified clock; then set `InpBrokerClockVerified=true`. Defaults of UTC+2 with European DST are placeholders, not a detected broker profile. Fixed UTC, modern European DST and modern US DST profiles are supported. These DST rules are intended for post-2007 data. Ambiguous or nonexistent broker timestamps are rejected. The EA never infers tester time from `TimeGMT()`.
 
-Reference-session clocks are separate: New York defaults to UTC−5 with US DST, Berlin to UTC+1 with European DST. Daily sessions are reconstructed from closed M1 bars, not broker D1 candles. Sessions must open and close within one reference calendar day; overnight sessions are not supported. Standard M15/M30 bars are used for intraday confirmation, so changing reference boundaries to a nonmatching bar boundary needs additional testing.
+Reference-session clocks are separate: New York defaults to UTC−5 with US DST, Berlin to UTC+1 with European DST. Daily sessions are reconstructed from closed M1 bars, not broker D1 candles. Sessions must open and close within one reference calendar day; overnight sessions are not supported. Standard M15/M30 bars are used for intraday confirmation. Reference-session definitions are fixed per strategy in the simplified build.
 
-Download enough M1 history for `InpHistoryDays` (default 90), including both warm-up and test dates; MT5's history limit must accommodate it. A daily bar requires at least 80% of expected minute coverage and its first minute within five minutes of the planned open. Missing latest sessions block entry rather than using an older day as yesterday. Sparse-tick instruments may require an explicitly reviewed coverage setting.
+Download enough M1 history for the fixed 90-day lookback, including both warm-up and test dates; MT5's history limit must accommodate it. A daily bar requires at least 80% of expected minute coverage and its first minute within five minutes of the planned open. Missing latest sessions block entry rather than using an older day as yesterday. Sparse-tick instruments may require an explicitly reviewed coverage setting.
 
 Fill `InpClosedDates` with reference-session holiday dates as `YYYYMMDD|YYYYMMDD`. Fill `InpEarlyCloseDates` similarly, with `InpEarlyCloseMinute=780` for 13:00 New York, for example. **There is no embedded exchange holiday calendar.** Unlisted holidays/half-days can block subsequent signals because history looks incomplete. Gotobi additionally accepts `InpExcludedJapaneseDates`; Japanese bank holidays are excluded manually, not shifted automatically.
 
@@ -50,7 +75,7 @@ Source: [YuRa EURJPY transmission test](https://yuratrading.com/results/gotobi-e
 
 Published timing used here: enter 15:55 UTC on the day before the fix, exit 00:55 UTC (09:55 Japan) on dates 5/10/15/20/25/30. Weekend payment dates roll to the preceding Friday. Default hard stop 60 pips, safety target 200 pips, maximum spread 3 pips. No rollover to a nonexistent 30th day. No martingale or averaging.
 
-Entry must occur within the configured 60-second grace window. An unavailable Sunday entry before a Monday fix is skipped, rather than replaced with a different time. Holidays are manual exclusions. Use `InpPipSize` if the symbol's pip convention differs from the default 10 points for three/five digits. `InpStopATR` and `InpTargetR` are unused for this EA: stop/target come from the specific pip inputs. Ownership, margin and the common spread cap still apply. Paper/session-clock evidence does not imply the author's backtest or this implementation is independently audited live performance.
+Entry must occur within the configured 60-second grace window. An unavailable Sunday entry before a Monday fix is skipped, rather than replaced with a different time. Holidays are manual exclusions. Use `InpPipSize` if the symbol's pip convention differs from the default 10 points for three/five digits. Unused ATR/target inputs are hidden for this EA; only its pip stop/target settings are shown. The spread cap now comes from the common broker-point input (30 points = 3 pips on standard three-digit EURJPY). Ownership, margin and the common spread cap still apply. Paper/session-clock evidence does not imply the author's backtest or this implementation is independently audited live performance.
 
 ### 4. S&P 500 failed breakout
 
@@ -74,7 +99,7 @@ Published: opening above the previous session high sets a short bias, confirmed 
 - Every market order includes an SL in the original request. Stops/targets align to tick size. Orders below broker minimum volume are skipped; sizing never rounds up to force a minimum lot. Risk uses `OrderCalcProfit`; commission, slippage and gaps can make realized loss exceed the budget.
 - Default one entry per reference date uses broker deal history, surviving restart. Unique signal/fix history checks also operate when that toggle is off. One owned open position per EA/symbol; no pending orders, grids or averaging. Simultaneous duplicate instances are unsupported.
 - Hedging accounts use ticket-based exits and matching magic/symbol ownership. On netting accounts entry is blocked whenever any position already exists on the symbol. Separate strategies on the same symbol should use hedging accounts; ownership cannot prevent a later external netting order from merging positions.
-- Missing SL and overdue positions trigger close attempts on subsequent ticks. Default Friday flattening is 20:00 UTC and maximum holding is five calendar days. Change these to match broker hours. **No ticks / a closed market / a disconnected terminal means the EA cannot guarantee a timed exit.** Intraday session deadlines and Gotobi fix exits are reconstructed from the broker position timestamp after restart.
+- Missing SL and overdue positions trigger close attempts on subsequent ticks. Default Friday flattening is 20:00 UTC and maximum holding is five calendar days. Friday flattening is fixed at 20:00 UTC in the simplified build and requires tradable ticks then. **No ticks / a closed market / a disconnected terminal means the EA cannot guarantee a timed exit.** Intraday session deadlines and Gotobi fix exits are reconstructed from the broker position timestamp after restart.
 - Defaults are testing starting points, not selected allocations. Added stops, targets, time exits or Friday filters change the sourced strategy. Do not add any candidate to the active portfolio until its own cost-aware MT5/OOS and combined portfolio tests pass.
 
 ## Verification

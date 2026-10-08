@@ -4,6 +4,32 @@ int main() {
    InpBrokerClockVerified=true;assert(OnInit()==INIT_SUCCEEDED);
    assert(InpMagic>=420601&&InpMagic<=420605);
    InpRiskPercent=-1;assert(OnInit()==INIT_PARAMETERS_INCORRECT);InpRiskPercent=.25;
+   // CSV ownership, partial fills/exits, fee accounting, restart rebuild and no overwrite.
+   InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
+   test_now=RCDate(2025,10,8,12);
+   test_deals={
+      {1,InpMagic,"TEST",test_now-120,DEAL_ENTRY_IN,DEAL_TYPE_BUY,77,.04,100,99,0,0,-1,0,-.2},
+      {2,InpMagic,"TEST",test_now-119,DEAL_ENTRY_IN,DEAL_TYPE_BUY,77,.06,100,99,0,0,-1.5,0,-.3},
+      {3,0,"TEST",test_now-60,DEAL_ENTRY_OUT,DEAL_TYPE_SELL,77,.04,101,0,0,40,-1,-2,-.2},
+      {4,999,"TEST",test_now-90,DEAL_ENTRY_IN,DEAL_TYPE_BUY,88,.1,100,99,0,0,-3,0,0}
+   };
+   RCCaptureRisk(1);RCCaptureRisk(2);
+   assert(RCExportTrades());assert(rc_records.size()==1);
+   auto path=rc_report_base+"_Trades_T.csv";
+   auto rows=mock_files[path];assert(rows.size()==2&&rows[1][10]=="OPEN"&&rows[1][8].empty());
+   test_deals.push_back({5,0,"TEST",test_now,DEAL_ENTRY_OUT,DEAL_TYPE_SELL,77,.06,101,0,0,60,-1.5,-3,-.3});
+   assert(RCExportTrades());rows=mock_files[path];
+   assert(rows.size()==2&&rows[1][10]=="FINALIZED");
+   assert(std::abs(std::stod(rows[1][8])-89)<1e-9); // 100 gross - 5 commissions - 5 swap - 1 fees.
+   assert(std::abs(std::stod(rows[1][9])-100)<1e-9&&std::abs(std::stod(rows[1][19])-.89)<1e-9);
+   rc_records.clear();assert(RCExportTrades());assert(mock_files[path]==rows); // Idempotent history recovery.
+   rc_entry_risks.clear();test_deals[0].sl=0;assert(RCExportTrades());rows=mock_files[path];
+   assert(rows[1][9].empty()&&rows[1][19].empty()&&rows[1][21]=="INITIAL_RISK_UNAVAILABLE");
+   string oldbase=rc_report_base;assert(RCExportInit());assert(rc_report_base!=oldbase);
+   assert(mock_files.count(oldbase+"_Trades_T.csv"));
+   RCExportClose();mock_file_fail=true;assert(!RCExportInit());mock_file_fail=false;
+   InpExportCsv=false;auto count=mock_files.size();assert(RCExportInit());assert(mock_files.size()==count);
+   InpExportCsv=true;assert(RCExportInit());test_deals.clear();
    // DST transition instants and ambiguous historical broker timestamps.
    assert(!RCDST(RCDate(2025,3,9,6,59),RC_US));
    assert(RCDST(RCDate(2025,3,9,7),RC_US));

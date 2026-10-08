@@ -3,36 +3,55 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
-input group "Execution and ownership"
-input ulong InpMagic=RC_DEFAULT_MAGIC;
-input double InpRiskPercent=0.25;
-input double InpCashRisk=0; // >0 overrides percent; account currency.
-input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD;
-input ulong InpDeviationPoints=10;
-input bool InpOneEntryPerDay=true;
-input bool InpAllowFridayEntries=true;
-input group "Verified broker clock (never use TimeGMT in tester)"
-input bool InpBrokerClockVerified=false;
-input RCClock InpBrokerDST=RC_EU;
-input int InpBrokerWinterUTCMinutes=120;
-input group "Reference sessions, independent of broker D1 bars"
-input RCClock InpSessionDST=RC_DEFAULT_DST;
-input int InpSessionWinterUTCMinutes=RC_DEFAULT_OFFSET;
-input int InpSessionOpenMinute=RC_DEFAULT_OPEN;
-input int InpSessionCloseMinute=RC_DEFAULT_CLOSE;
-input string InpClosedDates=""; // YYYYMMDD|YYYYMMDD in reference-session dates.
-input string InpEarlyCloseDates="";
-input int InpEarlyCloseMinute=780;
-input int InpHistoryDays=90;
-input double InpMinimumMinuteCoverage=0.80;
-input group "Research risk overlay"
-input int InpATRPeriod=14;
-input double InpStopATR=3.0;
-input double InpTargetR=0; // 0 disables fixed target; strategy exits still apply.
-input int InpMaximumHoldingDays=5;
-input bool InpFridayFlat=true;
-input int InpFridayFlatUTCMinute=1200; // 20:00 UTC: override for broker hours.
-input int InpEntryGraceSeconds=60;
+input group "1. Risk and execution"
+input double InpRiskPercent=0.25; // Risk per trade (% of equity)
+input double InpCashRisk=0; // Fixed cash risk (0 = use percentage)
+input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD; // Maximum spread (broker points)
+input bool InpOneEntryPerDay=true; // Maximum one entry per day
+input ulong InpMagic=RC_DEFAULT_MAGIC; // Unique strategy ID
+input group "2. Historical data clock - verify before testing"
+input bool InpBrokerClockVerified=false; // I verified the historical feed clock
+input int InpBrokerWinterUTCMinutes=120; // Winter UTC offset (minutes; UTC+2 = 120)
+input RCClock InpBrokerDST=RC_EU; // Historical feed daylight-saving rule
+input group "3. Exits"
+#ifndef RC_GOTOBI
+input double InpStopATR=3.0; // Stop distance (ATR multiples)
+input double InpTargetR=0; // Profit target in R (0 = strategy exit only)
+#else
+double InpStopATR=3.0;
+double InpTargetR=0;
+#endif
+#ifdef RC_DAILY_IBS
+input int InpMaximumHoldingDays=5; // Maximum holding (calendar days)
+#else
+int InpMaximumHoldingDays=5;
+#endif
+input bool InpFridayFlat=true; // Close positions on Friday at 20:00 UTC
+input group "4. CSV reports"
+input bool InpExportCsv=true; // Automatically export trades and equity CSV
+input group "5. Calendar exceptions (optional)"
+#ifndef RC_GOTOBI
+input string InpClosedDates=""; // Closed session dates: YYYYMMDD|YYYYMMDD
+input string InpEarlyCloseDates=""; // Early-close dates: YYYYMMDD|YYYYMMDD
+input int InpEarlyCloseMinute=780; // Early-close time: minutes after session midnight
+#else
+string InpClosedDates="",InpEarlyCloseDates="";
+int InpEarlyCloseMinute=780;
+#endif
+// Strategy session clocks are fixed independently of the historical broker clock.
+RCClock InpSessionDST=RC_DEFAULT_DST;
+int InpSessionWinterUTCMinutes=RC_DEFAULT_OFFSET;
+int InpSessionOpenMinute=RC_DEFAULT_OPEN;
+int InpSessionCloseMinute=RC_DEFAULT_CLOSE;
+// Implementation constants: not optimisation knobs.
+ulong InpDeviationPoints=10;
+bool InpAllowFridayEntries=true;
+int InpHistoryDays=90;
+double InpMinimumMinuteCoverage=0.80;
+int InpATRPeriod=14;
+int InpFridayFlatUTCMinute=1200;
+int InpEntryGraceSeconds=60;
+#include "Exports.mqh"
 
 CTrade rc_trade;
 RCBar rc_days[];
@@ -242,11 +261,20 @@ int OnInit() {
    rc_trade.SetExpertMagicNumber(InpMagic);rc_trade.SetDeviationInPoints(InpDeviationPoints);
    rc_trade.SetAsyncMode(false);rc_trade.SetTypeFillingBySymbol(_Symbol);
    Print(RC_NAME," RESEARCH ONLY: source gaps and risk overlays documented in ResearchCandidates/README.md");
+   if(!RCExportInit())return INIT_FAILED;
    return INIT_SUCCEEDED;
 }
 void OnTick() {
+   RCExportTick();
    datetime utc=RCNow();if(utc==0)return;
    RCManage(utc);RCProcess(utc);
    MqlTick tick;if(SymbolInfoTick(_Symbol,tick))rc_last_bid=tick.bid;
 }
+void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {
+   if(InpExportCsv&&trans.type==TRADE_TRANSACTION_DEAL_ADD)RCCaptureRisk(trans.deal);
+   rc_export_dirty=true; // Include manual/broker closes of owned positions.
+}
+double OnTester() {RCExportTrades();RCExportEquity(true);return 0;}
+void OnDeinit(const int reason) {RCExportTrades();RCExportEquity(true);RCExportClose();}
+
 #endif
