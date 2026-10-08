@@ -48,3 +48,7 @@ python monte_carlo_50/monte_carlo.py --paths paths.npz --output results.json
 ```
 
 Official stationary-bootstrap reference: https://arch.readthedocs.io/en/stable/bootstrap/timeseries-bootstraps.html . Implementation uses NumPy with seeds stored in the script. Research documentation only; not live deployment.
+
+## v1.15 installation update
+
+The user requested the same configurable risk controls as Gold Fade. The EA now has `InpRiskMode` (0=fixed cash, 1=balance percent), `InpFixedCashRisk` and `InpBalanceRiskPercent`, with cash-mode generic defaults. Old `InpCashRisk` / `InpRiskPercent` preset keys no longer apply. The simulation above remains equity-compounding research; balance-percent mode uses balance instead, and fixed cash does not compound. Neither generic input default is a Monte Carlo sizing recommendation. See `docs/GOTOBI_INSTALL.md` for current input instructions.

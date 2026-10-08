@@ -67,6 +67,7 @@ void TimeToStruct(datetime x,MqlDateTime &m) {
 double MathMax(double a,double b){return std::max(a,b);}
 double MathMin(double a,double b){return std::min(a,b);}
 double MathAbs(double a){return std::abs(a);}
+bool MathIsValidNumber(double a){return std::isfinite(a);}
 double MathFloor(double a){return std::floor(a);}
 double MathCeil(double a){return std::ceil(a);}
 double NormalizeDouble(double a,int n){double x=std::pow(10,n);return std::round(a*x)/x;}
@@ -80,7 +81,7 @@ template<class... T>void Print(const T&...){}
 int PeriodSeconds(int p){return p*60;}
 datetime test_now=0,history_since=0,history_until=0;
 int test_mode=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
-double test_cash=100000,test_free=100000,test_min_lot=.01;
+double test_cash=100000,test_balance=100000,test_free=100000,test_min_lot=.01;
 MqlTick test_tick;
 struct TestPosition {ulong ticket,magic;string symbol;datetime time;double stop,lots;double target=0;};
 std::vector<TestPosition> test_positions;int selected=-1;
@@ -95,7 +96,7 @@ bool test_session_closed=false,test_order_rejected=false;
 bool SymbolInfoSessionTrade(const string&,int,uint i,datetime &from,datetime &to){if(i>0||test_session_closed)return false;from=0;to=86400;return true;}
 datetime TimeCurrent(){return test_now;}
 long long AccountInfoInteger(int){return test_mode;}
-double AccountInfoDouble(int property){return property==ACCOUNT_EQUITY?test_cash:test_free;}
+double AccountInfoDouble(int property){return property==ACCOUNT_BALANCE?test_balance:property==ACCOUNT_EQUITY?test_cash:test_free;}
 bool SymbolInfoTick(const string&,MqlTick &t){t=test_tick;return true;}
 double SymbolInfoDouble(const string&,int property) {
    if(property==SYMBOL_VOLUME_MIN)return test_min_lot;

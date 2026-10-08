@@ -26,9 +26,9 @@ jobs:
           g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
           /tmp/report-folders
       - name: Package Gotobi source and preset
-        run: python3 tools/package_gotobi.py --output dist/E2-Gotobi-v1.14-source.zip
+        run: python3 tools/package_gotobi.py --output dist/E2-Gotobi-v1.15-source.zip
       - name: Publish source release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create E2-Gotobi-v1.14 dist/E2-Gotobi-v1.14-source.zip --target "$GITHUB_SHA" --title "E2 Gotobi v1.14 — fourth EA" --notes-file docs/RELEASE_E2_GOTOBI.md --latest
+          gh release create E2-Gotobi-v1.15 dist/E2-Gotobi-v1.15-source.zip --target "$GITHUB_SHA" --title "E2 Gotobi v1.15 — fourth EA" --notes-file docs/RELEASE_E2_GOTOBI.md --latest

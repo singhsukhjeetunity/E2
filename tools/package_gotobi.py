@@ -15,7 +15,7 @@ assert len([p for p in files if p.suffix == '.mq5']) == 1
 with ZipFile(output, 'w', ZIP_DEFLATED) as archive:
     for file in files:
         archive.write(file, 'MQL5/Experts/E2/EURJPYGotobi/' + file.relative_to(strategy).as_posix())
-    archive.write(root / 'presets/EURJPYGotobi_50p_023pct.set', 'MQL5/Presets/E2/EURJPYGotobi_50p_023pct.set')
+    archive.write(root / 'presets/EURJPYGotobi_50p_configurable.set', 'MQL5/Presets/E2/EURJPYGotobi_50p_configurable.set')
     archive.write(root / 'docs/GOTOBI_INSTALL.md', 'INSTALL.md')
     archive.write(strategy / 'robustness/MONTE_CARLO_50.md', 'SIZING.md')
 with ZipFile(output) as archive:

@@ -146,8 +146,9 @@ bool RCExportSettings() {
    FileWrite(h,"strategy",RC_NAME);FileWrite(h,"symbol",_Symbol);FileWrite(h,"run_id",rc_run);
    FileWrite(h,"version",RC_REPORT_VERSION);
    FileWrite(h,"InpMagic",InpMagic);
-   FileWrite(h,"InpRiskPercent",InpRiskPercent);
-   FileWrite(h,"InpCashRisk",InpCashRisk);
+   FileWrite(h,"InpRiskMode",(int)InpRiskMode);
+   FileWrite(h,"InpFixedCashRisk",InpFixedCashRisk);
+   FileWrite(h,"InpBalanceRiskPercent",InpBalanceRiskPercent);
    FileWrite(h,"InpMaxSpreadPoints",InpMaxSpreadPoints);
    FileWrite(h,"InpOneEntryPerDay",InpOneEntryPerDay);
    FileWrite(h,"InpBrokerClockVerified",InpBrokerClockVerified);
