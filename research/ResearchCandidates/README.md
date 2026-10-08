@@ -8,7 +8,6 @@ Copy this entire directory to `MQL5/Experts/E2/ResearchCandidates/`. Compile eac
 
 | EA | Intended market | Default magic | Reference session | Signal data |
 |---|---|---:|---|---|
-| `US_Index_Daily_IBS.mq5` | US500 / SPY | 420602 | 09:30–16:00 New York | Completed regular-session daily bars |
 | `EURJPY_Gotobi.mq5` | EURJPY | 420603 | Entry 15:55 UTC, exit following 00:55 UTC | Japanese date and execution ticks |
 | `SP500_Failed_Breakout.mq5` | US500 / ES | 420604 | 09:30–16:00 New York | Previous reference session and completed M15 bars |
 | `DAX_Gap_Reversal.mq5` | DE40 / DAX | 420605 | 08:00–22:00 Berlin | Previous reference session and completed M30 bars |
@@ -62,7 +61,9 @@ Published: fade the prior two sessions' highest high / lowest low; filter using 
 
 **Our explicit hypothesis:** fade an inside-to-outside bid crossing of those levels when daily ER(10) ≤ 0.35 and absolute 5-session close momentum ≤ 1.5 daily ATR. Momentum is scaled by the simple mean of 14 daily true ranges. Stop is 3 daily ATR; exit at reference-session end; optional fixed-R target defaults off. All filter settings are inputs. No entry is chased if the EA starts outside the prior range. These defaults are invented research choices, not Giovanni's recovered parameters.
 
-### 2. US-index daily IBS
+### 2. US-index daily IBS — eliminated; EA removed
+
+**Eliminated and removed on user instruction after its weak observed baseline. The unresolved prolonged data/export gap is documented in `results/IBS_baseline_2023_2025.md`. Historical description follows for provenance.**
 
 Source: [Quantified Strategies, February 2026 public rules](https://www.linkedin.com/pulse/5-mean-reversion-algorithmic-trading-strategies-beginners-q3ibf), strategy 1.
 

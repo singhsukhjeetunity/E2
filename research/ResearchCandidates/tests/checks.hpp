@@ -147,36 +147,7 @@ int main() {
    for(int i=0;i<rc_count;i++)rc_days[i]={test_now-(rc_count-i)*86400,100,102,98,100,1320};
    rc_ready=true;rc_cache_key=RCDayKey(test_now)*2;
    test_tick={100,100.02};rc_last_bid=100;
-#if RC_DEFAULT_MAGIC == 420601
-   rc_last_bid=101.99;test_tick={102.01,102.03};OnTick();
-   assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_SELL);
-   // Recover and close at reference-session end after a simulated restart.
-   test_now=RCDay(test_now)+1320*60;rc_last_close_attempt=0;RCManage(test_now);
-   assert(test_positions.empty());
-#elif RC_DEFAULT_MAGIC == 420602
-   // A completed-session entry at the first post-close tick, and recovered strength exit.
-   InpSessionCloseMinute=720;test_now=RCDate(2025,10,8,12);
-   rc_cache_key=RCDayKey(test_now)*2+1;rc_last_minute=0;
-   rc_days.back()={RCDay(test_now),100,100,94,95,720};
-   // Closed quote ticks do not consume the completed-close signal.
-   test_session_closed=true;OnTick();assert(test_positions.empty());assert(rc_processed_close==0);
-   test_now+=3600;test_session_closed=false;rc_last_minute=test_now;
-   // Broker rejection keeps it retryable, with a 60-second throttle.
-   test_order_rejected=true;OnTick();assert(test_positions.empty());assert(rc_processed_close==0);
-   test_order_rejected=false;test_now+=60;rc_last_minute=test_now;
-   OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
-   test_now+=86400+300;rc_last_minute=0;rc_cache_key=RCDayKey(test_now)*2+1;
-   rc_days.push_back({RCDay(test_now),100,104,99,103,720});rc_count++;
-   OnTick();assert(test_positions.empty()); // Exit works outside entry grace.
-   // Same signal cannot re-enter after restart/early exit, even with daily limit off.
-   rc_processed_close=0;rc_last_entry_attempt=0;InpOneEntryPerDay=false;
-   test_positions.clear();test_now=RCDate(2025,10,8,13,2);rc_last_minute=test_now;
-   rc_days.pop_back();rc_count--;rc_days.back().close=95;
-   OnTick();assert(test_positions.empty()); // Entry-deal history is durable.
-   test_deals.clear();test_now=RCDate(2025,10,8,15,1);rc_last_minute=test_now;
-   OnTick();assert(test_positions.empty()); // Expired signals are never chased.
-
-#elif RC_DEFAULT_MAGIC == 420603
+#if RC_DEFAULT_MAGIC == 420603
    test_now=RCDate(2025,7,3,15,55);_Point=.001;_Digits=3;test_tick={160,160.01};
    OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
    test_now=RCDate(2025,7,4,0,55);rc_last_close_attempt=0;OnTick();

@@ -1,6 +1,6 @@
 # US500 Daily IBS: first baseline review
 
-Reviewed 2026-10-08. User assessment: does not look strong enough. Status: weak observed baseline / data-quality failure; no promotion, no parameter optimisation. The user has not yet explicitly requested remote removal.
+Reviewed 2026-10-08. User assessment: does not look strong enough. Status: weak observed baseline / data-quality failure; no promotion, no parameter optimisation. The user subsequently explicitly requested remote removal; the EA entry file was removed.
 
 Sources: uploaded US500_Test_5053221205_1672531200_106_0 Settings.csv, Trades_T.csv and Equity_E.csv. Files are unchanged. Analysis was read-only with pandas; no native MT5 rerun was performed here.
 
@@ -33,3 +33,7 @@ The equity export jumps from 2025-07-16 07:44:30 UTC to 2025-09-09 11:39:00 UTC 
 Another trade runs from 2024-04-15 22:00 UTC to 2024-04-21 22:00 UTC (144 hours). Its 5-day deadline falls on Saturday and the Sunday reopening can account for delayed execution; do not classify this alone as a logic defect.
 
 The prolonged gap makes the 2025 and total results unsuitable as a clean robustness/OOS conclusion. Do not present simply subtracting the gap trade as a repaired result; missing-period signals, exposure and exits require a valid rerun. Current observed returns are too modest to justify promotion or tuning the strategy to rescue the curve. A decision to stop pursuing it can be made as a research-priority decision without claiming the entire published IBS family lacks an edge.
+
+## Final shortlist decision
+
+User chose to stop pursuing this implementation and explicitly requested remote removal. Removed its EA entry file from the research branch, retained this report, and advanced to EURJPY Gotobi. The data/export gap remains unresolved; no revised performance estimate is claimed.
