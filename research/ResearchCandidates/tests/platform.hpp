@@ -137,9 +137,11 @@ double HistoryDealGetDouble(ulong t,int property) {
  return d.fee;
 }
 datetime iTime(const string&,int,int){return test_now-test_now%60;}
+long test_copied_minutes=0;
 int CopyRates(const string&,int frame,datetime from,datetime to,std::vector<MqlRates> &out) {
    out.clear();const auto &source=frame==PERIOD_M1?test_minutes:frame==PERIOD_M15?test_m15:test_m30;
    for(auto r:source)if(r.time>=from&&r.time<=to)out.push_back(r);
+   test_copied_minutes+=(long)out.size();
    return (int)out.size();
 }
 int CopyRates(const string&,int frame,int shift,int count,std::vector<MqlRates> &out) {

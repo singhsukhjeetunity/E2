@@ -16,9 +16,19 @@ int RCLastSunday(const int year,const int month) {
    MqlDateTime t;TimeToStruct(next-86400,t);return t.day-t.day_of_week;
 }
 bool RCDST(const datetime utc,const RCClock mode) {
+   if(mode==RC_FIXED)return false;
    MqlDateTime t;TimeToStruct(utc,t);
-   if(mode==RC_US)return utc>=RCDate(t.year,3,RCSunday(t.year,3,2),7)&&utc<RCDate(t.year,11,RCSunday(t.year,11,1),6);
-   if(mode==RC_EU)return utc>=RCDate(t.year,3,RCLastSunday(t.year,3),1)&&utc<RCDate(t.year,10,RCLastSunday(t.year,10),1);
+   static int cached_year=0;
+   static datetime us_start=0,us_end=0,eu_start=0,eu_end=0;
+   if(cached_year!=t.year) {
+      cached_year=t.year;
+      us_start=RCDate(t.year,3,RCSunday(t.year,3,2),7);
+      us_end=RCDate(t.year,11,RCSunday(t.year,11,1),6);
+      eu_start=RCDate(t.year,3,RCLastSunday(t.year,3),1);
+      eu_end=RCDate(t.year,10,RCLastSunday(t.year,10),1);
+   }
+   if(mode==RC_US)return utc>=us_start&&utc<us_end;
+   if(mode==RC_EU)return utc>=eu_start&&utc<eu_end;
    return false;
 }
 int RCOffset(const datetime utc,const RCClock mode,const int winter_minutes) {

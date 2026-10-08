@@ -1,7 +1,7 @@
 #ifndef RC_EXPORTS_MQH
 #define RC_EXPORTS_MQH
 #ifndef RC_REPORT_VERSION
-#define RC_REPORT_VERSION "1.10"
+#define RC_REPORT_VERSION "1.12"
 #endif
 // History is authoritative: aggregate every fill/partial exit by position ID.
 struct RCReportTrade {
@@ -131,7 +131,8 @@ void RCExportEquity(const bool force=false) {
    ResetLastError();
    FileWrite(rc_equity_file,RCStamp(now),AccountInfoDouble(ACCOUNT_BALANCE),AccountInfoDouble(ACCOUNT_EQUITY),
       AccountInfoDouble(ACCOUNT_MARGIN_FREE),RC_NAME,_Symbol,InpMagic,rc_run);
-   FileFlush(rc_equity_file);
+   // Tester output is buffered; the final flush/close preserves every sampled row.
+   if(force||!MQLInfoInteger(MQL_TESTER))FileFlush(rc_equity_file);
    if(GetLastError()!=0)Print("CSV equity write failed: ",GetLastError());
    rc_equity_last=now;
 }
@@ -200,7 +201,8 @@ bool RCExportInit() {
 void RCExportTick() {
    if(!InpExportCsv||rc_report_base=="")return;
    RCExportEquity();
-   if(rc_export_dirty&&(rc_export_last==0||TimeCurrent()-rc_export_last>=60)) {
+   // Backtests need the final ledger, not a full-history rewrite after each trade.
+   if(!MQLInfoInteger(MQL_TESTER)&&rc_export_dirty&&(rc_export_last==0||TimeCurrent()-rc_export_last>=60)) {
       rc_export_last=TimeCurrent();RCExportTrades();
    }
 }

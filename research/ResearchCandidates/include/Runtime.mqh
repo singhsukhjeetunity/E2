@@ -199,9 +199,23 @@ bool RCRefreshDays(const datetime utc) {
    MqlRates rates[];
    datetime end=iTime(_Symbol,PERIOD_M1,0)-1;
    if(end<=0)return false;
-   int n=CopyRates(_Symbol,PERIOD_M1,RCServer(utc-InpHistoryDays*86400),end,rates);
-   if(n<=0)return false;
-   ArraySetAsSeries(rates,false);ArrayResize(rc_days,0);rc_count=0;
+   datetime cutoff=utc-InpHistoryDays*86400;
+   bool incremental=rc_cache_key!=0&&rc_count>0;
+   datetime begin=RCServer(cutoff);
+   if(incremental) {
+      datetime last_day=RCDay(RCSessionWall(rc_days[rc_count-1].start));
+      begin=RCServer(RCBoundary(last_day+86400,0));
+      begin=(datetime)MathMax((double)begin,(double)RCServer(cutoff));
+   }
+   int n=begin<=end?CopyRates(_Symbol,PERIOD_M1,begin,end,rates):0;
+   if(n<0)return false; // Data not yet available: preserve cached completed bars and retry.
+   if(!incremental&&n==0)return false;
+   ArraySetAsSeries(rates,false);
+   if(!incremental){ArrayResize(rc_days,0);rc_count=0;}
+   else {
+      int drop=0;while(drop<rc_count&&rc_days[drop].start<cutoff)drop++;
+      if(drop>0){for(int i=drop;i<rc_count;i++)rc_days[i-drop]=rc_days[i];rc_count-=drop;ArrayResize(rc_days,rc_count);}
+   }
    RCBar bar={};datetime day=0;
    for(int i=0;i<=n;i++) {
       datetime u=0,w=0,current=0;
@@ -223,6 +237,7 @@ bool RCRefreshDays(const datetime utc) {
       if(day==0){day=current;bar.start=u;bar.open=rates[i].open;bar.high=rates[i].high;bar.low=rates[i].low;}
       bar.high=MathMax(bar.high,rates[i].high);bar.low=MathMin(bar.low,rates[i].low);bar.close=rates[i].close;bar.minutes++;
    }
+   rc_cache_key=key; // Retain partial warm-up/missing-day cache for incremental retry.
    if(rc_count<InpATRPeriod+1)return false;
    // Missing a recent session must not silently turn an older day into yesterday.
    datetime expected=RCDay(wall);

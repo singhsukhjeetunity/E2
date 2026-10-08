@@ -1,5 +1,5 @@
 #property strict
-#property version "1.10"
+#property version "1.12"
 #property description "Research DAX true opening gap fade, previous completed M30 bar confirmation."
 #define RC_NAME "RC DAX gap reversal"
 #define RC_DEFAULT_MAGIC 420605

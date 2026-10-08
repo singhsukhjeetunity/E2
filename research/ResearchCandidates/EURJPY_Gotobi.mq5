@@ -1,5 +1,5 @@
 #property strict
-#property version "1.10"
+#property version "1.12"
 #property description "Gotobi EURJPY: 15:55 UTC before fix, 00:55 UTC fix exit, 60-pip SL and 200-pip safety TP."
 #define RC_NAME "RC EURJPY Gotobi"
 #define RC_DEFAULT_MAGIC 420603

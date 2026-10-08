@@ -1,5 +1,5 @@
 #property strict
-#property version "1.10"
+#property version "1.12"
 #property description "Research reconstruction of prior-session high/low close-and-reclaim reversal, M15."
 #define RC_NAME "RC SP500 failed breakout"
 #define RC_DEFAULT_MAGIC 420604

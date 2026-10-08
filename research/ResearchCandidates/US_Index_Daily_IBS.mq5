@@ -1,10 +1,10 @@
 #property strict
-#property version "1.11"
+#property version "1.12"
 #property description "Public daily IBS/range pullback; next-tick execution and configurable risk overlay."
 #define RC_NAME "RC daily IBS pullback"
 #define RC_DEFAULT_MAGIC 420602
 #define RC_DAILY_IBS
-#define RC_REPORT_VERSION "1.11"
+#define RC_REPORT_VERSION "1.12"
 #define RC_DEFAULT_SPREAD 300
 #define RC_DEFAULT_DST RC_US
 #define RC_DEFAULT_OFFSET -300

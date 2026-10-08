@@ -101,6 +101,43 @@ int main() {
    // Missing latest full session blocks signals instead of using yesterday's older bars.
    test_minutes.erase(std::remove_if(test_minutes.begin(),test_minutes.end(),[&](auto r){return RCDay(r.time)==day;}),test_minutes.end());
    rc_cache_key=0;assert(!RCRefreshDays(test_now));assert(!rc_ready);
+   // Incremental rebuild equals a fresh full-window rebuild across DST and year boundaries.
+   InpBrokerDST=RC_EU;InpBrokerWinterUTCMinutes=120;
+   InpSessionDST=RC_US;InpSessionWinterUTCMinutes=-300;
+   InpSessionOpenMinute=570;InpSessionCloseMinute=960;
+   test_minutes.clear();rc_cache_key=0;rc_ready=false;rc_count=0;rc_days.clear();
+   datetime origin=RCDate(2024,11,1);
+   for(int d=0;d<200;d++) {
+      datetime date=origin+d*86400;if(!RCWeekday(date))continue;
+      // Include a missing holiday session to exercise failure/recovery.
+      if(date==RCDate(2024,12,25))continue;
+      for(int m=570;m<960;m++) {
+         datetime instant=0;assert(RCUtc(date+m*60,RC_US,-300,instant));
+         double value=100+d*.01+(m-570)*.001;
+         test_minutes.push_back({RCServer(instant),value,value+.5,value-.5,value+.1});
+      }
+   }
+   long incremental_rows=0,full_rows=0;
+   for(int d=35;d<190;d++) {
+      datetime date=origin+d*86400;if(!RCWeekday(date))continue;
+      datetime instant=0;assert(RCUtc(date+960*60,RC_US,-300,instant));test_now=RCServer(instant);
+      long before=test_copied_minutes;bool ok=RCRefreshDays(instant);
+      incremental_rows+=test_copied_minutes-before;
+      auto cached=rc_days;int cached_key=rc_cache_key;
+      rc_cache_key=0;before=test_copied_minutes;bool fresh=RCRefreshDays(instant);
+      full_rows+=test_copied_minutes-before;
+      assert(ok==fresh&&cached.size()==rc_days.size());
+      for(size_t i=0;i<cached.size();i++) {
+         assert(cached[i].start==rc_days[i].start&&cached[i].minutes==rc_days[i].minutes);
+         assert(cached[i].open==rc_days[i].open&&cached[i].high==rc_days[i].high&&
+                cached[i].low==rc_days[i].low&&cached[i].close==rc_days[i].close);
+      }
+      rc_days=cached;rc_count=(int)cached.size();rc_cache_key=cached_key;rc_ready=ok;
+   }
+   assert(incremental_rows*20<full_rows);
+   std::cout<<"M1 rows copied: incremental="<<incremental_rows<<" full="<<full_rows<<"\n";
+   InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
+   InpSessionDST=RC_FIXED;InpSessionWinterUTCMinutes=0;
    // Exercise each complete strategy through its actual OnTick entry point.
    test_positions.clear();test_deals.clear();InpATRPeriod=3;InpStopATR=1;
    InpOneEntryPerDay=true;InpFridayFlat=false;InpMaximumHoldingDays=5;
