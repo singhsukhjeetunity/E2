@@ -5,6 +5,7 @@
 | `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
 | `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
 | `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third independent strategy |
+| `strategies/EURJPYGotobi/` | Retained Gotobi candidate, headers, setup guide and baseline; validation pending |
 | `strategies/shared/` | Shared report-folder utilities |
 | `journal/` | Local CSV trading journal |
 | `tools/` | EMA run analysis |
@@ -52,6 +53,7 @@ Gold uses M5. EMA and compression build M30 bars from M1 history and use the sam
 - [Compression breakout settings and testing](docs/COMPRESSION_TESTING.md)
 - [CSV folder layout and migration](docs/CSV_EXPORTS.md)
 - [Trading journal guide](docs/JOURNAL_GUIDE.md)
+- [EURJPY Gotobi setup and validation status](strategies/EURJPYGotobi/README.md)
 
 Launch the journal with `Open-E2-Journal.pyw`. The journal imports CSVs and visualizes performance; it does not place orders. Combine independent tests externally with explicit risk allocations and matching report clocks.
 

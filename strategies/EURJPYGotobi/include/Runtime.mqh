@@ -275,7 +275,7 @@ int OnInit() {
       InpSessionWinterUTCMinutes< -720||InpSessionWinterUTCMinutes>840||!RCValidate())return INIT_PARAMETERS_INCORRECT;
    rc_trade.SetExpertMagicNumber(InpMagic);rc_trade.SetDeviationInPoints(InpDeviationPoints);
    rc_trade.SetAsyncMode(false);rc_trade.SetTypeFillingBySymbol(_Symbol);
-   Print(RC_NAME," RESEARCH ONLY: source gaps and risk overlays documented in ResearchCandidates/README.md");
+   Print(RC_NAME," CANDIDATE: setup and validation status documented in strategies/EURJPYGotobi/README.md");
    if(!RCExportInit())return INIT_FAILED;
    return INIT_SUCCEEDED;
 }

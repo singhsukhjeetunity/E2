@@ -177,7 +177,7 @@ bool RCExportInit() {
    RCExportClose();
    string mode=MQLInfoInteger(MQL_TESTER)?"Test":AccountInfoInteger(ACCOUNT_TRADE_MODE)==ACCOUNT_TRADE_MODE_DEMO?"Demo":"Live";
    string symbol=_Symbol;StringReplace(symbol,"/","_");StringReplace(symbol,"\\","_");StringReplace(symbol,":","_");
-   string folder="E2\\ResearchCandidates\\"+IntegerToString((long)InpMagic)+"\\";
+   string folder="E2\\EURJPYGotobi\\";
    // Monotonic microsecond token plus wall clock and collision check: no repeated-run overwrites.
    string token=IntegerToString((long)TimeLocal())+"_"+IntegerToString((long)GetMicrosecondCount());
    for(int i=0;i<1000;i++) {

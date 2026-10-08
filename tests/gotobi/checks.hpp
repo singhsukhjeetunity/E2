@@ -147,23 +147,10 @@ int main() {
    for(int i=0;i<rc_count;i++)rc_days[i]={test_now-(rc_count-i)*86400,100,102,98,100,1320};
    rc_ready=true;rc_cache_key=RCDayKey(test_now)*2;
    test_tick={100,100.02};rc_last_bid=100;
-#if RC_DEFAULT_MAGIC == 420603
    test_now=RCDate(2025,7,3,15,55);_Point=.001;_Digits=3;test_tick={160,160.01};
    OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
    test_now=RCDate(2025,7,4,0,55);rc_last_close_attempt=0;OnTick();
    assert(test_positions.empty());
-#elif RC_DEFAULT_MAGIC == 420604
-   test_m15.clear();rc_last_minute=0;
-   for(int i=0;i<5;i++)test_m15.push_back({test_now-(5-i)*900,100,102,96,100});
-   test_m15[3].close=97;test_m15[4].close=99;
-   OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_BUY);
-   RCCloseOwn();OnTick();assert(test_positions.empty()); // Same bar cannot re-enter.
-#elif RC_DEFAULT_MAGIC == 420605
-   InpSessionOpenMinute=600;InpEntryWindowMinutes=180;
-   rc_session_open=103;rc_open_day=RCDay(test_now);test_m30.clear();
-   for(int i=0;i<5;i++)test_m30.push_back({test_now-(5-i)*1800,100,104,99,101});
-   rc_last_bid=99.01;test_tick={98.99,99.01};
-   OnTick();assert(test_positions.size()==1&&test_deals.back().type==DEAL_TYPE_SELL);
-#endif
+
    std::cout<<RC_NAME<<": checks OK\n";
 }

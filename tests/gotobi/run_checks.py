@@ -4,7 +4,8 @@ import re
 import subprocess
 import tempfile
 
-root = Path(__file__).resolve().parents[1]
+test_root = Path(__file__).resolve().parent
+root = test_root.parents[1] / "strategies" / "EURJPYGotobi"
 
 def portable(text):
     text = re.sub(r'^#property.*\n', '', text, flags=re.M)
@@ -22,9 +23,9 @@ with tempfile.TemporaryDirectory() as directory:
         (tmp / 'include' / file.name).write_text(portable(file.read_text()))
     for entry in sorted(root.glob('*.mq5')):
         target = tmp / (entry.stem + '.cpp')
-        target.write_text('#include "' + str(root / 'tests/platform.hpp') + '"\n' +
+        target.write_text('#include "' + str(test_root / 'platform.hpp') + '"\n' +
                           portable(entry.read_text()) + '\n#include "' +
-                          str(root / 'tests/checks.hpp') + '"\n')
+                          str(test_root / 'checks.hpp') + '"\n')
         binary = tmp / entry.stem
         # MQL event hooks may legitimately leave one parameter unused.
         subprocess.run(['g++', '-std=c++17', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter',
