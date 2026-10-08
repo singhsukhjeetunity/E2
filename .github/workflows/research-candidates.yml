@@ -1,0 +1,15 @@
+name: Research candidate checks
+on:
+  push:
+    paths: ['research/ResearchCandidates/**', '.github/workflows/research-candidates.yml']
+  pull_request:
+    paths: ['research/ResearchCandidates/**', '.github/workflows/research-candidates.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  portable-candidates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 research/ResearchCandidates/tests/run_checks.py

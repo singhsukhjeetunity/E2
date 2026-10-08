@@ -1,0 +1,88 @@
+# Five independent E2 research EAs
+
+These are **research implementations, not validated system 4 or replicas of the reported backtests**. The original E2 files, allocation, journal and deployment are untouched. Nothing in this directory auto-attaches an EA or changes the live portfolio.
+
+## Install
+
+Copy this entire directory to `MQL5/Experts/E2/ResearchCandidates/`. Compile each `.mq5` in MetaEditor, retaining the `include` directory. These EAs require only the MT5 standard `Trade/Trade.mqh` library and their new local headers. Attach to the intended symbol; execution uses that chart's symbol and explicit strategy timeframes regardless of chart timeframe. Use distinct magic numbers for every simultaneous instance. **Do not attach two instances of the same EA/magic to the same symbol.**
+
+| EA | Intended market | Default magic | Reference session | Signal data |
+|---|---|---:|---|---|
+| `EuroFX_Extreme_Reversal.mq5` | EURUSD / Euro FX | 420601 | 00:00–22:00 UTC | Two completed reference sessions and tick crossing |
+| `US_Index_Daily_IBS.mq5` | US500 / SPY | 420602 | 09:30–16:00 New York | Completed regular-session daily bars |
+| `EURJPY_Gotobi.mq5` | EURJPY | 420603 | Entry 15:55 UTC, exit following 00:55 UTC | Japanese date and execution ticks |
+| `SP500_Failed_Breakout.mq5` | US500 / ES | 420604 | 09:30–16:00 New York | Previous reference session and completed M15 bars |
+| `DAX_Gap_Reversal.mq5` | DE40 / DAX | 420605 | 08:00–22:00 Berlin | Previous reference session and completed M30 bars |
+
+Broker/futures/ETF/CFD prices, spreads and session definitions differ. A published futures or SPY return is **not** a backtest of these EAs on a CFD feed.
+
+## Clock and data setup
+
+Set `InpBrokerWinterUTCMinutes` and `InpBrokerDST` to the **historical feed's** verified clock; then set `InpBrokerClockVerified=true`. Defaults of UTC+2 with European DST are placeholders, not a detected broker profile. Fixed UTC, modern European DST and modern US DST profiles are supported. These DST rules are intended for post-2007 data. Ambiguous or nonexistent broker timestamps are rejected. The EA never infers tester time from `TimeGMT()`.
+
+Reference-session clocks are separate: New York defaults to UTC−5 with US DST, Berlin to UTC+1 with European DST. Daily sessions are reconstructed from closed M1 bars, not broker D1 candles. Sessions must open and close within one reference calendar day; overnight sessions are not supported. Standard M15/M30 bars are used for intraday confirmation, so changing reference boundaries to a nonmatching bar boundary needs additional testing.
+
+Download enough M1 history for `InpHistoryDays` (default 90), including both warm-up and test dates; MT5's history limit must accommodate it. A daily bar requires at least 80% of expected minute coverage and its first minute within five minutes of the planned open. Missing latest sessions block entry rather than using an older day as yesterday. Sparse-tick instruments may require an explicitly reviewed coverage setting.
+
+Fill `InpClosedDates` with reference-session holiday dates as `YYYYMMDD|YYYYMMDD`. Fill `InpEarlyCloseDates` similarly, with `InpEarlyCloseMinute=780` for 13:00 New York, for example. **There is no embedded exchange holiday calendar.** Unlisted holidays/half-days can block subsequent signals because history looks incomplete. Gotobi additionally accepts `InpExcludedJapaneseDates`; Japanese bank holidays are excluded manually, not shifted automatically.
+
+## Source rules versus implementation choices
+
+### 1. EuroFX extreme reversal
+
+Source: [Unger Academy, June 2026 winning strategy](https://ungeracademy.com/blog/trading-strategies-strategy-of-the-month-june-2026).
+
+Published: fade the prior two sessions' highest high / lowest low; filter using daily Momentum and Efficiency Ratio. The source does not disclose filter direction, lookbacks, thresholds, complete exits or sessions in the public article.
+
+**Our explicit hypothesis:** fade an inside-to-outside bid crossing of those levels when daily ER(10) ≤ 0.35 and absolute 5-session close momentum ≤ 1.5 daily ATR. Momentum is scaled by the simple mean of 14 daily true ranges. Stop is 3 daily ATR; exit at reference-session end; optional fixed-R target defaults off. All filter settings are inputs. No entry is chased if the EA starts outside the prior range. These defaults are invented research choices, not Giovanni's recovered parameters.
+
+### 2. US-index daily IBS
+
+Source: [Quantified Strategies, February 2026 public rules](https://www.linkedin.com/pulse/5-mean-reversion-algorithmic-trading-strategies-beginners-q3ibf), strategy 1.
+
+Published: buy if close < 10-session highest high − 25-session mean high–low range and IBS < 0.30. IBS = (close−low)/(high−low). Sell when close exceeds the previous session's high. The current completed session is included in the high/range windows. Zero-range bars have IBS 0.5.
+
+**Execution difference:** this EA observes the complete closing M1 bar and trades on the next available tick within 60 seconds after session end. It cannot know the final close and execute at that same close. If the instrument is closed then, the entry is skipped; it is never silently deferred to next morning. Delayed strength exits are recovered from completed sessions after the position's opening time. A 3 daily ATR stop, five-calendar-day holding cap and Friday flattening are added risk overlays; none should inherit the published return statistics.
+
+### 3. EURJPY Gotobi
+
+Source: [YuRa EURJPY transmission test](https://yuratrading.com/results/gotobi-eurjpy).
+
+Published timing used here: enter 15:55 UTC on the day before the fix, exit 00:55 UTC (09:55 Japan) on dates 5/10/15/20/25/30. Weekend payment dates roll to the preceding Friday. Default hard stop 60 pips, safety target 200 pips, maximum spread 3 pips. No rollover to a nonexistent 30th day. No martingale or averaging.
+
+Entry must occur within the configured 60-second grace window. An unavailable Sunday entry before a Monday fix is skipped, rather than replaced with a different time. Holidays are manual exclusions. Use `InpPipSize` if the symbol's pip convention differs from the default 10 points for three/five digits. `InpStopATR` and `InpTargetR` are unused for this EA: stop/target come from the specific pip inputs. Ownership, margin and the common spread cap still apply. Paper/session-clock evidence does not imply the author's backtest or this implementation is independently audited live performance.
+
+### 4. S&P 500 failed breakout
+
+Source: [Unger Academy, intraday reversal system](https://ungeracademy.com/blog/s-and-p-500-strategies-intraday-reversal-multiday-pattern-with-performance).
+
+Published: M15 close below yesterday's low followed by a close back above it for a long; reversal logic, session-end flattening, and an alternative limit-order engine selected in different phases.
+
+**Our implementation:** only the consecutive close/reclaim engine, symmetrically applied to yesterday's high for shorts. Both bars must be completed and from the current reference session; the second bar must be immediately adjacent. Default stop 3 ATR of completed M15 bars; optional fixed-R target off. The undisclosed selector/limit-order engine is not implemented, so the published equity curve is not attributable to this EA.
+
+### 5. DAX true-gap reversal
+
+Source: [Unger Academy, DAX opening-gap system](https://ungeracademy.com/blog/high-volatility-on-the-dax-real-performance-of-2-strategies-gap-trend-following).
+
+Published: opening above the previous session high sets a short bias, confirmed by breaking the previous M30 bar's low. Opening below the previous session low sets a long bias, confirmed by breaking the previous M30 bar's high. Reconstruct the old 08:00–22:00 Berlin reference session even when the feed trades longer hours.
+
+**Our implementation choices:** allow confirmed entries during the first 180 session minutes, starting only after the first M30 bar closes; stop 3 completed-M30 ATR, optional fixed-R target off, and session-end exit. Entry requires a tick crossing, not a late catch-up entry beyond the level. These window/exit/risk rules were not disclosed by the source.
+
+## Risk and ownership
+
+- Default trade risk is 0.25% of current equity. Positive `InpCashRisk` overrides percent in account currency. Configure each EA independently; there is **no shared E2 portfolio risk cap**. Spread limits are broker points: default 30 for FX and 300 for indices. Review them against the actual symbol's point size and typical spread; these are not calibrated cost assumptions.
+- Every market order includes an SL in the original request. Stops/targets align to tick size. Orders below broker minimum volume are skipped; sizing never rounds up to force a minimum lot. Risk uses `OrderCalcProfit`; commission, slippage and gaps can make realized loss exceed the budget.
+- Default one entry per reference date uses broker deal history, surviving restart. Unique signal/fix history checks also operate when that toggle is off. One owned open position per EA/symbol; no pending orders, grids or averaging. Simultaneous duplicate instances are unsupported.
+- Hedging accounts use ticket-based exits and matching magic/symbol ownership. On netting accounts entry is blocked whenever any position already exists on the symbol. Separate strategies on the same symbol should use hedging accounts; ownership cannot prevent a later external netting order from merging positions.
+- Missing SL and overdue positions trigger close attempts on subsequent ticks. Default Friday flattening is 20:00 UTC and maximum holding is five calendar days. Change these to match broker hours. **No ticks / a closed market / a disconnected terminal means the EA cannot guarantee a timed exit.** Intraday session deadlines and Gotobi fix exits are reconstructed from the broker position timestamp after restart.
+- Defaults are testing starting points, not selected allocations. Added stops, targets, time exits or Friday filters change the sourced strategy. Do not add any candidate to the active portfolio until its own cost-aware MT5/OOS and combined portfolio tests pass.
+
+## Verification
+
+```sh
+python research/ResearchCandidates/tests/run_checks.py
+```
+
+The portable harness compiles each complete EA through a deterministic C++ API shim, preserving production signal, clock and runtime code with syntax-only array/input adaptations. It tests DST boundaries, ambiguous clocks, Gotobi weekend dates, signal rules, min-lot risk rejection, spread gating, netting conflicts, owned exits, restart/deal-history limits and closed-session data loading. It **does not compile MQL5 or simulate real broker fills**.
+
+MetaEditor/MT5 are not available in the development environment: native `.ex5` compilation, real-tick backtests, commission/swap validation, simultaneous-instance behavior and out-of-sample performance remain to be verified in MT5. Use “Every tick based on real ticks”, verified broker clocks and matching costs. No profit estimates or portfolio allocations have been generated for this implementation.
