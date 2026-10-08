@@ -474,7 +474,7 @@ void Enter(const int s,const datetime now) {
    g_slots[s].seen_signal=when;
    if(!Enabled(s)||!g_slots[s].signal||g_failed||g_storage_paused||g_export_paused)return;
    if(now<when||now-when>InpMaxEntryDelaySeconds){Audit(s,now,"SKIP","late signal");return;}
-   int close=NPCloseMinute(now);if(close<0){Fail("Calendar covers 2022-2026 only");return;}
+   int close=NPCloseMinute(now);
    MqlDateTime nt;TimeToStruct(NPNy(now),nt);int minute=nt.hour*60+nt.min;
    if(close==0||minute<600||minute>=close-30)return;
    if(g_session_day!=NPDay(NPNy(now)) || g_session_count<0.95*(minute-570)) {
@@ -606,8 +606,6 @@ int OnInit() {
       InpEMAMagic==0||InpATRLength>1000||InpEMASlow>1000)return INIT_PARAMETERS_INCORRECT;
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
    datetime now;if(!Utc(TimeCurrent(),now))return INIT_FAILED;
-   MqlDateTime initial;TimeToStruct(now,initial);
-   if(initial.year<2022||initial.year>2026){Print("[NP] Calendar supports 2022-2026.");return INIT_PARAMETERS_INCORRECT;}
    for(int s=0;s<1;s++){
       ZeroMemory(g_slots[s]);NPReset(g_slots[s].indicators);g_slots[s].active=-1;
       g_cash[s]=0;g_r[s]=0;

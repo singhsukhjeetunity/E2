@@ -15,13 +15,16 @@ int NPLastSunday(const int y,const int m) {
 }
 bool NPUSDst(const datetime utc) {
    MqlDateTime t;TimeToStruct(utc,t);
-   return utc>=NPDate(t.year,3,NPSunday(t.year,3,2),7) &&
-          utc<NPDate(t.year,11,NPSunday(t.year,11,1),6);
+   if(t.year>=2007)return utc>=NPDate(t.year,3,NPSunday(t.year,3,2),7)&&utc<NPDate(t.year,11,NPSunday(t.year,11,1),6);
+   datetime start=NPDate(t.year,4,t.year>=1987?NPSunday(t.year,4,1):NPLastSunday(t.year,4),7);
+   if(t.year==1974)start=NPDate(1974,1,6,7);
+   if(t.year==1975)start=NPDate(1975,2,23,7);
+   return utc>=start&&utc<NPDate(t.year,10,NPLastSunday(t.year,10),6);
 }
 bool NPEUDst(const datetime utc) {
    MqlDateTime t;TimeToStruct(utc,t);
    return utc>=NPDate(t.year,3,NPLastSunday(t.year,3),1) &&
-          utc<NPDate(t.year,10,NPLastSunday(t.year,10),1);
+          utc<NPDate(t.year,t.year>=1996?10:9,NPLastSunday(t.year,t.year>=1996?10:9),1);
 }
 int NPBrokerOffset(const datetime utc,const NPClockMode mode,const int winter) {
    return winter+((mode==NP_US_SEASONAL&&NPUSDst(utc))||
@@ -51,19 +54,58 @@ datetime NPNyToUtc(const datetime wall) {
 bool NPContains(const string dates,const int day) {
    return StringFind(dates,"|"+IntegerToString(day)+"|")>=0;
 }
-int NPCloseMinute(const datetime utc) {
+int NPNthWeekday(const int y,const int m,const int weekday,const int nth) {
+   MqlDateTime t;TimeToStruct(NPDate(y,m,1),t);
+   return 1+(weekday-t.day_of_week+7)%7+(nth-1)*7;
+}
+datetime NPObserved(const int y,const int m,const int d,const bool saturday_friday=true) {
+   datetime date=NPDate(y,m,d);MqlDateTime t;TimeToStruct(date,t);
+   if(t.day_of_week==0)return date+86400;
+   if(t.day_of_week==6&&saturday_friday)return date-86400;
+   return date;
+}
+datetime NPEaster(const int y) {
+   // Gregorian computus; Good Friday is two days earlier.
+   int a=y%19,b=y/100,c=y%100,d=b/4,e=b%4,f=(b+8)/25,g=(b-f+1)/3;
+   int h=(19*a+b-d-g+15)%30,i=c/4,k=c%4,l=(32+2*e+2*i-h-k)%7;
+   int n=(a+11*h+22*l)/451,v=h+l-7*n+114;
+   return NPDate(y,v/31,v%31+1);
+}
+datetime NPLastMonday(const int y,const int m) {
+   datetime next=m==12?NPDate(y+1,1,1):NPDate(y,m+1,1);
+   MqlDateTime t;TimeToStruct(next-86400,t);
+   return next-86400-(datetime)((t.day_of_week+6)%7)*86400;
+}
+int NPCalendarCloseMinute(const datetime utc) {
    MqlDateTime t;TimeToStruct(NPNy(utc),t);
-   if(t.year<2022||t.year>2026)return -1; // Published calendar coverage; no future years guessed.
    if(t.day_of_week==0||t.day_of_week==6)return 0;
-   string closed="|20220117|20220221|20220415|20220530|20220620|20220704|20220905|20221124|20221226|"
-      "20230102|20230116|20230220|20230407|20230529|20230619|20230704|20230904|20231123|20231225|"
-      "20240101|20240115|20240219|20240329|20240527|20240619|20240704|20240902|20241128|20241225|"
-      "20250101|20250109|20250120|20250217|20250418|20250526|20250619|20250704|20250901|20251127|20251225|"
-      "20260101|20260119|20260216|20260403|20260525|20260619|20260703|20260907|20261126|20261225|";
-   int day=t.year*10000+t.mon*100+t.day;
-   if(NPContains(closed,day))return 0;
-   string half="|20221125|20230703|20231124|20240703|20241129|20241224|20250703|20251128|20251224|20261127|20261224|";
-   return NPContains(half,day)?780:960;
+   int y=t.year;datetime date=NPDate(y,t.mon,t.day);
+   int thanksgiving=NPNthWeekday(y,11,4,4);
+   if(date==NPObserved(y,1,1,false)||date==NPEaster(y)-2*86400||
+      date==NPObserved(y,7,4)||date==NPObserved(y,12,25)||
+      (y>=1998&&date==NPDate(y,1,NPNthWeekday(y,1,1,3)))||
+      date==(y>=1971?NPDate(y,2,NPNthWeekday(y,2,1,3)):NPObserved(y,2,22))||
+      date==(y>=1971?NPLastMonday(y,5):NPObserved(y,5,30))||
+      (y>=2022&&date==NPObserved(y,6,19))||
+      date==NPDate(y,9,NPNthWeekday(y,9,1,1))||date==NPDate(y,11,thanksgiving))return 0;
+   // Confirmed exceptional full closures in the MT5-era calendar.
+   int day=NPDay(date);
+   if(NPContains("|19721228|19730125|19770714|19850927|19940427|20010911|20010912|20010913|20010914|20040611|20070102|20121029|20121030|20181205|20250109|",day))return 0;
+   if(y<=1980&&y%4==0&&date==NPDate(y,11,NPNthWeekday(y,11,1,1)+1))return 0;
+   if(y>=1993&&t.mon==11&&t.day==thanksgiving+1)return 780;
+   if(y==1992&&t.mon==11&&t.day==thanksgiving+1)return 840;
+   if(y>=1995&&t.mon==7&&t.day==3&&
+      (t.day_of_week==1||t.day_of_week==2||t.day_of_week==4||(y>=2013&&t.day_of_week==3)))return 780;
+   if(y>=1996&&y<=2012&&t.mon==7&&t.day==5&&t.day_of_week==5)return 780;
+   if(y>=1996&&t.mon==12&&t.day==24)return 780;
+   if(NPContains("|19741224|19751224|19901224|19911224|19921224|19780206|",day))return 840;
+   return y<1974?930:960;
+}
+int NPCloseMinute(const datetime utc) {
+   static int cached_day=-1,cached_close=0;
+   int day=NPDay(NPNy(utc));
+   if(day!=cached_day){cached_day=day;cached_close=NPCalendarCloseMinute(utc);}
+   return cached_close;
 }
 datetime NPDeadline(const datetime utc) {
    datetime wall=NPNy(utc);MqlDateTime t;TimeToStruct(wall,t);
