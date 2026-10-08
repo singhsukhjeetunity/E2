@@ -28,7 +28,7 @@ Net trade P&L reconciles to final-minus-initial balance within floating-point to
 
 ## Data-quality problem
 
-The equity export jumps from 2025-07-16 07:44:30 UTC to 2025-09-09 11:39:00 UTC (1323.91 hours). Trade 142 opened 2025-07-15 22:00 UTC and closed 2025-09-09 11:39 UTC after 1333.65 hours, approximately 55.6 days, despite the 5-calendar-day holding cap. It contributes +1.82771731R (approximately +1.83R). This is consistent with a lack of processed ticks/export interruption; the CSV alone cannot establish the root cause. Runtime timed exits require ticks. Obtain the tester HTML report and Journal around the gap before attributing it to a specific data problem or EA defect.
+The equity export jumps from 2025-07-16 07:44:30 UTC to 2025-09-09 11:39:00 UTC (1323.91 hours). Trade 142 opened 2025-07-15 22:00 UTC and closed 2025-09-09 11:39 UTC after 1333.65 hours, approximately 55.6 days, despite the 5-calendar-day holding cap. It contributes +1.82771706R (approximately +1.83R). This is consistent with a lack of processed ticks/export interruption; the CSV alone cannot establish the root cause. Runtime timed exits require ticks. Obtain the tester HTML report and Journal around the gap before attributing it to a specific data problem or EA defect.
 
 Another trade runs from 2024-04-15 22:00 UTC to 2024-04-21 22:00 UTC (144 hours). Its 5-day deadline falls on Saturday and the Sunday reopening can account for delayed execution; do not classify this alone as a logic defect.
 
