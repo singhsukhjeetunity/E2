@@ -6,7 +6,7 @@ User instruction, 2026-10-08: assess the five research candidates sequentially, 
 
 1. EuroFX Extreme Reversal (EURUSD) — ELIMINATED; EA removed on user instruction
 2. US Index Daily IBS — ELIMINATED; EA removed on user instruction
-3. EURJPY Gotobi
+3. EURJPY Gotobi — RETAINED for later optimisation; not yet promoted
 4. S&P 500 Failed Breakout
 5. DAX Gap Reversal
 
@@ -27,4 +27,6 @@ EuroFX Extreme Reversal: eliminated on user instruction after its 2023–2025 ba
 
 US Index Daily IBS: eliminated on user instruction after weak observed 2023–2025 results (+3.40R, PF 1.24, sampled equity DD 4.71%) and a prolonged data/export gap. EA removed from the remote research branch; result record retained. No further tuning. The gap remains unresolved, so this is a shortlist decision, not a clean verdict on the whole IBS strategy family.
 
-EURJPY Gotobi: next candidate, awaiting unchanged-baseline MT5 test on the same 2023–2025 segment. Verify data continuity, trading costs and feed clock before judging performance.
+EURJPY Gotobi: user retained it after reviewing run 1451606400_140_0 (2016–2025), with 709 finalized trades, +49.82R, PF 1.40 and 57.8% winners. Sampled equity drawdown 5.63% at cash risk 1000 on starting balance 100000. Trade P&L reconciles to balance; zero commission and empty Japanese holiday exclusions remain to validate. Keep it in research and defer all optimisation until the remaining two candidates have been screened. No promotion or live deployment yet.
+
+Next: S&P 500 Failed Breakout, then DAX Gap Reversal, unchanged baselines. Check US500 data continuity first: the prior IBS run had a July–September 2025 export/data gap.
