@@ -31,16 +31,17 @@ bool RCDST(const datetime utc,const RCClock mode) {
    if(mode==RC_EU)return utc>=eu_start&&utc<eu_end;
    return false;
 }
-int RCOffset(const datetime utc,const RCClock mode,const int winter_minutes) {
-   return winter_minutes*60+(RCDST(utc,mode)?3600:0);
+int RCOffset(const datetime utc,const RCClock mode,const int winter_minutes,const int summer_minutes=2147483647) {
+   if(mode==RC_FIXED)return winter_minutes*60;
+   return RCDST(utc,mode)?(summer_minutes==2147483647?winter_minutes+60:summer_minutes)*60:winter_minutes*60;
 }
-datetime RCWall(const datetime utc,const RCClock mode,const int winter_minutes) {
-   return utc+RCOffset(utc,mode,winter_minutes);
+datetime RCWall(const datetime utc,const RCClock mode,const int winter_minutes,const int summer_minutes=2147483647) {
+   return utc+RCOffset(utc,mode,winter_minutes,summer_minutes);
 }
-bool RCUtc(const datetime wall,const RCClock mode,const int winter_minutes,datetime &utc) {
+bool RCUtc(const datetime wall,const RCClock mode,const int winter_minutes,datetime &utc,const int summer_minutes=2147483647) {
    datetime a=wall-winter_minutes*60;
    if(mode==RC_FIXED){utc=a;return true;}
-   datetime b=a-3600;
+   datetime b=wall-(summer_minutes==2147483647?winter_minutes+60:summer_minutes)*60;
    bool va=!RCDST(a,mode),vb=RCDST(b,mode);
    if(va==vb)return false; // Fail closed in nonexistent or repeated wall-clock hour.
    utc=va?a:b;return true;
