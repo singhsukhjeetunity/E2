@@ -17,7 +17,7 @@ class DashboardMigration(unittest.TestCase):
         self.assertIn("input int InpBrokerUTCOffsetHours=0;",g)
         got=read("strategies/EURJPYGotobi/include/Runtime.mqh")
         self.assertIn("input int InpBrokerWinterUTCOffsetHours=2;",got)
-        self.assertIn("#define InpBrokerWinterUTCMinutes (InpBrokerWinterUTCOffsetHours*60)",got)
+        self.assertIn("InpBrokerWinterUTCMinutes=InpBrokerWinterUTCOffsetHours*60;",got)
         self.assertIn("InpBrokerWinterUTCOffsetHours=2",read("presets/EURJPYGotobi_50p_configurable.set"))
     def test_existing_strategy_baselines_unchanged(self):
         gold=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
