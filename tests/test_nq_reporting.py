@@ -18,7 +18,16 @@ class NQReportingTests(unittest.TestCase):
         self.assertIn("req.type=side", entry)
         self.assertNotIn("ORDER_TYPE_SELL", entry)
         self.assertNotIn("tick.bid<g_rangeLow", entry)
-        self.assertIn("NQ_ORB_LONG_FILTERS_V3", REPORT)
+        self.assertIn("NQ_ORB_LONG_WEEKEND_FLAT_V4", REPORT)
+
+    def test_friday_flat_uses_broker_sessions_and_blocks_late_entries(self):
+        self.assertIn("SymbolInfoSessionTrade(_Symbol,FRIDAY,i,from,to)", EA)
+        self.assertIn("cutoff=fridayStart+lastEnd-InpFridayCloseBufferMinutes*60", EA)
+        self.assertIn("fridayDue||WeekendPassed(entryNY,ny)", EA)
+        self.assertIn('"FRIDAY_FLAT":"WEEKEND_RECOVERY"', EA)
+        self.assertIn("if(!FridayCloseAt(TimeCurrent(),fridayCutoff)||TimeCurrent()>=fridayCutoff)return;", EA)
+        self.assertIn("if(!TradeSessionOpen(server)||server-g_lastCloseAttempt<60)return false;", EA)
+        self.assertIn("IntegerToString(InpFridayCloseBufferMinutes)", REPORT)
 
     def test_filters_use_only_completed_bars(self):
         self.assertIn("CopyRates(_Symbol,PERIOD_D1,1,NQRangeATRDays+1,daily)", EA)
@@ -34,7 +43,7 @@ class NQReportingTests(unittest.TestCase):
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
             "InpServerUTCOffsetWinterHours", "InpServerUTCOffsetSummerHours", "InpBrokerDST",
             "InpUseRangeWidthFilter", "InpMinRangeATR", "InpMaxRangeATR",
-            "InpRequireClosedM5Breakout",
+            "InpRequireClosedM5Breakout", "InpFridayCloseBufferMinutes",
         })
         for rule in ("InpStopIndexPoints=100.0", "InpTargetIndexPoints=200.0",
                      "InpMaxEntriesPerNYDay=2", "InpMaxLongSessions=5",

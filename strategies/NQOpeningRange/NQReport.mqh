@@ -20,12 +20,13 @@ uint NQHash(const string value) {
    return hash;
 }
 string NQConfig() {
-   return "NQ_ORB_LONG_FILTERS_V3|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
+   return "NQ_ORB_LONG_WEEKEND_FLAT_V4|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
       IntegerToString(InpMaxEntriesPerNYDay)+"|"+IntegerToString(InpMaxLongSessions)+"|"+
       IntegerToString(InpRiskMode)+"|"+NQNumber(InpFixedCashRisk)+"|"+NQNumber(InpBalanceRiskPercent)+"|"+
       IntegerToString((int)InpUseRangeWidthFilter)+"|"+NQNumber(InpMinRangeATR)+"|"+
       NQNumber(InpMaxRangeATR)+"|"+IntegerToString((int)InpRequireClosedM5Breakout)+"|"+
-      NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
+      NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpFridayCloseBufferMinutes)+"|"+
+      IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
       IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic);
 }
 void NQSignal(const datetime time,const string event,const string detail) {
