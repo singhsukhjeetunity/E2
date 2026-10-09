@@ -13,10 +13,11 @@ const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
 const bool InpVerbose=false;
 input group "=== E2 NASDAQ OPENING RANGE ==="
-input bool InpEnableEntries=false;      // Enable entries after broker clock verification
+const bool InpEnableEntries=true; // No redundant user-facing entry switch; verified clock still required
 input bool InpExportCsv=true;            // Export journal CSV reports
 input group "=== RISK MANAGEMENT ==="
-input int InpRiskMode=0;                 // 0=fixed account cash, 1=balance percentage
+enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 }; 
+input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Same risk-mode UI as Gold
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
 input group "=== STRATEGY FILTERS ==="
@@ -341,7 +342,7 @@ int OnInit() {
       InpRangeStartNYMinute%5!=0||InpRangeEndNYMinute%5!=0||
       InpStopIndexPoints<=0||InpTargetIndexPoints<=0||
       InpMaxEntriesPerNYDay<1||InpMaxLongSessions<1||
-      InpRiskMode<0||InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
+      (int)InpRiskMode<0||(int)InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
       InpMinRangeATR<0||InpMaxRangeATR<=0||InpMaxRangeATR<InpMinRangeATR||
       InpBrokerDST<0||InpBrokerDST>2||InpMarginBuffer<0||
       InpServerUTCOffsetWinterHours< -12||InpServerUTCOffsetWinterHours>14||
