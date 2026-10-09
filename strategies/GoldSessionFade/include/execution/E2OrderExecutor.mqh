@@ -7,6 +7,7 @@
 #include "..\\core\\E2AccountInfo.mqh"
 #include "..\\risk\\E2OrderRequest.mqh"
 #include "E2PositionGuard.mqh"
+#include "..\\..\\..\\shared\\PortfolioGate.mqh"
 #include "E2ExecutionSafety.mqh"
 #include "E2WeekendFlat.mqh"
 #include "..\\time\\E2BrokerTimeAdapter.mqh"
