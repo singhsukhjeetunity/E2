@@ -7,7 +7,7 @@ def read(path):
     return (ROOT/path).read_text()
 class DashboardMigration(unittest.TestCase):
     def test_hour_inputs_preserve_old_seconds_math(self):
-        for name in ("EMAPullback/EMAEngine.mqh","CompressionBreakout/CompressionEngine.mqh"):
+        for name in ("CompressionBreakout/CompressionEngine.mqh",):
             s=read("strategies/"+name)
             self.assertIn("input double InpBrokerWinterUTCOffsetHours=0.0;",s)
             self.assertIn("#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpBrokerWinterUTCOffsetHours*3600.0))",s)
@@ -18,7 +18,7 @@ class DashboardMigration(unittest.TestCase):
         got=read("strategies/EURJPYGotobi/include/Runtime.mqh")
         self.assertIn("input double InpBrokerWinterUTCOffsetHours=2.0;",got)
         self.assertIn("InpBrokerWinterUTCMinutes=(int)MathRound(InpBrokerWinterUTCOffsetHours*60.0);",got)
-        self.assertIn("InpBrokerWinterUTCOffsetHours=2.0",read("presets/EURJPYGotobi_50p_configurable.set"))
+        self.assertFalse((ROOT/"presets").exists())
     def test_existing_strategy_baselines_unchanged(self):
         gold=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
         for token in ("InpXauATRMultiplier=8.0","InpXauTargetR=1.5","InpOneTradePerDay=true"):
@@ -36,17 +36,12 @@ class DashboardMigration(unittest.TestCase):
         self.assertFalse((ROOT/"journal").exists())
         self.assertFalse((ROOT/"Open-E2-Journal.pyw").exists())
         for path in ("strategies/NQOpeningRange/NQReport.mqh",
-                     "strategies/BundDonchian/BundReport.mqh",
                      "strategies/EURJPYGotobi/include/Exports.mqh"):
             self.assertIn("_Trades_T.csv",read(path))
-    def test_bund_uses_prior_closed_bars_and_risk(self):
-        s=read("strategies/BundDonchian/Bund_Donchian_Breakout.mq5")
-        for token in ("InpEntryChannelBars=20","InpExitChannelBars=10",
-                      "InpATRPeriod=14","InpStopATR=2.0",
-                      "CopyRates(_Symbol,PERIOD_H1,1,need,candles)",
-                      "candles[0].close>entryHi","candles[0].close<entryLo",
-                      "OrderCalcProfit(side,_Symbol,1.0,entry,stop,pnl)",
-                      "InpEnableEntries=false"):
-            self.assertIn(token,s)
+    def test_only_four_eas(self):
+        paths=list((ROOT/"strategies").rglob("*.mq5"))
+        self.assertEqual(len(paths),4)
+        self.assertFalse((ROOT/"strategies/EMAPullback").exists())
+        self.assertFalse((ROOT/"strategies/BundDonchian").exists())
 if __name__=="__main__":
     unittest.main()
