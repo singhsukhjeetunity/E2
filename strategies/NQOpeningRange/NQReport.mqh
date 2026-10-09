@@ -20,9 +20,11 @@ uint NQHash(const string value) {
    return hash;
 }
 string NQConfig() {
-   return "NQ_ORB_LONG_ONLY_V2|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
+   return "NQ_ORB_LONG_FILTERS_V3|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
       IntegerToString(InpMaxEntriesPerNYDay)+"|"+IntegerToString(InpMaxLongSessions)+"|"+
       IntegerToString(InpRiskMode)+"|"+NQNumber(InpFixedCashRisk)+"|"+NQNumber(InpBalanceRiskPercent)+"|"+
+      IntegerToString((int)InpUseRangeWidthFilter)+"|"+NQNumber(InpMinRangeATR)+"|"+
+      NQNumber(InpMaxRangeATR)+"|"+IntegerToString((int)InpRequireClosedM5Breakout)+"|"+
       NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
       IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic);
 }

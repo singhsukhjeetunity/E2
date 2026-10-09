@@ -7,6 +7,7 @@ const double InpStopIndexPoints=100.0,InpTargetIndexPoints=200.0;
 const int InpMaxEntriesPerNYDay=2,InpMaxLongSessions=5;
 const int InpRangeStartNYMinute=570,InpRangeEndNYMinute=660;
 const int InpLastEntryNYMinute=925,InpSessionCloseNYMinute=930;
+const int NQRangeATRDays=14;
 const double InpMarginBuffer=0.15;
 const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
@@ -18,6 +19,11 @@ input group "=== RISK MANAGEMENT ==="
 input int InpRiskMode=0;                 // 0=fixed account cash, 1=balance percentage
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
+input group "=== OPENING RANGE FILTERS ==="
+input bool InpUseRangeWidthFilter=true;       // Require opening range / prior D1 ATR within bounds
+input double InpMinRangeATR=0.25;           // Minimum range as a fraction of 14-day ATR
+input double InpMaxRangeATR=1.50;           // Maximum range as a fraction of 14-day ATR
+input bool InpRequireClosedM5Breakout=true; // Previous completed M5 close must exceed range high
 input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadIndexPoints=10.0; // 0=disabled
 input group "=== BROKER CLOCK PROFILE ==="
@@ -29,7 +35,10 @@ input int InpBrokerDST=0;               // 0=none, 1=EU, 2=US; use historical br
 int g_day=0;
 double g_rangeHigh=0,g_rangeLow=0;
 bool g_rangeReady=false;
+bool g_rangeAllowed=false;
+double g_rangeAtr=0,g_rangeAtrRatio=0;
 datetime g_lastAttemptBar=0;
+datetime g_lastBlockedBar=0;
 datetime g_lastLog=0;
 bool g_ambiguousEntry=false;
 bool g_ambiguousExit=false;
@@ -154,7 +163,36 @@ bool BuildRange(const int nyKey) {
    }
    if(count!=18||hi<=lo)return false;
    g_rangeHigh=TickRound(hi);g_rangeLow=TickRound(lo);
-   return g_rangeHigh>g_rangeLow;
+   if(g_rangeHigh<=g_rangeLow)return false;
+   g_rangeAllowed=true;g_rangeAtr=0;g_rangeAtrRatio=0;
+   if(InpUseRangeWidthFilter) {
+      // CopyRates returns oldest-to-newest in physical array order. Shift 1 excludes today's forming D1 bar.
+      MqlRates daily[];
+      if(CopyRates(_Symbol,PERIOD_D1,1,NQRangeATRDays+1,daily)!=NQRangeATRDays+1)return false;
+      double total=0;
+      for(int i=1;i<=NQRangeATRDays;i++) {
+         double previous=daily[i-1].close;
+         double tr=MathMax(daily[i].high-daily[i].low,
+            MathMax(MathAbs(daily[i].high-previous),MathAbs(daily[i].low-previous)));
+         if(tr<=0)return false;
+         total+=tr;
+      }
+      g_rangeAtr=total/NQRangeATRDays;
+      if(g_rangeAtr<=0)return false;
+      g_rangeAtrRatio=(g_rangeHigh-g_rangeLow)/g_rangeAtr;
+      g_rangeAllowed=g_rangeAtrRatio>=InpMinRangeATR&&g_rangeAtrRatio<=InpMaxRangeATR;
+   }
+   return true;
+}
+bool CompletedM5Breakout(const datetime currentBar,double &closedPrice) {
+   closedPrice=0;
+   MqlRates previous[];
+   if(CopyRates(_Symbol,PERIOD_M5,1,1,previous)!=1)return false;
+   datetime ny=ServerToNY(previous[0].time);
+   if(previous[0].time+300!=currentBar||DayKey(ny)!=g_day||
+      MinuteOfDay(ny)<InpRangeEndNYMinute)return false;
+   closedPrice=previous[0].close;
+   return closedPrice>g_rangeHigh;
 }
 int WeekdaySessions(const datetime startNY,const datetime nowNY) {
    datetime d=DayStart(startNY),end=DayStart(nowNY);
@@ -226,7 +264,7 @@ void AttemptEntry(const datetime ny) {
    if(!InpEnableEntries||!InpBrokerClockVerified||g_ambiguousEntry)return;
    int minute=MinuteOfDay(ny);
    if(!IsNYWeekday(ny)||minute<InpRangeEndNYMinute||minute>=InpLastEntryNYMinute)return;
-   if(!g_rangeReady)return;
+   if(!g_rangeReady||!g_rangeAllowed)return;
    if(SymbolOccupied())return;
    int used=TodayEntryCount(g_day);
    if(used<0||used>=InpMaxEntriesPerNYDay)return;
@@ -237,6 +275,17 @@ void AttemptEntry(const datetime ny) {
    if(InpMaxSpreadIndexPoints>0&&tick.ask-tick.bid>InpMaxSpreadIndexPoints)return;
    // Only an upside break can open a position. Market fills can differ from the range boundary.
    if(tick.ask<=g_rangeHigh)return;
+   if(InpRequireClosedM5Breakout) {
+      double closedPrice=0;
+      if(!CompletedM5Breakout(bar,closedPrice)) {
+         if(g_lastBlockedBar!=bar) {
+            g_lastBlockedBar=bar;
+            NQSignal(TimeCurrent(),"BREAKOUT_UNCONFIRMED",StringFormat("bar=%s previous_close=%.8f range_high=%.8f",
+               TimeToString(bar,TIME_DATE|TIME_MINUTES),closedPrice,g_rangeHigh));
+         }
+         return;
+      }
+   }
    const ENUM_ORDER_TYPE side=ORDER_TYPE_BUY;
    double entry=tick.ask;
    double stop=TickRound(entry-InpStopIndexPoints);
@@ -264,13 +313,17 @@ void Run() {
    datetime ny=ServerToNY(server);
    int key=DayKey(ny);
    if(key!=g_day) {
-      g_day=key;g_rangeReady=false;g_rangeHigh=0;g_rangeLow=0;g_lastAttemptBar=0;
+      g_day=key;g_rangeReady=false;g_rangeAllowed=false;g_rangeHigh=0;g_rangeLow=0;
+      g_rangeAtr=0;g_rangeAtrRatio=0;g_lastAttemptBar=0;g_lastBlockedBar=0;
       g_ambiguousEntry=false;
    }
    // Timed exits also require a verified clock. Protective broker SL/TP remain active.
    if(InpBrokerClockVerified)ManageExits(ny);
-   if(MinuteOfDay(ny)>=InpRangeEndNYMinute&&!g_rangeReady)
+   if(MinuteOfDay(ny)>=InpRangeEndNYMinute&&!g_rangeReady) {
       g_rangeReady=BuildRange(key);
+      if(g_rangeReady)NQSignal(server,"RANGE_FILTER",StringFormat("allowed=%d width=%.8f prior_d1_atr=%.8f ratio=%.6f min=%.6f max=%.6f",
+         (int)g_rangeAllowed,g_rangeHigh-g_rangeLow,g_rangeAtr,g_rangeAtrRatio,InpMinRangeATR,InpMaxRangeATR));
+   }
    AttemptEntry(ny);
    if(InpVerbose&&server-g_lastLog>=300) {
       g_lastLog=server;
@@ -289,6 +342,7 @@ int OnInit() {
       InpStopIndexPoints<=0||InpTargetIndexPoints<=0||
       InpMaxEntriesPerNYDay<1||InpMaxLongSessions<1||
       InpRiskMode<0||InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
+      InpMinRangeATR<0||InpMaxRangeATR<=0||InpMaxRangeATR<InpMinRangeATR||
       InpBrokerDST<0||InpBrokerDST>2||InpMarginBuffer<0||
       InpServerUTCOffsetWinterHours< -12||InpServerUTCOffsetWinterHours>14||
       InpServerUTCOffsetSummerHours< -12||InpServerUTCOffsetSummerHours>14) return INIT_PARAMETERS_INCORRECT;

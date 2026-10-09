@@ -18,7 +18,14 @@ class NQReportingTests(unittest.TestCase):
         self.assertIn("req.type=side", entry)
         self.assertNotIn("ORDER_TYPE_SELL", entry)
         self.assertNotIn("tick.bid<g_rangeLow", entry)
-        self.assertIn("NQ_ORB_LONG_ONLY_V2", REPORT)
+        self.assertIn("NQ_ORB_LONG_FILTERS_V3", REPORT)
+
+    def test_filters_use_only_completed_bars(self):
+        self.assertIn("CopyRates(_Symbol,PERIOD_D1,1,NQRangeATRDays+1,daily)", EA)
+        self.assertIn("CopyRates(_Symbol,PERIOD_M5,1,1,previous)", EA)
+        self.assertIn("previous[0].time+300!=currentBar", EA)
+        self.assertIn("return closedPrice>g_rangeHigh;", EA)
+        self.assertIn("g_rangeAllowed=g_rangeAtrRatio>=InpMinRangeATR&&g_rangeAtrRatio<=InpMaxRangeATR;", EA)
 
     def test_dashboard_only_has_operator_controls(self):
         names = set(re.findall(r"^input\s+(?:bool|int|double|ulong)\s+(\w+)", EA, re.M))
@@ -26,6 +33,8 @@ class NQReportingTests(unittest.TestCase):
             "InpEnableEntries", "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
             "InpServerUTCOffsetWinterHours", "InpServerUTCOffsetSummerHours", "InpBrokerDST",
+            "InpUseRangeWidthFilter", "InpMinRangeATR", "InpMaxRangeATR",
+            "InpRequireClosedM5Breakout",
         })
         for rule in ("InpStopIndexPoints=100.0", "InpTargetIndexPoints=200.0",
                      "InpMaxEntriesPerNYDay=2", "InpMaxLongSessions=5",
