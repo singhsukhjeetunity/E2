@@ -124,6 +124,11 @@ public:
             MqlDateTime date={};date.year=year;date.mon=(dst==1||year>=2007)?3:4;date.day=1;
             datetime first=StructToTime(date);MqlDateTime weekday;TimeToStruct(first,weekday);
             int sunday=1+(7-weekday.day_of_week)%7+((dst==2&&year>=2007)?7:0);
+            if(dst==1) {
+               date.mon=4;date.day=1;datetime april=StructToTime(date);
+               MqlDateTime last;TimeToStruct(april-86400,last);
+               date.mon=3;sunday=last.day-last.day_of_week;
+            }
             date.day=sunday;date.hour=(dst==1?1:7);datetime spring=StructToTime(date);
             date.year=year;date.mon=(dst==1||year<2007)?10:11;
             date.day=1;date.hour=0;datetime fall_first=StructToTime(date);
