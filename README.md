@@ -1,81 +1,43 @@
-# E2 — four independent strategies and trading journal
+# E2 — standalone MT5 strategy EAs (research branch)
 
-| Folder | Contents |
-|---|---|
-| `strategies/GoldSessionFade/` | `XAU_Session_Fade.mq5` and its implementation |
-| `strategies/EMAPullback/` | `EMA_Pullback_Long.mq5`, signal engine, session clock and restart recovery |
-| `strategies/CompressionBreakout/` | `Compression_Breakout_Long.mq5`, third independent strategy |
-| `strategies/EURJPYGotobi/` | Fourth EA: 50-pip EURJPY Gotobi, headers, setup guide and sizing evidence |
-| `presets/` | Gotobi 50-pip preset with editable cash / balance-percent risk; broker clock must be verified |
-| `strategies/shared/` | Shared report-folder utilities |
-| `journal/` | Local CSV trading journal |
-| `tools/` | EMA run analysis |
-| `tests/` | Portable regression tests |
-| `docs/` | Setup, settings, export and test guides |
+**Branch \`research/bund-system6-unified-inputs\` is isolated from \`main\`.** The standalone E2 journal desktop/web application has been removed on this branch. MT5 CSV exports remain in the EAs for backtest and independent analysis.
 
-NR4 and its EA have been removed. The old triple-moving-average strategy is not included in this revision. Historical branches and commits are retained.
+## Strategy sources
 
-E2 includes Gold Session Fade, EMA Pullback, Compression Breakout and EURJPY Gotobi as separate EAs. [Gotobi installation](docs/GOTOBI_INSTALL.md) adds only the fourth EA to an existing installation.
+| Directory | EA | Status |
+|---|---|---|
+| \`strategies/GoldSessionFade/\` | \`XAU_Session_Fade.mq5\` | Existing strategy, rules unchanged |
+| \`strategies/CompressionBreakout/\` | \`Compression_Breakout_Long.mq5\` | Existing strategy, rules unchanged |
+| \`strategies/EURJPYGotobi/\` | \`EURJPY_Gotobi.mq5\` | Existing strategy, rules unchanged |
+| \`strategies/NQOpeningRange/\` | \`NQ_Opening_Range.mq5\` | Existing System 5 research, rules unchanged |
+| \`strategies/BundDonchian/\` | \`Bund_Donchian_Breakout.mq5\` | **New System 6 research candidate; not backtested/validated** |
+| \`strategies/EMAPullback/\` | \`EMA_Pullback_Long.mq5\` | **Retained as legacy source**, not recommended for portfolio allocation |
 
-## Selected defaults
+EMA source is deliberately retained for historical reproducibility and because the Compression EA shares its MQL clock/state headers. Removing it outright would risk changing Compression behavior. **Do not attach EMA to the portfolio if retiring it.**
 
-| Strategy | Finalized baseline |
-|---|---|
-| Gold Session Fade | M5, 12:00–12:30 UTC, ATR14 × 8 stop, 1.5R target, one trade per day |
-| EMA Pullback | M30, EMA20/50, ATR14 × 3 stop, 0.5R target, one trade per New York day, spread cap 10 price units |
-| Compression Breakout | M30, 20-bar channel, ATR14 compression below 0.8 × 100-bar ATR average, 3 ATR stop, 2R target, daily toggle off |
-| EURJPY Gotobi | M1, 15:55 UTC entry, 00:55 UTC exit, 50-pip stop, 200-pip safety TP, configurable cash / balance-percent risk |
+## Unified input dashboards
 
-All four strategies are included in this source release. Set risk and verified broker-clock inputs before attachment. Existing MT5 presets override source defaults. See the [reference](docs/STRATEGY_REFERENCE.md) for the trio allocation and [Gotobi setup](docs/GOTOBI_INSTALL.md) for the fourth EA.
+All EAs use grouped inputs for risk, strategy rules, execution safety, broker clock and reporting. Historical server UTC offsets are entered in **hours** rather than seconds/minutes:
 
-## Selected portfolio allocation
+- **Gold:** \`InpBrokerUTCOffsetHours\` (manual fixed-offset mode). Broker time profile file mode remains supported and unchanged.
+- **Compression / legacy EMA:** \`InpBrokerWinterUTCOffsetHours\`, plus the existing fixed/US/EU broker clock mode. Summer is computed by the existing DST logic.
+- **Gotobi:** \`InpBrokerWinterUTCOffsetHours\`, plus the existing fixed/EU/US DST selection.
+- **NQ and Bund:** \`InpServerUTCOffsetWinterHours\` and \`InpServerUTCOffsetSummerHours\`, plus DST mode and verified-clock toggle.
 
-The table below is the existing **three-system** allocation. Gotobi has configurable cash / balance-percent risk. Its standalone Monte Carlo sizing is guidance and does not establish a four-system portfolio drawdown limit. No existing trio settings were changed. See [Gotobi sizing](strategies/EURJPYGotobi/robustness/MONTE_CARLO_50.md).
+**Migration:** old \`.set\` files and MT5 chart input snapshots containing \`InpBrokerWinterUtcOffsetSeconds\`, \`InpBrokerWinterUTCMinutes\`, or \`InpBrokerUtcOffsetSeconds\` **do not map to the renamed inputs**. Manually convert (seconds / 3600, minutes / 60) and verify the new fields before any testing/live use. Example: old 7200 seconds or 120 minutes becomes **2 hours**. The bundled Gotobi preset was migrated. The underlying offset values used by strategy code are mathematically unchanged when equivalent values are entered.
 
-The selected risk split is **20:40:40 — Gold Session Fade / EMA Pullback / Compression Breakout**.
+**Important:** input regrouping/renaming has not been validated by a native MT5 compiler or trade-by-trade historical comparison. Existing strategy rule constants and defaults were deliberately preserved, but a guarantee of identical execution cannot be made until that comparison passes.
 
-| Strategy | Share of risk budget | Risk per trade at 2% total | Fixed cash risk on a 100,000 account |
-|---|---:|---:|---:|
-| Gold Session Fade | 20% | 0.4% | 400 |
-| EMA Pullback | 40% | 0.8% | 800 |
-| Compression Breakout | 40% | 0.8% | 800 |
-| Total nominal allocation | 100% | 2.0% | 2,000 |
+## Backtesting System 6
 
-These are shares of planned trade risk, not capital deposits or a daily loss limit. For another starting balance, use 0.004 / 0.008 / 0.008 times that balance. Set each EA's cash-risk input manually; source defaults and existing presets are not changed by this documentation. Fixed cash risk does not compound automatically. The three EAs do not enforce a shared portfolio loss cap.
+Follow [Bund Donchian research setup and MT5 steps](strategies/BundDonchian/README.md). This 20/10 H1 Donchian breakout with a 2×ATR protective stop is an **independent hypothesis**, not the original publisher's verified rules. No backtest performance is claimed.
 
-The selection is based on the earlier portfolio simulations. Their 99th-percentile drawdown is an estimate, not a guaranteed ceiling; they exclude floating drawdown and used the earlier EMA export without the daily limit. Firm-specific loss rules and withdrawals require separate assessment.
+## Installation
 
-## Install and test
+Copy the **whole \`strategies\` tree** into \`MQL5/Experts/E2/\`, keeping shared dependencies. Open each \`.mq5\` in MetaEditor, press **F7**, and confirm zero errors. MT5 source packages do not include EX5 binaries. The Bund and NQ research systems default to **entries disabled**.
 
-The [live recovery update](docs/LIVE_RECOVERY_UPDATE.md) fixes restart and transient execution/storage blockers and adds periodic health messages. Follow its upgrade instructions; retain your current risk and broker-clock settings.
+Exports are still available under **Terminal/Common/Files/E2/** by strategy. See [CSV export layout](docs/CSV_EXPORTS.md). The journal UI, launcher, packaging workflow and journal-only tests have been removed; trading, recovery, strategy exports and analysis scripts are independent of the journal UI.
 
-Copy the **whole `strategies` folder** into `MQL5/Experts/E2/`, keeping its subfolders. Open and compile the desired `.mq5` entry in MetaEditor. Copying only an entry file will omit its dependencies. Remove obsolete source/compiled EA copies from your test installation to avoid selecting the wrong version.
+## Regression checks
 
-Gold uses M5. EMA and compression build M30 bars from M1 history and use the same trading logic in the tester, demo and real accounts. All three accept the selected symbol; their original session rules still apply.
-
-- [Strategy baseline and demo reference](docs/STRATEGY_REFERENCE.md)
-- [Gold checks and known limitation](docs/GOLD_TESTING.md)
-- [EMA setup and verification](docs/EMA_TESTING.md)
-- [Compression breakout settings and testing](docs/COMPRESSION_TESTING.md)
-- [CSV folder layout and migration](docs/CSV_EXPORTS.md)
-- [Trading journal guide](docs/JOURNAL_GUIDE.md)
-- [EURJPY Gotobi installation and preset](docs/GOTOBI_INSTALL.md)
-
-Launch the journal with `Open-E2-Journal.pyw`. The journal imports CSVs and visualizes performance; it does not place orders. Combine independent tests externally with explicit risk allocations and matching report clocks.
-
-## Developer checks
-
-```sh
-python tests/run_compression.py
-python -m unittest discover -s tests -p 'test_*.py' -v
-g++ -std=c++17 -Wall -Wextra -Werror tests/ema_core.cpp -o /tmp/ema-core
-/tmp/ema-core
-g++ -std=c++17 tests/entry_lifecycle.cpp -o /tmp/entry-lifecycle
-/tmp/entry-lifecycle
-g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
-/tmp/report-folders
-```
-
-Additional EMA runtime checks: `python tests/run_ema_runtime.py`, `python tests/run_ema_warmup.py`, `python tests/run_ema_entry.py`.
-
-These checks do not compile MQL5 or replace an MT5 regression backtest. Gold's previously observed holiday/weekend holds remain unresolved by this repository cleanup.
+GitHub Actions runs portable strategy and reporting tests. These do **not** substitute for native MetaEditor compilation, broker-specific real-tick backtests or live forward testing. Preserve the current production branch/binaries until tests demonstrate equivalent trade behavior.
