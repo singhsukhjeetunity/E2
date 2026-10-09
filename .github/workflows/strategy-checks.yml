@@ -14,6 +14,8 @@ jobs:
       - run: g++ -std=c++17 -Wall -Wextra -Werror tests/report_folders.cpp -o /tmp/report-folders
       - run: /tmp/report-folders
       - run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - run: g++ -std=c++17 -Wall -Wextra -Werror tests/portfolio_gate.cpp -o /tmp/portfolio-gate
+      - run: /tmp/portfolio-gate
       - run: python3 tests/run_gold_clock.py
       - run: python3 tests/run_gold_regime.py
       - run: python3 tests/gotobi/run_checks.py
