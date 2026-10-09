@@ -1,7 +1,7 @@
 #ifndef COMPRESSION_CLOCK_MQH
 #define COMPRESSION_CLOCK_MQH
 // Reuse broker/UTC and New York DST conversion; no US equity holiday filter.
-#include "..\\EMAPullback\\SessionClock.mqh"
+#include "..\\shared\\SessionClock.mqh"
 bool CBEntryWindow(const datetime utc) {
    MqlDateTime t;TimeToStruct(utc,t);
    return t.day_of_week>=1 && t.day_of_week<=5 && t.hour>=6 && t.hour<20;

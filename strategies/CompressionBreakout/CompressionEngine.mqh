@@ -2,7 +2,7 @@
 #define COMPRESSION_ENGINE_MQH
 #include <Trade/Trade.mqh>
 #include "CompressionCore.mqh"
-#include "..\\EMAPullback\\EMAState.mqh"
+#include "..\\shared\\RecoveryState.mqh"
 #include "CompressionClock.mqh"
 #include "..\\shared\\ReportFolders.mqh"
 

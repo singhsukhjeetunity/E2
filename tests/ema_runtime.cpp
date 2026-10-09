@@ -26,7 +26,7 @@ int StringSplit(const string &s,char delim,std::vector<string> &out){out.clear()
 bool MathIsValidNumber(double n){return std::isfinite(n);}
 template<class T>void ZeroMemory(T &x){x=T{};}
 template<class T>void ArrayResize(std::vector<T> &x,int n){x.resize(n);}
-#include "../strategies/EMAPullback/EMAState.mqh"
+#include "../strategies/shared/RecoveryState.mqh"
 const int MQL_TESTER=1,FILE_COMMON=2,FILE_WRITE=4,FILE_READ=8,FILE_TXT=16,FILE_UNICODE=32,FILE_BIN=64,FILE_REWRITE=128,INVALID_HANDLE=-1;
 const int ACCOUNT_MARGIN_MODE=10,ACCOUNT_MARGIN_MODE_RETAIL_HEDGING=11;
 const int ACCOUNT_SERVER=1,ACCOUNT_LOGIN=2,POSITION_SYMBOL=3,POSITION_MAGIC=4,POSITION_TYPE=5,POSITION_IDENTIFIER=6,POSITION_TYPE_BUY=7,ORDER_SYMBOL=8,ORDER_MAGIC=9;

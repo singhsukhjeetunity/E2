@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory() as tmp:
     p=Path(tmp)
     # Exact entry and daily-limit code; simulate terminal restarts with retained broker deals.
     (p/'ema_entry.mqh').write_text(s[s.index('bool DefiniteRejection('):s.index('void Equity(')])
-    clock=(root/'strategies/EMAPullback/SessionClock.mqh').read_text()
+    clock=(root/'strategies/shared/SessionClock.mqh').read_text()
     deadline=clock[clock.index('bool NPExitOverdue('):clock.index('bool NPRetryClose(')]
     (p/'ema_deadline.mqh').write_text(deadline+s[s.index('void MarkOverdue('):s.index('bool ClosePosition(')])
     (p/'ema_tester.mqh').write_text(s[s.index('double OnTester()'):s.index('void OnDeinit(')])
@@ -34,14 +34,14 @@ with tempfile.TemporaryDirectory() as tmp:
     feed=s[s.index('void FinalBar'):s.index('// Resolve the session')].replace('MqlRates m[];','std::vector<MqlRates> m;')
     (p/'ema_feed.mqh').write_text(feed)
     (p/'ema_warmup_size.mqh').write_text('')
-    h=(root/'tests/ema_warmup.cpp').read_text().replace('../strategies/EMAPullback/EMACore.mqh','../strategies/CompressionBreakout/CompressionCore.mqh')
+    h=(root/'tests/ema_warmup.cpp').read_text().replace('fixtures/EMACore.mqh','../strategies/CompressionBreakout/CompressionCore.mqh')
     h=h.replace('InpEMAFast=20,InpEMASlow=50','InpChannelBars=20,InpCompressionBars=100; double InpCompressionRatio=0.8').replace('NPReset(','CBReset(')
     h=h.replace('indicators.count>=1000','indicators.count>=599').replace('31440','18000').replace('EMA warm','Compression warm')
     compile_run(p,'feed',absolute_includes(h))
     # Compile clock from the production source, adapting only its include separator for Linux.
-    clock=(root/'strategies/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\EMAPullback\\\\SessionClock.mqh"','"'+str(root/'strategies/EMAPullback/SessionClock.mqh')+'"')
+    clock=(root/'strategies/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\EMAPullback\\\\SessionClock.mqh"','"'+str(root/'strategies/shared/SessionClock.mqh')+'"')
     (p/'compression_clock.mqh').write_text(clock)
-    prefix=(root/'tests/ema_core.cpp').read_text().split('#include "../strategies/EMAPullback/EMACore.mqh"')[0]
+    prefix=(root/'tests/ema_core.cpp').read_text().split('#include "fixtures/EMACore.mqh"')[0]
     checks='''
 #include "compression_clock.mqh"
 int main(){
