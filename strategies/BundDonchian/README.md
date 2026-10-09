@@ -17,12 +17,12 @@
 
 ## How to backtest in MT5
 
-1. Copy the **entire** \`strategies\` directory to \`MQL5/Experts/E2/\`. Open \`strategies/BundDonchian/Bund_Donchian_Breakout.mq5\` in MetaEditor and compile with **F7**. Resolve any native MQL5 compiler errors before testing. No EX5 binary is supplied.
-2. Open **Strategy Tester (Ctrl+R)**, select \`Bund_Donchian_Breakout\`, broker's **FGBL/Euro-Bund** symbol, **H1**, **Every tick based on real ticks**, and a historical period with reliable contract-roll and tick data. Use 2016–2025 for initial in-sample evaluation, then keep 2026 untouched.
+1. Copy the **entire** `strategies` directory to `MQL5/Experts/E2/`. Open `strategies/BundDonchian/Bund_Donchian_Breakout.mq5` in MetaEditor and compile with **F7**. Resolve any native MQL5 compiler errors before testing. No EX5 binary is supplied.
+2. Open **Strategy Tester (Ctrl+R)**, select `Bund_Donchian_Breakout`, broker's **FGBL/Euro-Bund** symbol, **H1**, **Every tick based on real ticks**, and a historical period with reliable contract-roll and tick data. Use 2016–2025 for initial in-sample evaluation, then keep 2026 untouched.
 3. Set **InpBrokerClockVerified=true** only after verifying your broker's historical UTC winter/summer offsets and DST. Example: EU winter +2/summer +3 means winter 2, summer 3, DST 1. These values are NOT universal.
-4. Set **InpEnableEntries=true** for Strategy Tester, **InpRiskMode=0**, **InpFixedCashRisk=1000** on a $100,000 test account. Keep baseline channels 20/10, ATR14, stop 2 ATR, and spread cap only if it matches the actual Bund quote. For CFDs, check margin and contract sizing with \`OrderCalcProfit\` output.
+4. Set **InpEnableEntries=true** for Strategy Tester, **InpRiskMode=0**, **InpFixedCashRisk=1000** on a $100,000 test account. Keep baseline channels 20/10, ATR14, stop 2 ATR, and spread cap only if it matches the actual Bund quote. For CFDs, check margin and contract sizing with `OrderCalcProfit` output.
 5. Run with **optimization disabled**. Inspect the **Journal**, **Results**, and **Graph**. Verify completed-H1 entry timing, stop distances, trade sizes, channel exits, no double entry on a bar, and that positions survive weekends only if the broker permits it.
-6. CSV exports appear in terminal **Common Files/E2/BundDonchian/**: \`_Trades_T.csv\`, \`_Signals_S.csv\`, \`_Equity_E.csv\`, \`_Settings.txt\`. The trade CSV includes actual deal-level P&L, commission, swap, fee, volume and risk when available. This CSV export is **independent of the deleted E2 journal application**.
+6. CSV exports appear in terminal **Common Files/E2/BundDonchian/**: `_Trades_T.csv`, `_Signals_S.csv`, `_Equity_E.csv`, `_Settings.txt`. The trade CSV includes actual deal-level P&L, commission, swap, fee, volume and risk when available. This CSV export is **independent of the deleted E2 journal application**.
 7. Send the tester report, the trade CSV, and the symbol specification (tick size, tick value, contract size). Evaluate annual R, expectancy, win rate, Monte Carlo 99th-percentile DD and correlation with the four current portfolio systems **before** considering allocation.
 
 ## Critical limitations
