@@ -14,6 +14,8 @@ def portable(text):
     text = re.sub(r'^#property.*\n', '', text, flags=re.M)
     text = re.sub(r'^input group.*\n', '', text, flags=re.M)
     text = text.replace('input ', '').replace('#include <Trade/Trade.mqh>', '')
+    text = '\n'.join('bool E2PGCanEnter(){return true;}' if 'PortfolioGate.mqh' in line else line
+                     for line in text.splitlines()) + '\n'
     text = re.sub(r'const RCBar &([a-z_]+)\[\]', r'const std::vector<RCBar> &\1', text)
     text = re.sub(r'RCBar &([a-z_]+)\[\]', r'std::vector<RCBar> &\1', text)
     text = re.sub(r'(RCBar|MqlRates|RCReportTrade|RCEntryRisk) ([a-z_]+)\[\];', r'std::vector<\1> \2;', text)
