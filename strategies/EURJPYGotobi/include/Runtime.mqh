@@ -3,19 +3,21 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
-input group "=== RISK AND EXECUTION ==="
+input group "=== RISK MANAGEMENT ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Risk Mode
 input double InpFixedCashRisk=1000.0; // Fixed Risk (account currency)
 input double InpBalanceRiskPercent=1.0; // Balance Risk (%)
+input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD; // Maximum spread (broker points)
 input bool InpOneEntryPerDay=true; // Maximum one entry per day
 input ulong InpMagic=RC_DEFAULT_MAGIC; // Unique strategy ID
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // I verified the historical feed clock
-input double InpBrokerWinterUTCOffsetHours=2.0; // Winter server UTC offset in HOURS
-int InpBrokerWinterUTCMinutes=120; // Internal conversion; initialized from the hour input in OnInit
-input RCClock InpBrokerDST=RC_EU; // Historical feed daylight-saving rule
+input double InpServerUTCOffsetWinterHours=2.0; // Historical winter offset (hours)
+input double InpServerUTCOffsetSummerHours=3.0; // Historical summer offset (hours)
+input RCClock InpBrokerDST=RC_EU; // 0 none, 1 EU, 2 US
+int InpBrokerWinterUTCMinutes=120,InpBrokerSummerUTCMinutes=180;
 input group "=== EXIT SETTINGS ==="
 #ifndef RC_GOTOBI
 input double InpStopATR=3.0; // Stop distance (ATR multiples)
@@ -68,11 +70,11 @@ datetime RCStrategyDeadline(const datetime opened_utc);
 
 datetime RCNow() {
    datetime utc=0;
-   if(!RCUtc(TimeCurrent(),InpBrokerDST,InpBrokerWinterUTCMinutes,utc))return 0;
+   if(!RCUtc(TimeCurrent(),InpBrokerDST,InpBrokerWinterUTCMinutes,utc,InpBrokerSummerUTCMinutes))return 0;
    return utc;
 }
 datetime RCServer(const datetime utc) {
-   return RCWall(utc,InpBrokerDST,InpBrokerWinterUTCMinutes);
+   return RCWall(utc,InpBrokerDST,InpBrokerWinterUTCMinutes,InpBrokerSummerUTCMinutes);
 }
 datetime RCSessionWall(const datetime utc) {
    return RCWall(utc,InpSessionDST,InpSessionWinterUTCMinutes);
@@ -139,7 +141,7 @@ void RCManage(const datetime utc) {
    for(int i=PositionsTotal()-1;i>=0;i--) {
       if(PositionGetTicket(i)==0||!RCIsOwn())continue;
       datetime opened=0;
-      if(!RCUtc((datetime)PositionGetInteger(POSITION_TIME),InpBrokerDST,InpBrokerWinterUTCMinutes,opened))continue;
+      if(!RCUtc((datetime)PositionGetInteger(POSITION_TIME),InpBrokerDST,InpBrokerWinterUTCMinutes,opened,InpBrokerSummerUTCMinutes))continue;
       datetime deadline=RCOverlayDeadline(opened);
       if(PositionGetDouble(POSITION_SL)<=0||(deadline>0&&utc>=deadline))close=true;
    }
@@ -224,7 +226,7 @@ bool RCRefreshDays(const datetime utc) {
    for(int i=0;i<=n;i++) {
       datetime u=0,w=0,current=0;
       if(i<n) {
-         if(!RCUtc(rates[i].time,InpBrokerDST,InpBrokerWinterUTCMinutes,u))continue;
+         if(!RCUtc(rates[i].time,InpBrokerDST,InpBrokerWinterUTCMinutes,u,InpBrokerSummerUTCMinutes))continue;
          w=RCSessionWall(u);current=RCDay(w);
       }
       if(day!=0&&(i==n||current!=day)) {
@@ -261,14 +263,15 @@ bool RCRecentBars(const ENUM_TIMEFRAMES frame,const int count,RCBar &bars[]) {
    if(n!=count)return false;
    ArraySetAsSeries(rates,false);ArrayResize(bars,count);
    for(int i=0;i<count;i++) {
-      datetime utc=0;if(!RCUtc(rates[i].time,InpBrokerDST,InpBrokerWinterUTCMinutes,utc))return false;
+      datetime utc=0;if(!RCUtc(rates[i].time,InpBrokerDST,InpBrokerWinterUTCMinutes,utc,InpBrokerSummerUTCMinutes))return false;
       bars[i].start=utc;bars[i].open=rates[i].open;bars[i].high=rates[i].high;
       bars[i].low=rates[i].low;bars[i].close=rates[i].close;bars[i].minutes=PeriodSeconds(frame)/60;
    }
    return true;
 }
 int OnInit() {
-   InpBrokerWinterUTCMinutes=(int)MathRound(InpBrokerWinterUTCOffsetHours*60.0);
+   InpBrokerWinterUTCMinutes=(int)MathRound(InpServerUTCOffsetWinterHours*60.0);
+   InpBrokerSummerUTCMinutes=(int)MathRound(InpServerUTCOffsetSummerHours*60.0);
    if(!InpBrokerClockVerified){Print(RC_NAME,": verify broker UTC/DST inputs, then set InpBrokerClockVerified=true.");return INIT_PARAMETERS_INCORRECT;}
    if(InpRiskMode!=E2_RISK_FIXED_CASH&&InpRiskMode!=E2_RISK_BALANCE_PERCENT)return INIT_PARAMETERS_INCORRECT;
    if(InpRiskMode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(InpFixedCashRisk)||InpFixedCashRisk<=0))return INIT_PARAMETERS_INCORRECT;
@@ -280,6 +283,7 @@ int OnInit() {
       InpMinimumMinuteCoverage<=0||InpMinimumMinuteCoverage>1||InpMaximumHoldingDays<0||
       InpFridayFlatUTCMinute<0||InpFridayFlatUTCMinute>=1440||InpEntryGraceSeconds<1||
       InpBrokerWinterUTCMinutes< -720||InpBrokerWinterUTCMinutes>840||
+      InpBrokerSummerUTCMinutes< -720||InpBrokerSummerUTCMinutes>840||
       InpSessionWinterUTCMinutes< -720||InpSessionWinterUTCMinutes>840||!RCValidate())return INIT_PARAMETERS_INCORRECT;
    rc_trade.SetExpertMagicNumber(InpMagic);rc_trade.SetDeviationInPoints(InpDeviationPoints);
    rc_trade.SetAsyncMode(false);rc_trade.SetTypeFillingBySymbol(_Symbol);
