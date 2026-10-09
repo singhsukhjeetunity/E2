@@ -193,7 +193,15 @@ bool RCEnter(const int direction,const double distance,const double target_r,con
                         SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP));
    if(lots<=0)return false;
    double margin=0;if(!OrderCalcMargin(side,_Symbol,lots,entry,margin)||margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE))return false;
-   if(!E2PGCanEnter()) {Print(RC_NAME," PortfolioGuard blocked new entry.");return false;}
+   if(!E2PGCanEnter()) {
+      static datetime last_guard_warning=0;
+      datetime current=TimeCurrent();
+      if(last_guard_warning==0||current-last_guard_warning>=60) {
+         Print(RC_NAME," PortfolioGuard blocked new entry.");
+         last_guard_warning=current;
+      }
+      return false;
+   }
    bool sent=direction>0?rc_trade.Buy(lots,_Symbol,0,stop,target,RC_NAME):rc_trade.Sell(lots,_Symbol,0,stop,target,RC_NAME);
    if(!RCTradeOK(sent)){Print(RC_NAME," entry rejected: ",rc_trade.ResultRetcodeDescription());return false;}
    Print(RC_NAME," entry ",direction," lots=",lots," SL=",stop," TP=",target," risk_budget=",budget);
