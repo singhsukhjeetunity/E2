@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory() as tmp:
       'int InpRiskMode=E2_RISK_FIXED_CASH,InpBrokerSummerUtcOffsetSeconds=3600;\n'
       'double InpFixedCashRisk=1000,InpBalanceRiskPercent=1.0;\n'
       'double AccountInfoDouble(int){return 100000;}\n'
+      'bool E2PGCanEnter(){return true;}\n'
       '#include "ema_deadline.mqh"')
     compile_run(p,'entry',absolute_includes(h))
     # Exact recovery implementation: new scope, restart/partial intent, ownership and durable writes.
