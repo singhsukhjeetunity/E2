@@ -8,8 +8,8 @@
 
 input group "=== BROKER CLOCK PROFILE ==="
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
-input int InpBrokerWinterUTCOffsetHours=0; // Winter server UTC offset in HOURS
-#define InpBrokerWinterUtcOffsetSeconds (InpBrokerWinterUTCOffsetHours*3600)
+input double InpBrokerWinterUTCOffsetHours=0.0; // Winter server UTC offset in HOURS
+#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpBrokerWinterUTCOffsetHours*3600.0))
 input group "=== STRATEGY SETTINGS ==="
 input int InpATRLength=14;
 input int InpChannelBars=20;
