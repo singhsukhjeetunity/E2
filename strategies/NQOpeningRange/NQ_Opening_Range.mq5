@@ -12,14 +12,14 @@ const double InpMarginBuffer=0.15;
 const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
 const bool InpVerbose=false;
-input group "=== E2 SYSTEM 5: NQ OPENING RANGE ==="
+input group "=== E2 NASDAQ OPENING RANGE ==="
 input bool InpEnableEntries=false;      // Enable entries after broker clock verification
 input bool InpExportCsv=true;            // Export journal CSV reports
 input group "=== RISK MANAGEMENT ==="
 input int InpRiskMode=0;                 // 0=fixed account cash, 1=balance percentage
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
-input group "=== OPENING RANGE FILTERS ==="
+input group "=== STRATEGY FILTERS ==="
 input bool InpUseRangeWidthFilter=true;       // Require opening range / prior D1 ATR within bounds
 input double InpMinRangeATR=0.25;           // Minimum range as a fraction of 14-day ATR
 input double InpMaxRangeATR=1.50;           // Maximum range as a fraction of 14-day ATR
