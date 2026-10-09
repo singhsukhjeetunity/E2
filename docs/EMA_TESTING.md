@@ -1,6 +1,6 @@
 # EMA pullback — chart and tester setup
 
-Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.24.
+Entry: `strategies/EMAPullback/EMA_Pullback_Long.mq5`, version 0.25.
 Copy the complete `strategies` folder into `MQL5/Experts/E2`, retaining its subfolders. Compile the entry in MetaEditor.
 
 Use the [retained strategy baseline](STRATEGY_REFERENCE.md) for the planned demo forward test: EMA20/50, ATR14, a 3.0 ATR stop and a 0.5R target. The session-exit rule is retained. Strategy selection is complete and the user has verified the daily entry limit; demo forward testing is the next stage.
@@ -62,7 +62,15 @@ The strategy's 09:30 New York entry-session convention is retained even for data
 
 References: [NYSE current calendar](https://www.nyse.com/trade/hours-calendars), [NIST DST rules](https://www.nist.gov/pml/time-and-frequency-division/popular-links/daylight-saving-time-dst), and [historical NYSE calendar implementation](https://github.com/rsheftel/pandas_market_calendars/blob/master/pandas_market_calendars/holidays/nyse.py). The shared clock/calendar change also applies to Compression; its signals and risk inputs are unchanged.
 
-Scheduled exits use the earlier cash-session deadline or broker session end minus the buffer. More than 60 seconds overdue flags the trade; tester runs fail, while live closes continue and future entries wait for confirmed settlement. Failed closes retry every five seconds. End-of-test liquidation remains explicitly flagged. See [live recovery instructions](LIVE_RECOVERY_UPDATE.md).
+Scheduled exits use the earlier cash-session deadline or broker session end minus the buffer. More than 60 seconds overdue flags the trade; future entries wait for confirmed settlement. Failed closes retry every five seconds. End-of-test liquidation remains explicitly flagged. See [live recovery instructions](LIVE_RECOVERY_UPDATE.md).
+
+### v0.25: late exits no longer truncate a backtest
+
+A missed tester exit previously set the same permanent flag as an unsafe protection/ownership failure. Even after a successful close, the rest of the test stopped processing entry signals. EMA v0.25 and Compression v0.12 separate tester integrity from execution safety. The affected position stays reserved until broker-confirmed closure and durable settlement; subsequent fresh signals can then execute. `EXIT_DEADLINE_MISSED` and `TEST_INTEGRITY_WARNING` remain visible, `run_failed` remains true, and the actual `OnTester()` optimisation score stays -1e100. These results must not be treated as a clean timing-valid backtest.
+
+The supplied 2016-2025 USTEC_HISDATA run entered on 2016-01-12 at 18:00 UTC, planned a 20:54 exit, next observed ticks at 21:00 (after a feed gap), received market-closed refusals, and finally closed at 22:00:20. That is the reproduced permanent-stop trigger. This update cannot invent quotes during a historical gap or make the broker accept orders during a closed session. Confirm the custom data timestamp basis against its symbol session schedule; its loaded EU-seasonal UTC+2 profile is not proof that imported timestamps are in that timezone.
+
+Gold and Gotobi were audited for the same irreversible late-exit stop. Neither uses it. Their existing recovery/ownership/clock tests remain part of verification. Strategy signals, timing deadlines, buffers, stops, targets and risk settings are unchanged.
 
 ## E2-trio allocation
 
