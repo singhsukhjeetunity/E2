@@ -24,7 +24,7 @@ All EAs use grouped inputs for risk, strategy rules, execution safety, broker cl
 - **Gotobi:** `InpBrokerWinterUTCOffsetHours`, plus the existing fixed/EU/US DST selection.
 - **NQ and Bund:** `InpServerUTCOffsetWinterHours` and `InpServerUTCOffsetSummerHours`, plus DST mode and verified-clock toggle.
 
-**Migration:** old `.set` files and MT5 chart input snapshots containing `InpBrokerWinterUtcOffsetSeconds`, `InpBrokerWinterUTCMinutes`, or `InpBrokerUtcOffsetSeconds` **do not map to the renamed inputs**. Manually convert (seconds / 3600, minutes / 60) and verify the new fields before any testing/live use. Example: old 7200 seconds or 120 minutes becomes **2 hours**. The bundled Gotobi preset was migrated. The underlying offset values used by strategy code are mathematically unchanged when equivalent values are entered.
+**Migration:** old `.set` files and MT5 chart input snapshots containing `InpBrokerWinterUtcOffsetSeconds`, `InpBrokerWinterUTCMinutes`, or `InpBrokerUtcOffsetSeconds` **do not map to the renamed inputs**. Manually convert (seconds / 3600, minutes / 60) and verify the new fields before any testing/live use. Example: old 7200 seconds or 120 minutes becomes **2 hours**. Fractional hours remain supported for historical half-hour or quarter-hour offsets (e.g. **5.5** for UTC+05:30). The bundled Gotobi preset was migrated. The underlying offset values used by strategy code are mathematically unchanged when equivalent values are entered.
 
 **Important:** input regrouping/renaming has not been validated by a native MT5 compiler or trade-by-trade historical comparison. Existing strategy rule constants and defaults were deliberately preserved, but a guarantee of identical execution cannot be made until that comparison passes.
 
