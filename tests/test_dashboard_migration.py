@@ -1,4 +1,4 @@
-"""Guard dashboard unit conversions, preserved baselines and Bund research defaults."""
+"""Guard dashboard unit conversions, preserved baselines and four-EA configuration defaults."""
 from pathlib import Path
 import re
 import unittest
@@ -9,15 +9,15 @@ class DashboardMigration(unittest.TestCase):
     def test_hour_inputs_preserve_old_seconds_math(self):
         for name in ("CompressionBreakout/CompressionEngine.mqh",):
             s=read("strategies/"+name)
-            self.assertIn("input double InpBrokerWinterUTCOffsetHours=0.0;",s)
-            self.assertIn("#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpBrokerWinterUTCOffsetHours*3600.0))",s)
+            self.assertIn("input double InpServerUTCOffsetWinterHours=0.0;",s)
+            self.assertIn("#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpServerUTCOffsetWinterHours*3600.0))",s)
             self.assertNotRegex(s,r"(?m)^input int InpBrokerWinterUtcOffsetSeconds")
         g=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
         self.assertIn("#define InpBrokerUtcOffsetSeconds ((int)MathRound(InpBrokerUTCOffsetHours*3600.0))",g)
         self.assertIn("input double InpBrokerUTCOffsetHours=0.0;",g)
         got=read("strategies/EURJPYGotobi/include/Runtime.mqh")
-        self.assertIn("input double InpBrokerWinterUTCOffsetHours=2.0;",got)
-        self.assertIn("InpBrokerWinterUTCMinutes=(int)MathRound(InpBrokerWinterUTCOffsetHours*60.0);",got)
+        self.assertIn("input double InpServerUTCOffsetWinterHours=2.0;",got)
+        self.assertIn("InpBrokerWinterUTCMinutes=(int)MathRound(InpServerUTCOffsetWinterHours*60.0);",got)
         self.assertFalse((ROOT/"presets").exists())
     def test_existing_strategy_baselines_unchanged(self):
         gold=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
