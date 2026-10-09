@@ -75,7 +75,7 @@ int main(){
 #include <iomanip>
 #include "CORE"
 int main(){CBState s;CBReset(s);CBBar b;double a;std::cout<<std::setprecision(17);
- while(std::cin>>b.start>>b.open>>b.high>>b.low>>b.close>>b.minutes){bool hit=CBConsume(s,b,30,14,20,100,0.8,a);std::cout<<hit<<" "<<a<<"\n";}}
+ while(std::cin>>b.start>>b.open>>b.high>>b.low>>b.close>>b.minutes){bool hit=CBConsume(s,b,30,14,20,100,0.8,a);std::cout<<hit<<" "<<a<<"\\n";}}
 '''.replace('CORE',str(root/'strategies/CompressionBreakout/CompressionCore.mqh'))
     f=p/'signal.cpp';f.write_text(runner);binary=p/'signal'
     subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror',str(f),'-o',str(binary)],check=True)
