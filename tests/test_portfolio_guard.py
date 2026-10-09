@@ -51,7 +51,9 @@ class PortfolioGuardIntegration(unittest.TestCase):
         self.assertIn("InpFirstDayReferenceEquity=0.0",guard)
         self.assertIn("No verified beginning-of-day reference",guard)
         self.assertIn("GlobalVariableGet(pg_key+\"READY\")<0.5",guard)
-        self.assertIn("if(!PGSetDay(day,can_seed,InpFirstDayReferenceEquity))",guard)
+        self.assertIn("manual_first=!GlobalVariableCheck(pg_key+\\\"DAY\\\")",guard)
+        self.assertIn("manual_first?InpFirstDayReferenceEquity:0.0",guard)
+        self.assertIn("if(!PGSetDay(day,can_seed,manual_first?InpFirstDayReferenceEquity:0.0))",guard)
 
 if __name__=="__main__":
     unittest.main()
