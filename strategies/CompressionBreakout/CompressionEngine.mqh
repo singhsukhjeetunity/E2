@@ -5,6 +5,7 @@
 #include "..\\shared\\RecoveryState.mqh"
 #include "CompressionClock.mqh"
 #include "..\\shared\\ReportFolders.mqh"
+#include "..\\shared\\PortfolioGate.mqh"
 
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // Verify the historical broker feed clock
@@ -520,6 +521,7 @@ void Enter(const int s,const datetime now) {
    else if((flags&SYMBOL_FILLING_IOC)!=0)req.type_filling=ORDER_FILLING_IOC;
    else if(SymbolInfoInteger(_Symbol,SYMBOL_TRADE_EXEMODE)!=SYMBOL_TRADE_EXECUTION_MARKET)req.type_filling=ORDER_FILLING_RETURN;
    else {Audit(s,now,"SKIP","unsupported filling policy");return;}
+   if(!E2PGCanEnter()) {Audit(s,now,"PORTFOLIO_GUARD_BLOCK","Guard missing or daily lock");return;}
    int n=ArraySize(g_records);
    req.comment="CB1_"+IntegerToString((long)now)+"_"+IntegerToString(n);
    if(!OrderCheck(req,check)){Audit(s,now,"ORDER_CHECK_REJECTED",check.comment);return;}
@@ -534,6 +536,13 @@ void Enter(const int s,const datetime now) {
    if(!SaveState()) {
       // Submission never occurred. Roll back only this unsent in-memory reservation.
       g_slots[s].active=-1;g_slots[s].pending=false;ArrayResize(g_records,n);
+      return;
+   }
+   // Final gate after durable state write; never send a blocked entry.
+   if(!E2PGCanEnter()) {
+      Audit(s,now,"PORTFOLIO_GUARD_BLOCK","Guard locked before broker submission");
+      g_slots[s].active=-1;g_slots[s].pending=false;ArrayResize(g_records,n);
+      if(!SaveState())Fail("Could not persist unsent portfolio-lock rollback");
       return;
    }
    bool ok=OrderSend(req,result);g_records[n].order=result.order;
