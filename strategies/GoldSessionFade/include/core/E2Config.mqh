@@ -4,7 +4,7 @@ enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1,E2_XAU_TIME_NEW_YORK=2 };
 enum E2XauRegimeLookbackMode { E2_XAU_REGIME_LOOKBACK_3_MONTHS=0,E2_XAU_REGIME_LOOKBACK_6_MONTHS=1,E2_XAU_REGIME_LOOKBACK_12_MONTHS=2,E2_XAU_REGIME_LOOKBACK_N_OBSERVATIONS=3 };
 enum E2XauRegimeFilterMode { E2_XAU_REGIME_OFF=0,E2_XAU_REGIME_BLOCK_UNFAVOURABLE=1,E2_XAU_REGIME_FAVOURABLE_ONLY=2 };
-input group "=== E2 PRODUCTION ==="
+input group "=== E2 GOLD SESSION FADE ==="
 input bool InpTradingEnabled = true;             // Enable Trading
 input bool InpConfirmRealAccountTrading = false; // Required for real-account trading
 input ulong InpExpertMagicNumber = 2026001;      // Expert Magic Number
@@ -26,7 +26,7 @@ input int InpWeekendFlatMinutesBeforeSessionClose = 30; // Minutes Before Friday
 
 input bool InpOneTradePerDay=true;
 
-input group "=== XAU SESSION FADE ==="
+input group "=== STRATEGY SETTINGS ==="
 input E2XauTimeBasis InpXauTimeBasis=E2_XAU_TIME_UTC;
 input int InpXauRangeStartHour=12;
 input int InpXauRangeStartMinute=0;
@@ -39,7 +39,7 @@ input int InpXauTrendLookbackBars=36;
 input double InpXauTrendEfficiencyMin=0.30;
 input int InpXauBlockFridayEntriesFromHour=20; // -1 disables late-Friday entry block
 
-input group "=== XAU REGIME FILTER (RESEARCH) ==="
+input group "=== REGIME FILTER ==="
 input E2XauRegimeFilterMode InpXauRegimeFilterMode=E2_XAU_REGIME_FAVOURABLE_ONLY;
 input E2XauRegimeLookbackMode InpXauRegimeLookbackMode=E2_XAU_REGIME_LOOKBACK_6_MONTHS;
 input int InpXauRegimeObservationLookback=50;
@@ -49,10 +49,11 @@ input double InpXauRegimeUnfavourableThreshold=1.20;
 input double InpXauRegimeFavourableThreshold=1.25;
 input double InpXauRegimeVeryFavourableThreshold=1.45;
 
-input group "=== BROKER TIME ADAPTER ==="
+input group "=== BROKER CLOCK PROFILE ==="
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
 input bool InpUseManualBrokerUtcOffset=false;
-input int InpBrokerUtcOffsetSeconds=0;
+input int InpBrokerUTCOffsetHours=0; // Manual server UTC offset in HOURS
+#define InpBrokerUtcOffsetSeconds (InpBrokerUTCOffsetHours*3600)
 
 struct E2Config
 {
