@@ -50,6 +50,10 @@ input double InpXauRegimeFavourableThreshold=1.25;
 input double InpXauRegimeVeryFavourableThreshold=1.45;
 
 input group "=== BROKER CLOCK PROFILE ==="
+input bool InpBrokerClockVerified=false;
+input double InpServerUTCOffsetWinterHours=0.0;
+input double InpServerUTCOffsetSummerHours=1.0;
+input int InpBrokerDST=0; // 0 none, 1 EU, 2 US
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
 input bool InpUseManualBrokerUtcOffset=false;
 input double InpBrokerUTCOffsetHours=0.0; // Manual server UTC offset in HOURS
