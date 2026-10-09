@@ -13,7 +13,7 @@ input bool InpOneEntryPerDay=true; // Maximum one entry per day
 input ulong InpMagic=RC_DEFAULT_MAGIC; // Unique strategy ID
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // I verified the historical feed clock
-input int InpBrokerWinterUTCOffsetHours=2; // Winter server UTC offset in HOURS
+input double InpBrokerWinterUTCOffsetHours=2.0; // Winter server UTC offset in HOURS
 int InpBrokerWinterUTCMinutes=120; // Internal conversion; initialized from the hour input in OnInit
 input RCClock InpBrokerDST=RC_EU; // Historical feed daylight-saving rule
 input group "=== EXIT SETTINGS ==="
@@ -268,7 +268,7 @@ bool RCRecentBars(const ENUM_TIMEFRAMES frame,const int count,RCBar &bars[]) {
    return true;
 }
 int OnInit() {
-   InpBrokerWinterUTCMinutes=InpBrokerWinterUTCOffsetHours*60;
+   InpBrokerWinterUTCMinutes=(int)MathRound(InpBrokerWinterUTCOffsetHours*60.0);
    if(!InpBrokerClockVerified){Print(RC_NAME,": verify broker UTC/DST inputs, then set InpBrokerClockVerified=true.");return INIT_PARAMETERS_INCORRECT;}
    if(InpRiskMode!=E2_RISK_FIXED_CASH&&InpRiskMode!=E2_RISK_BALANCE_PERCENT)return INIT_PARAMETERS_INCORRECT;
    if(InpRiskMode==E2_RISK_FIXED_CASH&&(!MathIsValidNumber(InpFixedCashRisk)||InpFixedCashRisk<=0))return INIT_PARAMETERS_INCORRECT;
