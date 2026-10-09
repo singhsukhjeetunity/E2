@@ -6,10 +6,11 @@
 #include "CompressionClock.mqh"
 #include "..\\shared\\ReportFolders.mqh"
 
-input group "Historical broker time"
+input group "=== BROKER CLOCK PROFILE ==="
 input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
-input int InpBrokerWinterUtcOffsetSeconds=0;
-input group "Strategy settings"
+input int InpBrokerWinterUTCOffsetHours=0; // Winter server UTC offset in HOURS
+#define InpBrokerWinterUtcOffsetSeconds (InpBrokerWinterUTCOffsetHours*3600)
+input group "=== STRATEGY SETTINGS ==="
 input int InpATRLength=14;
 input int InpChannelBars=20;
 input int InpCompressionBars=100;
@@ -17,10 +18,10 @@ input double InpCompressionRatio=0.8;
 input double InpStopATR=3.0;
 input double InpTargetR=2.0;
 input bool InpOneTradePerDay=false; // Research baseline: off. When on: one filled entry per UTC date, symbol and magic
-input group "Risk and identification"
+input group "=== RISK MANAGEMENT ==="
 input double InpCashRisk=1000.0;
 input ulong InpMagic=2026091703;
-input group "Execution and reporting"
+input group "=== EXECUTION AND REPORTING ==="
 input int InpBrokerCloseBufferMinutes=5; // Exit before the active broker session ends
 input double InpMaxSpreadPriceUnits=0.03;
 input double InpMaxDeviationPriceUnits=0.005;
