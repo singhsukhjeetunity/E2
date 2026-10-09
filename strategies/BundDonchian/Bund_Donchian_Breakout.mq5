@@ -127,7 +127,6 @@ void BDProcessBar() {
    if(!InpBrokerClockVerified)return;
    datetime bar=iTime(_Symbol,PERIOD_H1,0);
    if(bar<=0||bar==bd_lastBar)return;
-   bd_lastBar=bar; // Closed-bar signals: never evaluate the current unfinished candle.
    MqlRates candles[];
    ArraySetAsSeries(candles,true);
    int need=MathMax(InpEntryChannelBars,InpExitChannelBars)+1;
@@ -135,6 +134,7 @@ void BDProcessBar() {
    double atr[];
    ArraySetAsSeries(atr,true);
    if(CopyBuffer(bd_atr,0,1,1,atr)!=1||atr[0]<=0||!MathIsValidNumber(atr[0]))return;
+   bd_lastBar=bar; // Mark only after all data is ready; retry if history is temporarily missing.
    double entryHi=-DBL_MAX,entryLo=DBL_MAX,exitHi=-DBL_MAX,exitLo=DBL_MAX;
    for(int i=1;i<=InpEntryChannelBars;i++) {
       entryHi=MathMax(entryHi,candles[i].high);
