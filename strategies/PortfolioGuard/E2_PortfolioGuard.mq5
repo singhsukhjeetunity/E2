@@ -223,8 +223,13 @@ int OnInit()
    if(!same_day)
    {
       bool within_reset=E2PGMinutesAfterReset(server,InpResetServerHour,InpResetServerMinute)<5;
-      bool can_seed=within_reset||InpFirstDayReferenceEquity>0.0||MQLInfoInteger(MQL_TESTER)!=0;
-      if(!PGSetDay(day,can_seed,InpFirstDayReferenceEquity))return INIT_FAILED;
+      // A first-install manual reference is NEVER reused after a later day
+      // or VPS outage. Stale input must not silently reset a prop account budget.
+      bool manual_first=!GlobalVariableCheck(pg_key+"DAY")&&!within_reset&&
+                        InpFirstDayReferenceEquity>0.0;
+      bool can_seed=within_reset||manual_first||MQLInfoInteger(MQL_TESTER)!=0;
+      if(!PGSetDay(day,can_seed,manual_first?InpFirstDayReferenceEquity:0.0))
+         return INIT_FAILED;
    }
    else
    {
