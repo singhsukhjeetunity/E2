@@ -20,7 +20,7 @@ uint NQHash(const string value) {
    return hash;
 }
 string NQConfig() {
-   return "NQ_ORB_V1|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
+   return "NQ_ORB_LONG_ONLY_V2|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
       IntegerToString(InpMaxEntriesPerNYDay)+"|"+IntegerToString(InpMaxLongSessions)+"|"+
       IntegerToString(InpRiskMode)+"|"+NQNumber(InpFixedCashRisk)+"|"+NQNumber(InpBalanceRiskPercent)+"|"+
       NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+

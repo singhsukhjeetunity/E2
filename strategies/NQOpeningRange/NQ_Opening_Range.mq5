@@ -1,6 +1,6 @@
 #property strict
 #property version "0.10"
-#property description "E2 research EA: NQ 90-minute cash-session opening-range breakout. NOT live validated."
+#property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 
 // Independent research EA. Never attach alongside a second copy using the same magic.
 const double InpStopIndexPoints=100.0,InpTargetIndexPoints=200.0;
@@ -235,15 +235,12 @@ void AttemptEntry(const datetime ny) {
    MqlTick tick;
    if(!SymbolInfoTick(_Symbol,tick)||tick.bid<=0||tick.ask<=0)return;
    if(InpMaxSpreadIndexPoints>0&&tick.ask-tick.bid>InpMaxSpreadIndexPoints)return;
-   // Original corrected model: stop-level crossing. Live order uses market tick,
-   // so gaps/slippage are real and NOT assumed to fill at the range boundary.
-   ENUM_ORDER_TYPE side;
-   if(tick.ask>g_rangeHigh)side=ORDER_TYPE_BUY;
-   else if(tick.bid<g_rangeLow)side=ORDER_TYPE_SELL;
-   else return;
-   double entry=(side==ORDER_TYPE_BUY?tick.ask:tick.bid);
-   double stop=TickRound(entry+(side==ORDER_TYPE_BUY?-InpStopIndexPoints:InpStopIndexPoints));
-   double target=TickRound(entry+(side==ORDER_TYPE_BUY?InpTargetIndexPoints:-InpTargetIndexPoints));
+   // Only an upside break can open a position. Market fills can differ from the range boundary.
+   if(tick.ask<=g_rangeHigh)return;
+   const ENUM_ORDER_TYPE side=ORDER_TYPE_BUY;
+   double entry=tick.ask;
+   double stop=TickRound(entry-InpStopIndexPoints);
+   double target=TickRound(entry+InpTargetIndexPoints);
    double minStop=SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL)*_Point;
    if(MathAbs(entry-stop)<minStop||MathAbs(entry-target)<minStop)return;
    double vol=SizeForStop(side,entry,stop);
@@ -256,9 +253,9 @@ void AttemptEntry(const datetime ny) {
    g_lastAttemptBar=bar;
    ResetLastError();
    bool sent=OrderSend(req,res);
-   NQSignal(TimeCurrent(),"ENTRY_REQUEST",StringFormat("side=%s volume=%.8f requested_price=%.8f sl=%.8f tp=%.8f retcode=%u",side==ORDER_TYPE_BUY?"BUY":"SELL",vol,entry,stop,target,res.retcode));
-   PrintFormat("[NQORB] entry side=%s vol=%.2f range=%.2f/%.2f SL=%.2f TP=%.2f sent=%d retcode=%u err=%d",
-      side==ORDER_TYPE_BUY?"BUY":"SELL",vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
+   NQSignal(TimeCurrent(),"ENTRY_REQUEST",StringFormat("side=BUY volume=%.8f requested_price=%.8f sl=%.8f tp=%.8f retcode=%u",vol,entry,stop,target,res.retcode));
+   PrintFormat("[NQORB] entry side=BUY vol=%.2f range=%.2f/%.2f SL=%.2f TP=%.2f sent=%d retcode=%u err=%d",
+      vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
    if(res.retcode==TRADE_RETCODE_TIMEOUT||(sent&&res.retcode==TRADE_RETCODE_PLACED))g_ambiguousEntry=true;
 }
 void Run() {

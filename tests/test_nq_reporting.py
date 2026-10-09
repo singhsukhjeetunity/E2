@@ -11,6 +11,15 @@ REPORT = (ROOT / "NQReport.mqh").read_text()
 
 
 class NQReportingTests(unittest.TestCase):
+    def test_new_entries_are_long_only(self):
+        entry = EA.split("void AttemptEntry(", 1)[1].split("void Run(", 1)[0]
+        self.assertIn("if(tick.ask<=g_rangeHigh)return;", entry)
+        self.assertIn("const ENUM_ORDER_TYPE side=ORDER_TYPE_BUY;", entry)
+        self.assertIn("req.type=side", entry)
+        self.assertNotIn("ORDER_TYPE_SELL", entry)
+        self.assertNotIn("tick.bid<g_rangeLow", entry)
+        self.assertIn("NQ_ORB_LONG_ONLY_V2", REPORT)
+
     def test_dashboard_only_has_operator_controls(self):
         names = set(re.findall(r"^input\s+(?:bool|int|double|ulong)\s+(\w+)", EA, re.M))
         self.assertEqual(names, {
