@@ -185,15 +185,21 @@ bool SendClose(const ulong ticket,const long kind,const double volume) {
    if(InpVerbose||!sent||res.retcode!=TRADE_RETCODE_DONE)
       PrintFormat("[NQORB] close ticket=%I64u sent=%d retcode=%u error=%d",ticket,(int)sent,res.retcode,GetLastError());
    if(sent&&(res.retcode==TRADE_RETCODE_DONE||res.retcode==TRADE_RETCODE_DONE_PARTIAL))return true;
-   if(sent&&(res.retcode==TRADE_RETCODE_PLACED||res.retcode==TRADE_RETCODE_TIMEOUT))g_ambiguousExit=true;
+   if(res.retcode==TRADE_RETCODE_TIMEOUT||(sent&&res.retcode==TRADE_RETCODE_PLACED))g_ambiguousExit=true;
    return false;
 }
 void ManageExits(const datetime ny) {
    ulong ticket;long kind;double volume;datetime opened;
    if(!OwnPosition(ticket,kind,volume,opened)) {g_ambiguousExit=false;return;}
    if(g_ambiguousExit)return; // do not duplicate an unconfirmed close
-   if(MinuteOfDay(ny)<InpSessionCloseNYMinute)return;
-   if(kind==POSITION_TYPE_SELL||WeekdaySessions(ServerToNY(opened),ny)>=InpMaxLongSessions)
+   datetime entryNY=ServerToNY(opened);
+   bool pastDay=DayKey(ny)>DayKey(entryNY);
+   int sessions=WeekdaySessions(entryNY,ny);
+   // Recover a missed session-close exit immediately on the next tradable tick.
+   if(kind==POSITION_TYPE_SELL) {
+      if(pastDay||MinuteOfDay(ny)>=InpSessionCloseNYMinute)SendClose(ticket,kind,volume);
+   } else if(sessions>InpMaxLongSessions||
+             (sessions==InpMaxLongSessions&&MinuteOfDay(ny)>=InpSessionCloseNYMinute))
       SendClose(ticket,kind,volume);
 }
 double SizeForStop(const ENUM_ORDER_TYPE side,const double entry,const double stop) {
@@ -253,7 +259,7 @@ void AttemptEntry(const datetime ny) {
    bool sent=OrderSend(req,res);
    PrintFormat("[NQORB] entry side=%s vol=%.2f range=%.2f/%.2f SL=%.2f TP=%.2f sent=%d retcode=%u err=%d",
       side==ORDER_TYPE_BUY?"BUY":"SELL",vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
-   if(sent&&(res.retcode==TRADE_RETCODE_PLACED||res.retcode==TRADE_RETCODE_TIMEOUT))g_ambiguousEntry=true;
+   if(res.retcode==TRADE_RETCODE_TIMEOUT||(sent&&res.retcode==TRADE_RETCODE_PLACED))g_ambiguousEntry=true;
 }
 void Run() {
    datetime server=TimeCurrent();
