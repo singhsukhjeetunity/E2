@@ -21,3 +21,4 @@ jobs:
       - run: python3 tests/run_gold_regime.py
       - run: python3 tests/gotobi/run_checks.py
       - run: python3 tests/run_compression.py
+      - run: python3 tests/run_nq_orb_clock.py
