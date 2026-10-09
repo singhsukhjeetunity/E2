@@ -1,7 +1,6 @@
 #property strict
 #property version "0.10"
 #property description "E2 research EA: NQ 90-minute cash-session opening-range breakout. NOT live validated."
-#include <Trade/Trade.mqh>
 
 // Independent research EA. Never attach alongside a second copy using the same magic.
 input group "Research rules (Nasdaq index PRICE units)"
@@ -30,7 +29,6 @@ input int InpBrokerDST=0;               // 0=none, 1=EU, 2=US; use historical br
 input group "Diagnostics"
 input bool InpVerbose=false;
 
-CTrade trade;
 int g_day=0;
 double g_rangeHigh=0,g_rangeLow=0;
 bool g_rangeReady=false;
@@ -143,7 +141,7 @@ bool BuildRange(const int nyKey) {
    ArraySetAsSeries(bars,true);
    int n=CopyRates(_Symbol,PERIOD_M5,0,320,bars);
    if(n<=0)return false;
-   bool found[18];ArrayInitialize(found,false);
+   bool found[18];for(int j=0;j<18;j++)found[j]=false;
    int count=0;double hi=-DBL_MAX,lo=DBL_MAX;
    for(int i=0;i<n;i++) {
       datetime ny=ServerToNY(bars[i].time);
@@ -187,7 +185,7 @@ bool SendClose(const ulong ticket,const long kind,const double volume) {
    if(InpVerbose||!sent||res.retcode!=TRADE_RETCODE_DONE)
       PrintFormat("[NQORB] close ticket=%I64u sent=%d retcode=%u error=%d",ticket,(int)sent,res.retcode,GetLastError());
    if(sent&&(res.retcode==TRADE_RETCODE_DONE||res.retcode==TRADE_RETCODE_DONE_PARTIAL))return true;
-   if(sent&&res.retcode==TRADE_RETCODE_PLACED)g_ambiguousExit=true;
+   if(sent&&(res.retcode==TRADE_RETCODE_PLACED||res.retcode==TRADE_RETCODE_TIMEOUT))g_ambiguousExit=true;
    return false;
 }
 void ManageExits(const datetime ny) {
@@ -255,7 +253,7 @@ void AttemptEntry(const datetime ny) {
    bool sent=OrderSend(req,res);
    PrintFormat("[NQORB] entry side=%s vol=%.2f range=%.2f/%.2f SL=%.2f TP=%.2f sent=%d retcode=%u err=%d",
       side==ORDER_TYPE_BUY?"BUY":"SELL",vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
-   if(sent&&res.retcode==TRADE_RETCODE_PLACED)g_ambiguousEntry=true;
+   if(sent&&(res.retcode==TRADE_RETCODE_PLACED||res.retcode==TRADE_RETCODE_TIMEOUT))g_ambiguousEntry=true;
 }
 void Run() {
    datetime server=TimeCurrent();
@@ -266,8 +264,8 @@ void Run() {
       g_day=key;g_rangeReady=false;g_rangeHigh=0;g_rangeLow=0;g_lastAttemptBar=0;
       g_ambiguousEntry=false;
    }
-   // Always manage existing positions even when new entries are disabled.
-   ManageExits(ny);
+   // Timed exits also require a verified clock. Protective broker SL/TP remain active.
+   if(InpBrokerClockVerified)ManageExits(ny);
    if(MinuteOfDay(ny)>=InpRangeEndNYMinute&&!g_rangeReady)
       g_rangeReady=BuildRange(key);
    AttemptEntry(ny);
@@ -293,7 +291,6 @@ int OnInit() {
    if(InpEnableEntries&&!InpBrokerClockVerified) {
       Print("[NQORB] Entries disabled: verify broker clock and set InpBrokerClockVerified=true");
    }
-   trade.SetExpertMagicNumber(InpMagic);
    EventSetTimer(30);
    Print("[NQORB] Research EA initialized. Entry switch=",InpEnableEntries,
          " broker clock verified=",InpBrokerClockVerified,
