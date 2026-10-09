@@ -43,6 +43,7 @@ datetime g_test_from=0,g_test_until=0;
 int g_session_day=0,g_session_count=0,g_signals=INVALID_HANDLE,g_equity=INVALID_HANDLE;
 string g_run,g_config,g_report_folder,g_report_base;
 bool g_ready=false,g_failed=false,g_seeded=false,g_bootstrapped=false;
+bool g_integrity_failed=false; // Tester validity is separate from an execution safety stop.
 string g_state_file,g_scope;
 int g_instance_lock=INVALID_HANDLE;
 datetime g_history_notice=0;
@@ -275,9 +276,13 @@ void MarkOverdue(const int k,const datetime now) {
       g_records[k].integrity+="EXIT_DEADLINE_MISSED";
       Audit(g_records[k].slot,now,"EXIT_DEADLINE_MISSED",Stamp(g_records[k].deadline));
    }
-   // A late exit invalidates a research run, but is not a permanent live stop.
-   // Live entries remain occupied until broker-confirmed closure and durable reconciliation.
-   if(MQLInfoInteger(MQL_TESTER))Fail("Exit deadline missed; this run is invalid");
+   // Missing quotes/session availability can make an exit late. Preserve that evidence
+   // and reject the optimisation result, without silently truncating the remaining test.
+   // The active slot still blocks entries until confirmed closure and durable settlement.
+   if(MQLInfoInteger(MQL_TESTER)&&!g_integrity_failed) {
+      g_integrity_failed=true;
+      Audit(g_records[k].slot,now,"TEST_INTEGRITY_WARNING","Late exit; run invalid for optimisation, execution continues after settlement");
+   }
 }
 bool ClosePosition(const int s,const ulong ticket,const string reason) {
    int i=g_slots[s].active;
@@ -568,7 +573,7 @@ void Equity(const datetime now) {
    datetime minute=now-now%60;
    if(g_equity!=INVALID_HANDLE&&minute!=g_equity_minute) {
       g_equity_minute=minute;
-      FileWrite(g_equity,g_run,Stamp(now),Number(rr[0]),Number(total),open[0],g_failed);
+      FileWrite(g_equity,g_run,Stamp(now),Number(rr[0]),Number(total),open[0],g_failed||g_integrity_failed);
    }
 }
 bool ExportTrades() {
@@ -596,6 +601,7 @@ bool ExportTrades() {
    return true;
 }
 int OnInit() {
+   g_integrity_failed=false;
    if(InpBrokerClock==NP_CLOCK_UNSET || InpBrokerWinterUtcOffsetSeconds<-50400 ||
       InpBrokerWinterUtcOffsetSeconds>50400 || InpBrokerWinterUtcOffsetSeconds%60!=0) {
       Print("[NP] Set the historical broker clock explicitly; see docs/EMA_TESTING.md.");return INIT_PARAMETERS_INCORRECT;
@@ -663,6 +669,7 @@ void OnTimer() {
    if(now-last_health>=300) {
       last_health=now;
       Print("[HEALTH] EMA hard_stopped=",g_failed,
+            " integrity_failed=",g_integrity_failed,
             " storage_paused=",g_storage_paused," export_paused=",g_export_paused,
             " seeded=",g_seeded," active=",g_slots[0].active," pending=",g_slots[0].pending,
             " last_m1_server=",g_last_server_minute);
@@ -685,7 +692,7 @@ double OnTester() {
       }
    }
    Equity(now);
-   return g_failed?-1e100:g_r[0];
+   return (g_failed||g_integrity_failed)?-1e100:g_r[0];
 }
 void OnDeinit(const int reason) {
    EventKillTimer();
@@ -694,7 +701,7 @@ void OnDeinit(const int reason) {
       ExportTrades();
       SaveState();
       Print("[NP] Closed net R=",g_r[0]," tick-observed cash DD=",g_equity_dd,
-         " failed=",g_failed,". CSV: Common Files / ",g_report_folder);
+         " hard_stopped=",g_failed," integrity_failed=",g_integrity_failed,". CSV: Common Files / ",g_report_folder);
    }
    if(g_signals!=INVALID_HANDLE){FileFlush(g_signals);FileClose(g_signals);}
    if(g_equity!=INVALID_HANDLE){FileFlush(g_equity);FileClose(g_equity);}

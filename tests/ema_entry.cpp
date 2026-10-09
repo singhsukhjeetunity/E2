@@ -41,6 +41,7 @@ struct Slot{datetime signal_time=10000,seen_signal=0,last_exit_minute=0;bool sig
 Slot g_slots[1];std::vector<NPRecord>g_records;string g_run="run";
 bool g_failed=false,disk_ok=true,durable=false,owned=true;int sends=0,g_session_day=0,g_session_count=120;
 bool g_storage_paused=false,g_export_paused=false;
+bool g_integrity_failed=false;
 bool tester=false;const int MQL_TESTER=1234;int MQLInfoInteger(int){return tester;}
 int StringFind(const string &s,const string &x){auto p=s.find(x);return p==string::npos?-1:(int)p;}
 template<class... T>void Print(const T&...){}
@@ -58,7 +59,8 @@ double RoundPrice(double x){return x;}double NormalizeDouble(double x,int){retur
 double MathFloor(double x){return std::floor(x);}double MathCeil(double x){return std::ceil(x);}double MathMin(double a,double b){return std::fmin(a,b);}
 int ArraySize(const std::vector<NPRecord>&r){return r.size();}
 bool OrderCheck(const MqlTradeRequest&,MqlTradeCheckResult&){return true;}
-string Strategy(int){return "NP_EMA_M30_LONG";}datetime TimeCurrent(){return 10000;}
+datetime test_now=10000;
+string Strategy(int){return "NP_EMA_M30_LONG";}datetime TimeCurrent(){return test_now;}
 string Stamp(datetime t){return std::to_string(t);}void Audit(int,datetime,const string&,const string&){}
 void Fail(const string&){g_failed=true;}
 bool SaveState(){if(!disk_ok){g_storage_paused=true;return false;}g_storage_paused=false;durable=g_slots[0].pending&&g_slots[0].active>=0;return true;}
@@ -82,10 +84,26 @@ string HistoryDealGetString(unsigned long d,int){return deals[d-1].symbol;}
 long HistoryDealGetInteger(unsigned long d,int k){auto &v=deals[d-1];return k==DEAL_ORDER?55:k==DEAL_MAGIC?v.magic:k==DEAL_ENTRY?v.entry:v.time;}
 #include "ema_deadline.mqh"
 #include "ema_entry.mqh"
-void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=g_storage_paused=g_export_paused=false;durable=false;sends=0;disk_ok=true;owned=true;InpOneTradePerDay=false;history_ok=clock_ok=true;history_queries=0;deals.clear();order_active=false;order_history=send_ok=true;broker_retcode=TRADE_RETCODE_DONE;executed=0;send_ticket=55;}
+double g_r[1]={12.0};
+bool ClosePosition(int,unsigned long,const string&){return true;}
+void Equity(datetime){}
+bool g_ready=true;datetime g_test_until=0;
+bool Feed(datetime,datetime){return true;}
+#include "ema_tick.mqh"
+#include "ema_tester.mqh"
+void reset(){g_slots[0]=Slot{};g_records.clear();g_failed=g_storage_paused=g_export_paused=g_integrity_failed=false;durable=false;sends=0;disk_ok=true;owned=true;InpOneTradePerDay=false;history_ok=clock_ok=true;history_queries=0;deals.clear();order_active=false;order_history=send_ok=true;broker_retcode=TRADE_RETCODE_DONE;executed=0;send_ticket=55;}
 int main(){
  reset();tester=false;g_records.resize(1);g_records[0].deadline=100;MarkOverdue(0,161);assert(!g_failed&&g_records[0].integrity=="EXIT_DEADLINE_MISSED");
- tester=true;MarkOverdue(0,162);assert(g_failed);tester=false; // Backtests still invalidate late exits.
+ tester=true;MarkOverdue(0,162);assert(!g_failed&&g_integrity_failed); // Invalid research must not halt execution.
+ // A late position remains reserved until settlement. No duplicate/overlapping entry.
+ g_slots[0].active=0;g_slots[0].pending=true;OnTick();assert(sends==0);
+ // After confirmed settlement releases the slot, the next fresh signal can trade.
+ g_slots[0].active=-1;g_slots[0].pending=false;g_slots[0].signal_time=10001;
+ test_now=10001;OnTick();assert(sends==1&&!g_failed&&g_integrity_failed);test_now=10000;
+ assert(OnTester()==-1e100); // The actual optimisation hook still rejects compromised runs.
+ // Real safety failures remain entry stops even after this fix.
+ reset();Fail("Unsafe protection");Enter(0,10000);assert(sends==0&&g_failed);tester=false;
+ assert(OnTester()==-1e100);reset();assert(OnTester()==12.0);
  reset();disk_ok=false;Enter(0,10000);assert(sends==0&&!g_failed&&g_storage_paused&&g_slots[0].active<0&&!g_slots[0].pending);
  disk_ok=true;assert(SaveState());g_slots[0].signal_time=10001;Enter(0,10001);assert(sends==1); // Fresh signal after storage recovery.
  reset();send_ticket=0;send_ok=false;broker_retcode=TRADE_RETCODE_MARKET_CLOSED;Enter(0,10000);assert(sends==1&&!g_failed&&!g_slots[0].pending&&g_slots[0].active<0);

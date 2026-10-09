@@ -17,6 +17,8 @@ with tempfile.TemporaryDirectory() as tmp:
     clock=(root/'strategies/EMAPullback/SessionClock.mqh').read_text()
     deadline=clock[clock.index('bool NPExitOverdue('):clock.index('bool NPRetryClose(')]
     (p/'ema_deadline.mqh').write_text(deadline+s[s.index('void MarkOverdue('):s.index('bool ClosePosition(')])
+    (p/'ema_tester.mqh').write_text(s[s.index('double OnTester()'):s.index('void OnDeinit(')])
+    (p/'ema_tick.mqh').write_text(s[s.index('void OnTick()'):s.index('void OnTimer()')])
     h=(root/'tests/ema_entry.cpp').read_text()
     for a,b in [('InpEMAStopATR','InpStopATR'),('InpEMATargetR','InpTargetR'),('InpEMACashRisk','InpCashRisk')]:h=h.replace(a,b)
     h=h.replace('bool Enabled(int){','bool CBEntryWindow(datetime){return true;}\nbool Enabled(int){').replace('Next NY date','Next UTC date').replace('EMA durable','Compression daily limit and durable')

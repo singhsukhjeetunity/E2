@@ -1,13 +1,13 @@
 # E2 live recovery update
 
-Versions: EMA 0.23, Compression 0.11, Gold 4.3, Gotobi 1.16.
+Current main versions: EMA 0.25, Compression 0.12, Gold 4.3, Gotobi 1.16. The original live-recovery-v1 ZIP contains the earlier EMA 0.23 / Compression 0.11 builds. For current source download main and compile; see [tester continuation fix](EMA_TESTING.md#v025-late-exits-no-longer-truncate-a-backtest).
 
 ## Fixed
 
 - Compression's shared checkpoint decoder rejected its actual strategy name on restart. The decoder now recognizes both families; each EA still validates its own identity, account, symbol, magic and settings.
 - EMA and Compression no longer permanently stop on temporary checkpoint/report write failures. Entries pause until storage recovers. An unsaved entry reservation never reaches OrderSend.
 - Delayed entry confirmation retains the existing reservation without resending or permanently stopping solely because confirmation is late. Explicit broker refusals and broker-confirmed terminal zero-fill orders release the reservation. Partial fills, unavailable history and ambiguous execution remain blocked.
-- A late live exit remains managed until closure is confirmed, instead of permanently preventing future entries after reconciliation. The deadline integrity flag remains in reports; tester deadline failures remain failures.
+- A late exit remains managed until closure is confirmed, instead of permanently preventing future entries after reconciliation. Tester deadline failures remain flagged and rejected by the optimisation score, but no longer stop later signals after settlement. Integrity failures are distinct from execution safety stops.
 - Gold rebuilds regime observations from completed historical M5 bars on startup, without trading old signals. Its qualifying criteria are unchanged. Confirmed zero-fill rejected/canceled/expired orders no longer leave a permanent pending-entry reservation.
 - All four EAs print health messages approximately every five minutes while their event loop runs. EMA/Compression expose hard stop, storage/export pause, warm-up, active intent and last M1 bar; Gold exposes initialization/pending/regime observations; Gotobi exposes UTC, owned position, entry minute and spread cap. These are diagnostics, not a complete broker connectivity monitor.
 

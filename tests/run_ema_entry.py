@@ -9,5 +9,7 @@ with tempfile.TemporaryDirectory() as tmp:
     clock=(root/'strategies/EMAPullback/SessionClock.mqh').read_text()
     deadline=clock[clock.index('bool NPExitOverdue('):clock.index('bool NPRetryClose(')]
     (p/'ema_deadline.mqh').write_text(deadline+s[s.index('void MarkOverdue('):s.index('bool ClosePosition(')])
+    (p/'ema_tester.mqh').write_text(s[s.index('double OnTester()'):s.index('void OnDeinit(')])
+    (p/'ema_tick.mqh').write_text(s[s.index('void OnTick()'):s.index('void OnTimer()')])
     subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror','-I',tmp,str(root/'tests/ema_entry.cpp'),'-o',str(p/'test')],check=True)
     subprocess.run([str(p/'test')],check=True)
