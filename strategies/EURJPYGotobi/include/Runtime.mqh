@@ -3,6 +3,7 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
+#include "..\\..\\shared\\PortfolioGate.mqh"
 input group "=== RISK MANAGEMENT ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Risk Mode
@@ -192,6 +193,7 @@ bool RCEnter(const int direction,const double distance,const double target_r,con
                         SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP));
    if(lots<=0)return false;
    double margin=0;if(!OrderCalcMargin(side,_Symbol,lots,entry,margin)||margin>AccountInfoDouble(ACCOUNT_MARGIN_FREE))return false;
+   if(!E2PGCanEnter()) {Print(RC_NAME," PortfolioGuard blocked new entry.");return false;}
    bool sent=direction>0?rc_trade.Buy(lots,_Symbol,0,stop,target,RC_NAME):rc_trade.Sell(lots,_Symbol,0,stop,target,RC_NAME);
    if(!RCTradeOK(sent)){Print(RC_NAME," entry rejected: ",rc_trade.ResultRetcodeDescription());return false;}
    Print(RC_NAME," entry ",direction," lots=",lots," SL=",stop," TP=",target," risk_budget=",budget);
