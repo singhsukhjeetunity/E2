@@ -28,7 +28,7 @@ class NQReportingTests(unittest.TestCase):
         self.assertIn("g_rangeAllowed=g_rangeAtrRatio>=InpMinRangeATR&&g_rangeAtrRatio<=InpMaxRangeATR;", EA)
 
     def test_dashboard_only_has_operator_controls(self):
-        names = set(re.findall(r"^input\s+(?:bool|int|double|ulong)\s+(\w+)", EA, re.M))
+        names = set(re.findall(r"^input\s+(?:bool|int|double|ulong|E2RiskMode)\s+(\w+)", EA, re.M))
         self.assertEqual(names, {
             "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
