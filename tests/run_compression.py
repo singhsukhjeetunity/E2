@@ -22,6 +22,16 @@ with tempfile.TemporaryDirectory() as tmp:
     h=(root/'tests/ema_entry.cpp').read_text()
     for a,b in [('InpEMAStopATR','InpStopATR'),('InpEMATargetR','InpTargetR'),('InpEMACashRisk','InpCashRisk')]:h=h.replace(a,b)
     h=h.replace('bool Enabled(int){','bool CBEntryWindow(datetime){return true;}\nbool Enabled(int){').replace('Next NY date','Next UTC date').replace('EMA durable','Compression daily limit and durable')
+    # Supply mocks for added risk selectors and explicit seasonal broker-offset conversion.
+    h=h.replace('datetime NPToServer(datetime t,int,int){return t;}',
+      'datetime NPToServer(datetime t,int,int){return t;}\\n'
+      'datetime NPProfileToServer(datetime t,int,int,int){return t;}')
+    h=h.replace('#include "ema_deadline.mqh"',
+      'const int E2_RISK_FIXED_CASH=0,ACCOUNT_BALANCE=17;\\n'
+      'int InpRiskMode=E2_RISK_FIXED_CASH,InpBrokerSummerUtcOffsetSeconds=3600;\\n'
+      'double InpFixedCashRisk=1000,InpBalanceRiskPercent=1.0;\\n'
+      'double AccountInfoDouble(int){return 100000;}\\n'
+      '#include "ema_deadline.mqh"')
     compile_run(p,'entry',absolute_includes(h))
     # Exact recovery implementation: new scope, restart/partial intent, ownership and durable writes.
     storage=s[s.index('string Hash('):s.index('void Fail(')]+s[s.index('int StateFlags('):s.index('void FinalBar(')]
