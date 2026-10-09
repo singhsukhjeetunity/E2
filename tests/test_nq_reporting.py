@@ -30,7 +30,7 @@ class NQReportingTests(unittest.TestCase):
     def test_dashboard_only_has_operator_controls(self):
         names = set(re.findall(r"^input\s+(?:bool|int|double|ulong)\s+(\w+)", EA, re.M))
         self.assertEqual(names, {
-            "InpEnableEntries", "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
+            "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
             "InpServerUTCOffsetWinterHours", "InpServerUTCOffsetSummerHours", "InpBrokerDST",
             "InpUseRangeWidthFilter", "InpMinRangeATR", "InpMaxRangeATR",
