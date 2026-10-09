@@ -1,4 +1,4 @@
-name: Strategy and journal checks
+name: E2 strategy and export checks
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
