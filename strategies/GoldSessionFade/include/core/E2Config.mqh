@@ -5,8 +5,8 @@ enum E2XauTimeBasis { E2_XAU_TIME_SERVER=0,E2_XAU_TIME_UTC=1,E2_XAU_TIME_NEW_YOR
 enum E2XauRegimeLookbackMode { E2_XAU_REGIME_LOOKBACK_3_MONTHS=0,E2_XAU_REGIME_LOOKBACK_6_MONTHS=1,E2_XAU_REGIME_LOOKBACK_12_MONTHS=2,E2_XAU_REGIME_LOOKBACK_N_OBSERVATIONS=3 };
 enum E2XauRegimeFilterMode { E2_XAU_REGIME_OFF=0,E2_XAU_REGIME_BLOCK_UNFAVOURABLE=1,E2_XAU_REGIME_FAVOURABLE_ONLY=2 };
 input group "=== E2 GOLD SESSION FADE ==="
-input bool InpTradingEnabled = true;             // Enable Trading
-input bool InpConfirmRealAccountTrading = false; // Required for real-account trading
+const bool InpTradingEnabled = true; // EA attachment and terminal Algo Trading control permission
+const bool InpConfirmRealAccountTrading = true; // no second manual live confirmation toggle
 input ulong InpExpertMagicNumber = 2026001;      // Expert Magic Number
 input bool InpLoggingEnabled = true;             // Enable Journal Logging
 input bool InpCsvExportEnabled = false;           // Export SIGNALS / TRADES CSV
