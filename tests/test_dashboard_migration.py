@@ -9,16 +9,16 @@ class DashboardMigration(unittest.TestCase):
     def test_hour_inputs_preserve_old_seconds_math(self):
         for name in ("EMAPullback/EMAEngine.mqh","CompressionBreakout/CompressionEngine.mqh"):
             s=read("strategies/"+name)
-            self.assertIn("input int InpBrokerWinterUTCOffsetHours=0;",s)
-            self.assertIn("#define InpBrokerWinterUtcOffsetSeconds (InpBrokerWinterUTCOffsetHours*3600)",s)
+            self.assertIn("input double InpBrokerWinterUTCOffsetHours=0.0;",s)
+            self.assertIn("#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpBrokerWinterUTCOffsetHours*3600.0))",s)
             self.assertNotRegex(s,r"(?m)^input int InpBrokerWinterUtcOffsetSeconds")
         g=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
-        self.assertIn("#define InpBrokerUtcOffsetSeconds (InpBrokerUTCOffsetHours*3600)",g)
-        self.assertIn("input int InpBrokerUTCOffsetHours=0;",g)
+        self.assertIn("#define InpBrokerUtcOffsetSeconds ((int)MathRound(InpBrokerUTCOffsetHours*3600.0))",g)
+        self.assertIn("input double InpBrokerUTCOffsetHours=0.0;",g)
         got=read("strategies/EURJPYGotobi/include/Runtime.mqh")
-        self.assertIn("input int InpBrokerWinterUTCOffsetHours=2;",got)
-        self.assertIn("InpBrokerWinterUTCMinutes=InpBrokerWinterUTCOffsetHours*60;",got)
-        self.assertIn("InpBrokerWinterUTCOffsetHours=2",read("presets/EURJPYGotobi_50p_configurable.set"))
+        self.assertIn("input double InpBrokerWinterUTCOffsetHours=2.0;",got)
+        self.assertIn("InpBrokerWinterUTCMinutes=(int)MathRound(InpBrokerWinterUTCOffsetHours*60.0);",got)
+        self.assertIn("InpBrokerWinterUTCOffsetHours=2.0",read("presets/EURJPYGotobi_50p_configurable.set"))
     def test_existing_strategy_baselines_unchanged(self):
         gold=read("strategies/GoldSessionFade/include/core/E2Config.mqh")
         for token in ("InpXauATRMultiplier=8.0","InpXauTargetR=1.5","InpOneTradePerDay=true"):
