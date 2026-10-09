@@ -302,7 +302,11 @@ void AttemptEntry(const datetime ny) {
    req.deviation=InpDeviationBrokerPoints;req.type_filling=FillPolicy();
    req.comment="E2 NQ ORB research";
    if(!E2PGCanEnter()) {
-      NQSignal(TimeCurrent(),"PORTFOLIO_GUARD_BLOCK","Guard missing or daily lock");
+      // Avoid writing thousands of identical diagnostics on every tick.
+      if(g_lastBlockedBar!=bar) {
+         g_lastBlockedBar=bar;
+         NQSignal(TimeCurrent(),"PORTFOLIO_GUARD_BLOCK","Guard missing or daily lock");
+      }
       return;
    }
    g_lastAttemptBar=bar;
