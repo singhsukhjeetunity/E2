@@ -3,7 +3,7 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
-input group "1. Risk and execution"
+input group "=== RISK AND EXECUTION ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Risk Mode
 input double InpFixedCashRisk=1000.0; // Fixed Risk (account currency)
@@ -11,11 +11,12 @@ input double InpBalanceRiskPercent=1.0; // Balance Risk (%)
 input double InpMaxSpreadPoints=RC_DEFAULT_SPREAD; // Maximum spread (broker points)
 input bool InpOneEntryPerDay=true; // Maximum one entry per day
 input ulong InpMagic=RC_DEFAULT_MAGIC; // Unique strategy ID
-input group "2. Historical data clock - verify before testing"
+input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // I verified the historical feed clock
-input int InpBrokerWinterUTCMinutes=120; // Winter UTC offset (minutes; UTC+2 = 120)
+input int InpBrokerWinterUTCOffsetHours=2; // Winter server UTC offset in HOURS
+#define InpBrokerWinterUTCMinutes (InpBrokerWinterUTCOffsetHours*60)
 input RCClock InpBrokerDST=RC_EU; // Historical feed daylight-saving rule
-input group "3. Exits"
+input group "=== EXIT SETTINGS ==="
 #ifndef RC_GOTOBI
 input double InpStopATR=3.0; // Stop distance (ATR multiples)
 input double InpTargetR=0; // Profit target in R (0 = strategy exit only)
@@ -29,9 +30,9 @@ input int InpMaximumHoldingDays=5; // Maximum holding (calendar days)
 int InpMaximumHoldingDays=5;
 #endif
 input bool InpFridayFlat=true; // Close positions on Friday at 20:00 UTC
-input group "4. CSV reports"
+input group "=== REPORTING ==="
 input bool InpExportCsv=true; // Automatically export trades and equity CSV
-input group "5. Calendar exceptions (optional)"
+input group "=== CALENDAR EXCEPTIONS ==="
 #ifndef RC_GOTOBI
 input string InpClosedDates=""; // Closed session dates: YYYYMMDD|YYYYMMDD
 input string InpEarlyCloseDates=""; // Early-close dates: YYYYMMDD|YYYYMMDD
