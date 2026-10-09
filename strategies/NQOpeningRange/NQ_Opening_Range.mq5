@@ -8,6 +8,7 @@ const int InpMaxEntriesPerNYDay=2,InpMaxLongSessions=5;
 const int InpRangeStartNYMinute=570,InpRangeEndNYMinute=660;
 const int InpLastEntryNYMinute=925,InpSessionCloseNYMinute=930;
 const int NQRangeATRDays=14;
+const int NQFridayHardFlatNYMinute=600; // 10:00 ET; emergency fallback before early Friday closes
 const double InpMarginBuffer=0.15;
 const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
@@ -27,6 +28,7 @@ input bool InpRequireClosedM5Breakout=true; // Previous completed M5 close must 
 input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadIndexPoints=10.0; // 0=disabled
 input int InpFridayCloseBufferMinutes=60; // Close before the broker's final Friday trading session ends
+input int InpThursdayFlatNYHour=12;      // Flatten by noon ET Thursday; also Wednesday before Thursday holidays
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false;
 input int InpServerUTCOffsetWinterHours=0;
@@ -44,6 +46,7 @@ datetime g_lastCloseAttempt=0;
 datetime g_lastLog=0;
 bool g_ambiguousEntry=false;
 bool g_ambiguousExit=false;
+bool g_weekendViolation=false,g_weekendAlerted=false;
 
 // Calendar operations use naive UTC or New York civil-time values; no terminal-local clock.
 datetime DayStart(const datetime t) { MqlDateTime x; TimeToStruct(t,x); x.hour=0;x.min=0;x.sec=0;return StructToTime(x); }
@@ -250,6 +253,17 @@ bool WeekendPassed(const datetime entryNY,const datetime nowNY) {
    }
    return false;
 }
+bool HolidayThursdayTomorrow(const datetime ny) {
+   MqlDateTime today;TimeToStruct(ny,today);
+   if(today.day_of_week!=3)return false;
+   MqlDateTime tomorrow;TimeToStruct(DayStart(ny)+86400,tomorrow);
+   if(tomorrow.mon==11&&tomorrow.day>=22&&tomorrow.day<=28)return true; // Thanksgiving
+   if((tomorrow.mon==1&&tomorrow.day==1)||
+      (tomorrow.mon==6&&(tomorrow.day==18||tomorrow.day==19))||
+      (tomorrow.mon==7&&(tomorrow.day==3||tomorrow.day==4))||
+      (tomorrow.mon==12&&(tomorrow.day==24||tomorrow.day==25||tomorrow.day==31)))return true;
+   return false;
+}
 bool SendClose(const ulong ticket,const long kind,const double volume,const string reason) {
    datetime server=TimeCurrent();
    if(!TradeSessionOpen(server)||server-g_lastCloseAttempt<60)return false;
@@ -273,13 +287,28 @@ bool SendClose(const ulong ticket,const long kind,const double volume,const stri
 }
 void ManageExits(const datetime ny) {
    ulong ticket;long kind;double volume;datetime opened;
-   if(!OwnPosition(ticket,kind,volume,opened)) {g_ambiguousExit=false;g_lastCloseAttempt=0;return;}
-   if(g_ambiguousExit)return; // do not duplicate an unconfirmed close
+   if(!OwnPosition(ticket,kind,volume,opened)) {g_ambiguousExit=false;g_lastCloseAttempt=0;g_weekendAlerted=false;return;}
    datetime entryNY=ServerToNY(opened);
+   bool weekendDue=WeekendPassed(entryNY,ny);
+   if(weekendDue&&!g_weekendAlerted) {
+      g_weekendViolation=true;g_weekendAlerted=true;
+      NQSignal(TimeCurrent(),"WEEKEND_EXPOSURE",StringFormat("ticket=%I64u entered=%s",
+         ticket,TimeToString(entryNY,TIME_DATE|TIME_MINUTES)));
+      PrintFormat("[NQORB] WEEKEND EXPOSURE: position %I64u survived the weekend; closing on the first tradable quote.",ticket);
+   }
+   if(g_ambiguousExit)return; // do not duplicate an unconfirmed close
+   MqlDateTime nyParts;TimeToStruct(ny,nyParts);
+   int minute=MinuteOfDay(ny);
+   bool wednesdayDue=nyParts.day_of_week==3&&HolidayThursdayTomorrow(ny)&&
+      minute>=InpThursdayFlatNYHour*60;
+   bool thursdayDue=nyParts.day_of_week==4&&minute>=InpThursdayFlatNYHour*60;
+   bool fridayHardDue=nyParts.day_of_week==5&&minute>=NQFridayHardFlatNYMinute;
    datetime fridayCutoff=0;
    bool fridayDue=FridayCloseAt(TimeCurrent(),fridayCutoff)&&TimeCurrent()>=fridayCutoff;
-   if(fridayDue||WeekendPassed(entryNY,ny)) {
-      SendClose(ticket,kind,volume,fridayDue?"FRIDAY_FLAT":"WEEKEND_RECOVERY");
+   if(wednesdayDue||thursdayDue||fridayHardDue||fridayDue||weekendDue) {
+      string reason=wednesdayDue?"PRE_HOLIDAY_FLAT":(thursdayDue?"THURSDAY_FLAT":
+         ((fridayHardDue||fridayDue)?"FRIDAY_FLAT":"WEEKEND_RECOVERY"));
+      SendClose(ticket,kind,volume,reason);
       return;
    }
    bool pastDay=DayKey(ny)>DayKey(entryNY);
@@ -317,10 +346,9 @@ void AttemptEntry(const datetime ny) {
    int minute=MinuteOfDay(ny);
    if(!IsNYWeekday(ny)||minute<InpRangeEndNYMinute||minute>=InpLastEntryNYMinute)return;
    MqlDateTime nyParts;TimeToStruct(ny,nyParts);
-   if(nyParts.day_of_week==5) {
-      datetime fridayCutoff=0;
-      if(!FridayCloseAt(TimeCurrent(),fridayCutoff)||TimeCurrent()>=fridayCutoff)return;
-   }
+   if(nyParts.day_of_week==5||
+      (nyParts.day_of_week==4&&minute>=InpThursdayFlatNYHour*60)||
+      (nyParts.day_of_week==3&&HolidayThursdayTomorrow(ny)&&minute>=InpThursdayFlatNYHour*60))return;
    if(!g_rangeReady||!g_rangeAllowed)return;
    if(SymbolOccupied())return;
    int used=TodayEntryCount(g_day);
@@ -401,6 +429,7 @@ int OnInit() {
       InpRiskMode<0||InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
       InpMinRangeATR<0||InpMaxRangeATR<=0||InpMaxRangeATR<InpMinRangeATR||
       InpFridayCloseBufferMinutes<5||InpFridayCloseBufferMinutes>180||
+      InpThursdayFlatNYHour<11||InpThursdayFlatNYHour>12||
       InpBrokerDST<0||InpBrokerDST>2||InpMarginBuffer<0||
       InpServerUTCOffsetWinterHours< -12||InpServerUTCOffsetWinterHours>14||
       InpServerUTCOffsetSummerHours< -12||InpServerUTCOffsetSummerHours>14) return INIT_PARAMETERS_INCORRECT;

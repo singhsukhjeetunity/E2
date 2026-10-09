@@ -18,16 +18,21 @@ class NQReportingTests(unittest.TestCase):
         self.assertIn("req.type=side", entry)
         self.assertNotIn("ORDER_TYPE_SELL", entry)
         self.assertNotIn("tick.bid<g_rangeLow", entry)
-        self.assertIn("NQ_ORB_LONG_WEEKEND_FLAT_V4", REPORT)
+        self.assertIn("NQ_ORB_LONG_WEEKEND_FLAT_V5", REPORT)
 
     def test_friday_flat_uses_broker_sessions_and_blocks_late_entries(self):
         self.assertIn("SymbolInfoSessionTrade(_Symbol,FRIDAY,i,from,to)", EA)
         self.assertIn("cutoff=fridayStart+lastEnd-InpFridayCloseBufferMinutes*60", EA)
-        self.assertIn("fridayDue||WeekendPassed(entryNY,ny)", EA)
-        self.assertIn('"FRIDAY_FLAT":"WEEKEND_RECOVERY"', EA)
-        self.assertIn("if(!FridayCloseAt(TimeCurrent(),fridayCutoff)||TimeCurrent()>=fridayCutoff)return;", EA)
+        self.assertIn("NQFridayHardFlatNYMinute=600", EA)
+        self.assertIn("nyParts.day_of_week==5||", EA)
+        self.assertIn("nyParts.day_of_week==4&&minute>=InpThursdayFlatNYHour*60", EA)
+        self.assertIn("HolidayThursdayTomorrow(ny)", EA)
+        self.assertIn("wednesdayDue||thursdayDue||fridayHardDue||fridayDue||weekendDue", EA)
         self.assertIn("if(!TradeSessionOpen(server)||server-g_lastCloseAttempt<60)return false;", EA)
         self.assertIn("IntegerToString(InpFridayCloseBufferMinutes)", REPORT)
+        self.assertIn("IntegerToString(InpThursdayFlatNYHour)", REPORT)
+        self.assertIn('"WEEKEND_EXPOSURE"', EA)
+        self.assertIn('flags=(flags=="NONE"?"WEEKEND_EXPOSURE":flags+"|WEEKEND_EXPOSURE")', REPORT)
 
     def test_filters_use_only_completed_bars(self):
         self.assertIn("CopyRates(_Symbol,PERIOD_D1,1,NQRangeATRDays+1,daily)", EA)
@@ -43,7 +48,7 @@ class NQReportingTests(unittest.TestCase):
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
             "InpServerUTCOffsetWinterHours", "InpServerUTCOffsetSummerHours", "InpBrokerDST",
             "InpUseRangeWidthFilter", "InpMinRangeATR", "InpMaxRangeATR",
-            "InpRequireClosedM5Breakout", "InpFridayCloseBufferMinutes",
+            "InpRequireClosedM5Breakout", "InpFridayCloseBufferMinutes", "InpThursdayFlatNYHour",
         })
         for rule in ("InpStopIndexPoints=100.0", "InpTargetIndexPoints=200.0",
                      "InpMaxEntriesPerNYDay=2", "InpMaxLongSessions=5",
