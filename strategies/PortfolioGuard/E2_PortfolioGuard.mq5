@@ -50,6 +50,8 @@ bool PGExistingDayValid(const int day)
       (int)GlobalVariableGet(pg_key+"RM")!=InpResetServerMinute)return false;
    double base=GlobalVariableGet(pg_key+"BASE");
    double floor=GlobalVariableGet(pg_key+"FLOOR");
+   if(GlobalVariableGet(pg_key+"READY")<0.5)
+      return base==0.0&&floor==0.0&&GlobalVariableGet(pg_key+"LOCK")>=0.5;
    if(!MathIsValidNumber(base)||!MathIsValidNumber(floor)||
       base<=0.0||floor<=0.0||floor>=base)return false;
    return true;
@@ -77,8 +79,8 @@ bool PGSetDay(const int day,const bool can_seed,const double manual_reference)
    double reference=can_seed?(manual_reference>0.0?manual_reference:
                                AccountInfoDouble(ACCOUNT_EQUITY)):0.0;
    double floor=can_seed?PGFloor(reference):0.0;
-   if(!MathIsValidNumber(reference)||!MathIsValidNumber(floor)||reference<=0.0||
-      (can_seed&&(floor<=0.0||floor>=reference)))return false;
+   if(can_seed&&(!MathIsValidNumber(reference)||!MathIsValidNumber(floor)||
+      reference<=0.0||floor<=0.0||floor>=reference))return false;
    if(!PGWrite("DAY",(double)day)||!PGWrite("BASE",reference)||
       !PGWrite("FLOOR",floor)||
       !PGWrite("RH",(double)InpResetServerHour)||
@@ -226,10 +228,20 @@ int OnInit()
    }
    else
    {
-      pg_day=day;
-      pg_ready=GlobalVariableGet(pg_key+"READY")>=0.5;
-      pg_locked=GlobalVariableGet(pg_key+"LOCK")>=0.5;
-      Print("[E2 PortfolioGuard] Existing account/day reference and lock recovered without reset.");
+      // Operator may supply the CORRECT opening reference after installing
+      // mid-day in fail-closed unseeded mode. Never reset a valid daily lock.
+      if(GlobalVariableGet(pg_key+"READY")<0.5&&
+         InpFirstDayReferenceEquity>0.0)
+      {
+         if(!PGSetDay(day,true,InpFirstDayReferenceEquity))return INIT_FAILED;
+      }
+      else
+      {
+         pg_day=day;
+         pg_ready=GlobalVariableGet(pg_key+"READY")>=0.5;
+         pg_locked=GlobalVariableGet(pg_key+"LOCK")>=0.5;
+         Print("[E2 PortfolioGuard] Existing account/day reference and lock recovered without reset.");
+      }
    }
    pg_owns_guard=true;
    if(!EventSetTimer(1))
