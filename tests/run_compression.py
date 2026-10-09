@@ -24,13 +24,13 @@ with tempfile.TemporaryDirectory() as tmp:
     h=h.replace('bool Enabled(int){','bool CBEntryWindow(datetime){return true;}\nbool Enabled(int){').replace('Next NY date','Next UTC date').replace('EMA durable','Compression daily limit and durable')
     # Supply mocks for added risk selectors and explicit seasonal broker-offset conversion.
     h=h.replace('datetime NPToServer(datetime t,int,int){return t;}',
-      'datetime NPToServer(datetime t,int,int){return t;}\\n'
+      'datetime NPToServer(datetime t,int,int){return t;}\n'
       'datetime NPProfileToServer(datetime t,int,int,int){return t;}')
     h=h.replace('#include "ema_deadline.mqh"',
-      'const int E2_RISK_FIXED_CASH=0,ACCOUNT_BALANCE=17;\\n'
-      'int InpRiskMode=E2_RISK_FIXED_CASH,InpBrokerSummerUtcOffsetSeconds=3600;\\n'
-      'double InpFixedCashRisk=1000,InpBalanceRiskPercent=1.0;\\n'
-      'double AccountInfoDouble(int){return 100000;}\\n'
+      'const int E2_RISK_FIXED_CASH=0,ACCOUNT_BALANCE=17;\n'
+      'int InpRiskMode=E2_RISK_FIXED_CASH,InpBrokerSummerUtcOffsetSeconds=3600;\n'
+      'double InpFixedCashRisk=1000,InpBalanceRiskPercent=1.0;\n'
+      'double AccountInfoDouble(int){return 100000;}\n'
       '#include "ema_deadline.mqh"')
     compile_run(p,'entry',absolute_includes(h))
     # Exact recovery implementation: new scope, restart/partial intent, ownership and durable writes.
@@ -75,7 +75,7 @@ int main(){
 #include <iomanip>
 #include "CORE"
 int main(){CBState s;CBReset(s);CBBar b;double a;std::cout<<std::setprecision(17);
- while(std::cin>>b.start>>b.open>>b.high>>b.low>>b.close>>b.minutes){bool hit=CBConsume(s,b,30,14,20,100,0.8,a);std::cout<<hit<<" "<<a<<"\\n";}}
+ while(std::cin>>b.start>>b.open>>b.high>>b.low>>b.close>>b.minutes){bool hit=CBConsume(s,b,30,14,20,100,0.8,a);std::cout<<hit<<" "<<a<<"\n";}}
 '''.replace('CORE',str(root/'strategies/CompressionBreakout/CompressionCore.mqh'))
     f=p/'signal.cpp';f.write_text(runner);binary=p/'signal'
     subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror',str(f),'-o',str(binary)],check=True)
