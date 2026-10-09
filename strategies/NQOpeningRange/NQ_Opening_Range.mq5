@@ -1,4 +1,5 @@
 #property strict
+#include "..\\shared\\PortfolioGate.mqh"
 #property version "0.10"
 #property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 
@@ -300,6 +301,10 @@ void AttemptEntry(const datetime ny) {
    req.type=side;req.volume=vol;req.price=entry;req.sl=stop;req.tp=target;
    req.deviation=InpDeviationBrokerPoints;req.type_filling=FillPolicy();
    req.comment="E2 NQ ORB research";
+   if(!E2PGCanEnter()) {
+      NQSignal(TimeCurrent(),"PORTFOLIO_GUARD_BLOCK","Guard missing or daily lock");
+      return;
+   }
    g_lastAttemptBar=bar;
    ResetLastError();
    bool sent=OrderSend(req,res);
