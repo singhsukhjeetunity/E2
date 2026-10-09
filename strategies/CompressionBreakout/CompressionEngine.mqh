@@ -7,9 +7,13 @@
 #include "..\\shared\\ReportFolders.mqh"
 
 input group "=== BROKER CLOCK PROFILE ==="
-input NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
-input double InpBrokerWinterUTCOffsetHours=0.0; // Winter server UTC offset in HOURS
-#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpBrokerWinterUTCOffsetHours*3600.0))
+input bool InpBrokerClockVerified=false; // Verify the historical broker feed clock
+input double InpServerUTCOffsetWinterHours=0.0;
+input double InpServerUTCOffsetSummerHours=1.0;
+input int InpBrokerDST=0; // 0 none, 1 EU, 2 US
+NPClockMode InpBrokerClock=NP_CLOCK_UNSET;
+#define InpBrokerWinterUtcOffsetSeconds ((int)MathRound(InpServerUTCOffsetWinterHours*3600.0))
+#define InpBrokerSummerUtcOffsetSeconds ((int)MathRound(InpServerUTCOffsetSummerHours*3600.0))
 input group "=== STRATEGY SETTINGS ==="
 input int InpATRLength=14;
 input int InpChannelBars=20;
@@ -19,7 +23,11 @@ input double InpStopATR=3.0;
 input double InpTargetR=2.0;
 input bool InpOneTradePerDay=false; // Research baseline: off. When on: one filled entry per UTC date, symbol and magic
 input group "=== RISK MANAGEMENT ==="
-input double InpCashRisk=1000.0;
+enum E2RiskMode {E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1};
+input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH;
+input double InpFixedCashRisk=1000.0;
+input double InpBalanceRiskPercent=1.0;
+#define InpCashRisk InpFixedCashRisk
 input ulong InpMagic=2026091703;
 input group "=== EXECUTION AND REPORTING ==="
 input int InpBrokerCloseBufferMinutes=5; // Exit before the active broker session ends
@@ -71,7 +79,7 @@ void Fail(const string why) {
    g_failed=true;
 }
 bool Utc(const datetime server,datetime &utc) {
-   if(NPToUtc(server,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,utc))return true;
+   if(NPProfileToUtc(server,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,InpBrokerSummerUtcOffsetSeconds,utc))return true;
    Fail("Uncovered or ambiguous broker timestamp");return false;
 }
 void Audit(const int slot,const datetime utc,const string event,const string detail) {
@@ -249,7 +257,7 @@ bool Feed(const datetime server_now,const datetime utc_now) {
 // Resolve the session containing the entry, including overnight sessions.
 // Never assume the broker remains tradable until the US cash close.
 bool ExitDeadline(const datetime now,datetime &deadline) {
-   datetime server=NPToServer(now,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds);
+   datetime server=NPProfileToServer(now,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,InpBrokerSummerUtcOffsetSeconds);
    MqlDateTime t;TimeToStruct(server,t);
    datetime midnight=NPDate(t.year,t.mon,t.day),end=0;
    for(int back=0;back<=1;back++) {
@@ -451,7 +459,7 @@ bool DailyEntryAllowed(const int s,const datetime now) {
    // Query broker history on every eligible entry: survives restarts and also
    // catches trades opened while this instance was detached. Partial fills
    // consume the same day's allowance; exits and rejected orders do not.
-   if(!HistorySelect(NPToServer(start,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds)-1,TimeCurrent()+1)) {
+   if(!HistorySelect(NPProfileToServer(start,InpBrokerClock,InpBrokerWinterUtcOffsetSeconds,InpBrokerSummerUtcOffsetSeconds)-1,TimeCurrent()+1)) {
       Audit(s,now,"SKIP","daily entry history unavailable");return false;
    }
    for(int i=0;i<HistoryDealsTotal();i++) {
@@ -498,7 +506,7 @@ void Enter(const int s,const datetime now) {
       Audit(s,now,"SKIP","broker stop-distance rule");return;
    }
    double unitrisk=0;if(!CashRisk(s,1,entry,sl,unitrisk))return;
-   double cash=InpCashRisk;
+   double cash=InpRiskMode==E2_RISK_FIXED_CASH?InpFixedCashRisk:AccountInfoDouble(ACCOUNT_BALANCE)*InpBalanceRiskPercent/100.0;
    double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP),vmin=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
    double volume=MathFloor((cash/unitrisk)/step+1e-10)*step;
    volume=NormalizeDouble(MathMin(volume,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX)),8);
@@ -595,13 +603,17 @@ bool ExportTrades() {
 }
 int OnInit() {
    g_integrity_failed=false;
+   InpBrokerClock=(InpBrokerDST==1?NP_EU_SEASONAL:(InpBrokerDST==2?NP_US_SEASONAL:NP_FIXED_UTC_OFFSET));
+   if(!InpBrokerClockVerified||InpBrokerDST<0||InpBrokerDST>2) {
+      Print("[CB] Verify the historical broker clock before enabling the EA.");return INIT_PARAMETERS_INCORRECT;
+   }
    if(InpBrokerClock==NP_CLOCK_UNSET || InpBrokerWinterUtcOffsetSeconds<-50400 ||
-      InpBrokerWinterUtcOffsetSeconds>50400 || InpBrokerWinterUtcOffsetSeconds%60!=0) {
+      InpBrokerWinterUtcOffsetSeconds>50400 || InpBrokerWinterUtcOffsetSeconds%60!=0 || InpBrokerSummerUtcOffsetSeconds< -50400 || InpBrokerSummerUtcOffsetSeconds>50400 || InpBrokerSummerUtcOffsetSeconds%60!=0) {
       Print("[CB] Set the historical broker clock explicitly; see docs/COMPRESSION_TESTING.md.");return INIT_PARAMETERS_INCORRECT;
    }
    if(InpATRLength<1||InpChannelBars<2||InpChannelBars>500||
       InpCompressionBars<2||InpCompressionBars>1000||InpCompressionRatio<=0||InpCompressionRatio>=1||
-      InpCashRisk<=0||InpStopATR<=0||InpTargetR<=0||
+      InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||(int)InpRiskMode<0||(int)InpRiskMode>1||InpStopATR<=0||InpTargetR<=0||
       InpBrokerCloseBufferMinutes<1||InpBrokerCloseBufferMinutes>120||InpMaxSpreadPriceUnits<=0||InpMaxDeviationPriceUnits<0||InpMaxEntryDelaySeconds<0||
       InpMagic==0||InpATRLength>1000)return INIT_PARAMETERS_INCORRECT;
    if(SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)<=0||SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP)<=0)return INIT_FAILED;
@@ -611,6 +623,7 @@ int OnInit() {
       g_cash[s]=0;g_r[s]=0;
    }
    string canonical="CB_V1_M30_AUTO|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpChannelBars)+"|"+IntegerToString(InpCompressionBars)+"|"+Number(InpCompressionRatio)+"|"+Number(InpStopATR)+"|"+Number(InpTargetR)+"|"+Number(InpCashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
+   if(InpRiskMode!=E2_RISK_FIXED_CASH)canonical+="|balance_risk_percent="+Number(InpBalanceRiskPercent);
    canonical+="|one_trade_per_day="+IntegerToString(InpOneTradePerDay?1:0);
    g_config=Hash(canonical);
    g_run="CB_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
