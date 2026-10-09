@@ -8,7 +8,6 @@ const int InpMaxEntriesPerNYDay=2,InpMaxLongSessions=5;
 const int InpRangeStartNYMinute=570,InpRangeEndNYMinute=660;
 const int InpLastEntryNYMinute=925,InpSessionCloseNYMinute=930;
 const int NQRangeATRDays=14;
-const int NQFridayHardFlatNYMinute=600; // 10:00 ET; emergency fallback before early Friday closes
 const double InpMarginBuffer=0.15;
 const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
@@ -27,8 +26,6 @@ input double InpMaxRangeATR=1.50;           // Maximum range as a fraction of 14
 input bool InpRequireClosedM5Breakout=true; // Previous completed M5 close must exceed range high
 input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadIndexPoints=10.0; // 0=disabled
-input int InpFridayCloseBufferMinutes=60; // Close before the broker's final Friday trading session ends
-input int InpThursdayFlatNYHour=12;      // Flatten by noon ET Thursday; also Wednesday before Thursday holidays
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false;
 input int InpServerUTCOffsetWinterHours=0;
@@ -42,11 +39,9 @@ bool g_rangeAllowed=false;
 double g_rangeAtr=0,g_rangeAtrRatio=0;
 datetime g_lastAttemptBar=0;
 datetime g_lastBlockedBar=0;
-datetime g_lastCloseAttempt=0;
 datetime g_lastLog=0;
 bool g_ambiguousEntry=false;
 bool g_ambiguousExit=false;
-bool g_weekendViolation=false,g_weekendAlerted=false;
 
 // Calendar operations use naive UTC or New York civil-time values; no terminal-local clock.
 datetime DayStart(const datetime t) { MqlDateTime x; TimeToStruct(t,x); x.hour=0;x.min=0;x.sec=0;return StructToTime(x); }
@@ -212,61 +207,7 @@ ENUM_ORDER_TYPE_FILLING FillPolicy() {
    if((mode&SYMBOL_FILLING_FOK)!=0)return ORDER_FILLING_FOK;
    return ORDER_FILLING_RETURN;
 }
-bool TradeSessionOpen(const datetime server) {
-   MqlDateTime now;TimeToStruct(server,now);
-   int second=now.hour*3600+now.min*60+now.sec;
-   datetime from,to;
-   for(uint i=0;i<32;i++) {
-      if(!SymbolInfoSessionTrade(_Symbol,(ENUM_DAY_OF_WEEK)now.day_of_week,i,from,to))break;
-      int begin=(int)(from%86400),end=(int)(to%86400);
-      if(begin==end||((end>begin)&&second>=begin&&second<end)||
-         ((end<begin)&&second>=begin))return true;
-   }
-   ENUM_DAY_OF_WEEK previous=(ENUM_DAY_OF_WEEK)((now.day_of_week+6)%7);
-   for(uint i=0;i<32;i++) {
-      if(!SymbolInfoSessionTrade(_Symbol,previous,i,from,to))break;
-      int begin=(int)(from%86400),end=(int)(to%86400);
-      if(end<begin&&second<end)return true;
-   }
-   return false;
-}
-bool FridayCloseAt(const datetime server,datetime &cutoff) {
-   cutoff=0;MqlDateTime now;TimeToStruct(server,now);
-   if(now.day_of_week!=5&&now.day_of_week!=6)return false;
-   datetime fridayStart=DayStart(server)-(now.day_of_week==6?86400:0);
-   datetime from,to;int lastEnd=-1;
-   for(uint i=0;i<32;i++) {
-      if(!SymbolInfoSessionTrade(_Symbol,FRIDAY,i,from,to))break;
-      int begin=(int)(from%86400),end=(int)(to%86400);
-      if(end<=begin)end+=86400;
-      lastEnd=MathMax(lastEnd,end);
-   }
-   if(lastEnd<=0)return false;
-   cutoff=fridayStart+lastEnd-InpFridayCloseBufferMinutes*60;
-   return true;
-}
-bool WeekendPassed(const datetime entryNY,const datetime nowNY) {
-   datetime day=DayStart(entryNY)+86400,end=DayStart(nowNY);
-   for(int i=0;i<45&&day<=end;i++,day+=86400) {
-      MqlDateTime date;TimeToStruct(day,date);
-      if(date.day_of_week==0||date.day_of_week==6)return true;
-   }
-   return false;
-}
-bool HolidayThursdayTomorrow(const datetime ny) {
-   MqlDateTime today;TimeToStruct(ny,today);
-   if(today.day_of_week!=3)return false;
-   MqlDateTime tomorrow;TimeToStruct(DayStart(ny)+86400,tomorrow);
-   if(tomorrow.mon==11&&tomorrow.day>=22&&tomorrow.day<=28)return true; // Thanksgiving
-   if((tomorrow.mon==1&&tomorrow.day==1)||
-      (tomorrow.mon==6&&(tomorrow.day==18||tomorrow.day==19))||
-      (tomorrow.mon==7&&(tomorrow.day==3||tomorrow.day==4))||
-      (tomorrow.mon==12&&(tomorrow.day==24||tomorrow.day==25||tomorrow.day==31)))return true;
-   return false;
-}
-bool SendClose(const ulong ticket,const long kind,const double volume,const string reason) {
-   datetime server=TimeCurrent();
-   if(!TradeSessionOpen(server)||server-g_lastCloseAttempt<60)return false;
+bool SendClose(const ulong ticket,const long kind,const double volume) {
    MqlTick tick;
    if(!SymbolInfoTick(_Symbol,tick)||tick.bid<=0||tick.ask<=0)return false;
    MqlTradeRequest req={};MqlTradeResult res={};
@@ -275,10 +216,9 @@ bool SendClose(const ulong ticket,const long kind,const double volume,const stri
    req.type=(kind==POSITION_TYPE_BUY?ORDER_TYPE_SELL:ORDER_TYPE_BUY);
    req.price=(kind==POSITION_TYPE_BUY?tick.bid:tick.ask);
    req.deviation=InpDeviationBrokerPoints;req.type_filling=FillPolicy();
-   g_lastCloseAttempt=server;
    ResetLastError();
    bool sent=OrderSend(req,res);
-   NQSignal(TimeCurrent(),"EXIT_REQUEST",StringFormat("ticket=%I64u volume=%.8f reason=%s retcode=%u",ticket,volume,reason,res.retcode));
+   NQSignal(TimeCurrent(),"EXIT_REQUEST",StringFormat("ticket=%I64u volume=%.8f retcode=%u",ticket,volume,res.retcode));
    if(InpVerbose||!sent||res.retcode!=TRADE_RETCODE_DONE)
       PrintFormat("[NQORB] close ticket=%I64u sent=%d retcode=%u error=%d",ticket,(int)sent,res.retcode,GetLastError());
    if(sent&&(res.retcode==TRADE_RETCODE_DONE||res.retcode==TRADE_RETCODE_DONE_PARTIAL))return true;
@@ -287,38 +227,17 @@ bool SendClose(const ulong ticket,const long kind,const double volume,const stri
 }
 void ManageExits(const datetime ny) {
    ulong ticket;long kind;double volume;datetime opened;
-   if(!OwnPosition(ticket,kind,volume,opened)) {g_ambiguousExit=false;g_lastCloseAttempt=0;g_weekendAlerted=false;return;}
-   datetime entryNY=ServerToNY(opened);
-   bool weekendDue=WeekendPassed(entryNY,ny);
-   if(weekendDue&&!g_weekendAlerted) {
-      g_weekendViolation=true;g_weekendAlerted=true;
-      NQSignal(TimeCurrent(),"WEEKEND_EXPOSURE",StringFormat("ticket=%I64u entered=%s",
-         ticket,TimeToString(entryNY,TIME_DATE|TIME_MINUTES)));
-      PrintFormat("[NQORB] WEEKEND EXPOSURE: position %I64u survived the weekend; closing on the first tradable quote.",ticket);
-   }
+   if(!OwnPosition(ticket,kind,volume,opened)) {g_ambiguousExit=false;return;}
    if(g_ambiguousExit)return; // do not duplicate an unconfirmed close
-   MqlDateTime nyParts;TimeToStruct(ny,nyParts);
-   int minute=MinuteOfDay(ny);
-   bool wednesdayDue=nyParts.day_of_week==3&&HolidayThursdayTomorrow(ny)&&
-      minute>=InpThursdayFlatNYHour*60;
-   bool thursdayDue=nyParts.day_of_week==4&&minute>=InpThursdayFlatNYHour*60;
-   bool fridayHardDue=nyParts.day_of_week==5&&minute>=NQFridayHardFlatNYMinute;
-   datetime fridayCutoff=0;
-   bool fridayDue=FridayCloseAt(TimeCurrent(),fridayCutoff)&&TimeCurrent()>=fridayCutoff;
-   if(wednesdayDue||thursdayDue||fridayHardDue||fridayDue||weekendDue) {
-      string reason=wednesdayDue?"PRE_HOLIDAY_FLAT":(thursdayDue?"THURSDAY_FLAT":
-         ((fridayHardDue||fridayDue)?"FRIDAY_FLAT":"WEEKEND_RECOVERY"));
-      SendClose(ticket,kind,volume,reason);
-      return;
-   }
+   datetime entryNY=ServerToNY(opened);
    bool pastDay=DayKey(ny)>DayKey(entryNY);
    int sessions=WeekdaySessions(entryNY,ny);
    // Recover a missed session-close exit immediately on the next tradable tick.
    if(kind==POSITION_TYPE_SELL) {
-      if(pastDay||MinuteOfDay(ny)>=InpSessionCloseNYMinute)SendClose(ticket,kind,volume,"SHORT_SESSION_EXIT");
+      if(pastDay||MinuteOfDay(ny)>=InpSessionCloseNYMinute)SendClose(ticket,kind,volume);
    } else if(sessions>InpMaxLongSessions||
              (sessions==InpMaxLongSessions&&MinuteOfDay(ny)>=InpSessionCloseNYMinute))
-      SendClose(ticket,kind,volume,"LONG_MAX_SESSIONS");
+      SendClose(ticket,kind,volume);
 }
 double SizeForStop(const ENUM_ORDER_TYPE side,const double entry,const double stop) {
    double budget=(InpRiskMode==0?InpFixedCashRisk:AccountInfoDouble(ACCOUNT_BALANCE)*InpBalanceRiskPercent/100.0);
@@ -345,10 +264,6 @@ void AttemptEntry(const datetime ny) {
    if(!InpEnableEntries||!InpBrokerClockVerified||g_ambiguousEntry)return;
    int minute=MinuteOfDay(ny);
    if(!IsNYWeekday(ny)||minute<InpRangeEndNYMinute||minute>=InpLastEntryNYMinute)return;
-   MqlDateTime nyParts;TimeToStruct(ny,nyParts);
-   if(nyParts.day_of_week==5||
-      (nyParts.day_of_week==4&&minute>=InpThursdayFlatNYHour*60)||
-      (nyParts.day_of_week==3&&HolidayThursdayTomorrow(ny)&&minute>=InpThursdayFlatNYHour*60))return;
    if(!g_rangeReady||!g_rangeAllowed)return;
    if(SymbolOccupied())return;
    int used=TodayEntryCount(g_day);
@@ -428,16 +343,9 @@ int OnInit() {
       InpMaxEntriesPerNYDay<1||InpMaxLongSessions<1||
       InpRiskMode<0||InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
       InpMinRangeATR<0||InpMaxRangeATR<=0||InpMaxRangeATR<InpMinRangeATR||
-      InpFridayCloseBufferMinutes<5||InpFridayCloseBufferMinutes>180||
-      InpThursdayFlatNYHour<11||InpThursdayFlatNYHour>12||
       InpBrokerDST<0||InpBrokerDST>2||InpMarginBuffer<0||
       InpServerUTCOffsetWinterHours< -12||InpServerUTCOffsetWinterHours>14||
       InpServerUTCOffsetSummerHours< -12||InpServerUTCOffsetSummerHours>14) return INIT_PARAMETERS_INCORRECT;
-   datetime fridayFrom,fridayTo;
-   if(!SymbolInfoSessionTrade(_Symbol,FRIDAY,0,fridayFrom,fridayTo)) {
-      Print("[NQORB] Friday trading-session schedule unavailable; cannot enforce weekend-flat rule.");
-      return INIT_FAILED;
-   }
    if(InpEnableEntries&&!InpBrokerClockVerified) {
       Print("[NQORB] Entries disabled: verify broker clock and set InpBrokerClockVerified=true");
    }

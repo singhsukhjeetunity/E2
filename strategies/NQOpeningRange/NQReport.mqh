@@ -20,14 +20,12 @@ uint NQHash(const string value) {
    return hash;
 }
 string NQConfig() {
-   return "NQ_ORB_LONG_WEEKEND_FLAT_V5|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
+   return "NQ_ORB_LONG_FILTERS_V3|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
       IntegerToString(InpMaxEntriesPerNYDay)+"|"+IntegerToString(InpMaxLongSessions)+"|"+
       IntegerToString(InpRiskMode)+"|"+NQNumber(InpFixedCashRisk)+"|"+NQNumber(InpBalanceRiskPercent)+"|"+
       IntegerToString((int)InpUseRangeWidthFilter)+"|"+NQNumber(InpMinRangeATR)+"|"+
       NQNumber(InpMaxRangeATR)+"|"+IntegerToString((int)InpRequireClosedM5Breakout)+"|"+
-      NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpFridayCloseBufferMinutes)+"|"+
-      IntegerToString(InpThursdayFlatNYHour)+"|"+
-      IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
+      NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
       IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic);
 }
 void NQSignal(const datetime time,const string event,const string detail) {
@@ -77,7 +75,7 @@ void NQEquity(const datetime server) {
       equity+=HistoryDealGetDouble(deal,DEAL_PROFIT)+HistoryDealGetDouble(deal,DEAL_COMMISSION)+HistoryDealGetDouble(deal,DEAL_SWAP)+HistoryDealGetDouble(deal,DEAL_FEE);
    }
    // R is blank because multiple fills can have different initial risks.
-   FileWrite(g_equityFile,g_reportRun,NQStamp(ServerToUTC(server)),"",NQNumber(equity),open,(int)g_weekendViolation);
+   FileWrite(g_equityFile,g_reportRun,NQStamp(ServerToUTC(server)),"",NQNumber(equity),open,0);
    FileFlush(g_equityFile);
 }
 bool NQPositionOpen(const ulong id) {
@@ -128,8 +126,6 @@ void NQExportTrades() {
       }
       bool finalized=(volume>0&&exited>=volume-1e-8&&!NQPositionOpen(id));
       double net=gross+commission+swap+fee;
-      if(finalized&&WeekendPassed(ServerToNY(entry),ServerToNY(exit)))
-         flags=(flags=="NONE"?"WEEKEND_EXPOSURE":flags+"|WEEKEND_EXPOSURE");
       string status=finalized?"FINALIZED":"OPEN";
       FileWrite(file,"E2_JOURNAL_V1","NQ|"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"|"+NQId(id),
          "NQ_OPENING_RANGE",g_reportHash,_Symbol,direction==DEAL_TYPE_BUY?"LONG":"SHORT",
