@@ -52,8 +52,8 @@ input double InpXauRegimeVeryFavourableThreshold=1.45;
 input group "=== BROKER CLOCK PROFILE ==="
 input string InpBrokerTimeProfile=""; // Required verified deployment profile in Common Files
 input bool InpUseManualBrokerUtcOffset=false;
-input int InpBrokerUTCOffsetHours=0; // Manual server UTC offset in HOURS
-#define InpBrokerUtcOffsetSeconds (InpBrokerUTCOffsetHours*3600)
+input double InpBrokerUTCOffsetHours=0.0; // Manual server UTC offset in HOURS
+#define InpBrokerUtcOffsetSeconds ((int)MathRound(InpBrokerUTCOffsetHours*3600.0))
 
 struct E2Config
 {
