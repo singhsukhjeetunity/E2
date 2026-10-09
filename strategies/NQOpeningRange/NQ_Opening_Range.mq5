@@ -3,31 +3,28 @@
 #property description "E2 research EA: NQ 90-minute cash-session opening-range breakout. NOT live validated."
 
 // Independent research EA. Never attach alongside a second copy using the same magic.
-input group "Research rules (Nasdaq index PRICE units)"
-input double InpStopIndexPoints=100.0;
-input double InpTargetIndexPoints=200.0;
-input int InpMaxEntriesPerNYDay=2;
-input int InpMaxLongSessions=5;
-input int InpRangeStartNYMinute=570;     // 09:30 ET
-input int InpRangeEndNYMinute=660;       // 11:00 ET, exclusive range end
-input int InpLastEntryNYMinute=925;      // 15:25 ET; 15:30 is the exit
-input int InpSessionCloseNYMinute=930;   // 15:30 ET
-input group "Risk / execution"
+const double InpStopIndexPoints=100.0,InpTargetIndexPoints=200.0;
+const int InpMaxEntriesPerNYDay=2,InpMaxLongSessions=5;
+const int InpRangeStartNYMinute=570,InpRangeEndNYMinute=660;
+const int InpLastEntryNYMinute=925,InpSessionCloseNYMinute=930;
+const double InpMarginBuffer=0.15;
+const ulong InpMagic=420605;
+const int InpDeviationBrokerPoints=50;
+const bool InpVerbose=false;
+input group "=== E2 SYSTEM 5: NQ OPENING RANGE ==="
+input bool InpEnableEntries=false;      // Enable entries after broker clock verification
+input bool InpExportCsv=true;            // Export journal CSV reports
+input group "=== RISK MANAGEMENT ==="
 input int InpRiskMode=0;                 // 0=fixed account cash, 1=balance percentage
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
+input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadIndexPoints=10.0; // 0=disabled
-input double InpMarginBuffer=0.15;      // Require 15% extra free margin
-input ulong InpMagic=420605;
-input int InpDeviationBrokerPoints=50;
-input bool InpEnableEntries=false;      // OFF until research tester configuration is verified
-input group "Broker clock: required historical server -> UTC conversion"
+input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false;
 input int InpServerUTCOffsetWinterHours=0;
 input int InpServerUTCOffsetSummerHours=0;
 input int InpBrokerDST=0;               // 0=none, 1=EU, 2=US; use historical broker rules
-input group "Diagnostics"
-input bool InpVerbose=false;
 
 int g_day=0;
 double g_rangeHigh=0,g_rangeLow=0;
@@ -94,6 +91,7 @@ double TickRound(const double price) {
    if(tick<=0)tick=_Point;
    return NormalizeDouble(MathRound(price/tick)*tick,_Digits);
 }
+#include "NQReport.mqh"
 bool OwnPosition(ulong &ticket,long &kind,double &volume,datetime &opened) {
    ticket=0;kind=-1;volume=0;opened=0;
    for(int i=PositionsTotal()-1;i>=0;i--) {
@@ -182,6 +180,7 @@ bool SendClose(const ulong ticket,const long kind,const double volume) {
    req.deviation=InpDeviationBrokerPoints;req.type_filling=FillPolicy();
    ResetLastError();
    bool sent=OrderSend(req,res);
+   NQSignal(TimeCurrent(),"EXIT_REQUEST",StringFormat("ticket=%I64u volume=%.8f retcode=%u",ticket,volume,res.retcode));
    if(InpVerbose||!sent||res.retcode!=TRADE_RETCODE_DONE)
       PrintFormat("[NQORB] close ticket=%I64u sent=%d retcode=%u error=%d",ticket,(int)sent,res.retcode,GetLastError());
    if(sent&&(res.retcode==TRADE_RETCODE_DONE||res.retcode==TRADE_RETCODE_DONE_PARTIAL))return true;
@@ -257,6 +256,7 @@ void AttemptEntry(const datetime ny) {
    g_lastAttemptBar=bar;
    ResetLastError();
    bool sent=OrderSend(req,res);
+   NQSignal(TimeCurrent(),"ENTRY_REQUEST",StringFormat("side=%s volume=%.8f requested_price=%.8f sl=%.8f tp=%.8f retcode=%u",side==ORDER_TYPE_BUY?"BUY":"SELL",vol,entry,stop,target,res.retcode));
    PrintFormat("[NQORB] entry side=%s vol=%.2f range=%.2f/%.2f SL=%.2f TP=%.2f sent=%d retcode=%u err=%d",
       side==ORDER_TYPE_BUY?"BUY":"SELL",vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
    if(res.retcode==TRADE_RETCODE_TIMEOUT||(sent&&res.retcode==TRADE_RETCODE_PLACED))g_ambiguousEntry=true;
@@ -281,6 +281,7 @@ void Run() {
          TimeToString(ny,TIME_DATE|TIME_MINUTES),(int)g_rangeReady,g_rangeLow,g_rangeHigh,
          TodayEntryCount(key),(int)InpBrokerClockVerified);
    }
+   NQEquity(server);
 }
 int OnInit() {
    if(_Period!=PERIOD_M5)Print("[NQORB] Attach to M5 for visual inspection; signal calculation uses M5 history regardless.");
@@ -297,12 +298,23 @@ int OnInit() {
    if(InpEnableEntries&&!InpBrokerClockVerified) {
       Print("[NQORB] Entries disabled: verify broker clock and set InpBrokerClockVerified=true");
    }
+   if(!NQOpenReports()){Print("[NQORB] CSV reporting initialization failed; entries blocked.");return INIT_FAILED;}
    EventSetTimer(30);
    Print("[NQORB] Research EA initialized. Entry switch=",InpEnableEntries,
          " broker clock verified=",InpBrokerClockVerified,
          ". Native MT5 compilation/backtest required.");
    return INIT_SUCCEEDED;
 }
-void OnDeinit(const int reason) {EventKillTimer();}
+void OnDeinit(const int reason) {EventKillTimer();NQCloseReports();}
 void OnTick() {Run();}
 void OnTimer() {Run();}
+void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {
+   if(trans.type!=TRADE_TRANSACTION_DEAL_ADD||trans.deal==0)return;
+   if(!HistoryDealSelect(trans.deal))return;
+   if(HistoryDealGetString(trans.deal,DEAL_SYMBOL)!=_Symbol)return;
+   if((ulong)HistoryDealGetInteger(trans.deal,DEAL_MAGIC)==InpMagic)
+      NQSignal((datetime)HistoryDealGetInteger(trans.deal,DEAL_TIME),"DEAL_FILL",
+         "deal="+StringFormat("%I64u",trans.deal)+" position="+StringFormat("%I64u",(ulong)HistoryDealGetInteger(trans.deal,DEAL_POSITION_ID))+
+         " volume="+DoubleToString(HistoryDealGetDouble(trans.deal,DEAL_VOLUME),8)+" price="+DoubleToString(HistoryDealGetDouble(trans.deal,DEAL_PRICE),8));
+   NQExportTrades();
+}
