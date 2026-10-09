@@ -39,7 +39,7 @@ with tempfile.TemporaryDirectory() as tmp:
     h=h.replace('indicators.count>=1000','indicators.count>=599').replace('31440','18000').replace('EMA warm','Compression warm')
     compile_run(p,'feed',absolute_includes(h))
     # Compile clock from the production source, adapting only its include separator for Linux.
-    clock=(root/'strategies/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\EMAPullback\\\\SessionClock.mqh"','"'+str(root/'strategies/shared/SessionClock.mqh')+'"')
+    clock=(root/'strategies/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\shared\\\\SessionClock.mqh"','"'+str(root/'strategies/shared/SessionClock.mqh')+'"')
     (p/'compression_clock.mqh').write_text(clock)
     prefix=(root/'tests/ema_core.cpp').read_text().split('#include "fixtures/EMACore.mqh"')[0]
     checks='''
