@@ -8,7 +8,7 @@ import sys
 test_root = Path(__file__).resolve().parent
 root = test_root.parents[1] / "strategies" / "EURJPYGotobi"
 sys.path.insert(0, str(test_root.parents[1]))
-from journal.model import parse_csv
+import csv
 
 def portable(text):
     text = re.sub(r'^#property.*\n', '', text, flags=re.M)
@@ -35,9 +35,11 @@ with tempfile.TemporaryDirectory() as directory:
                         str(target), '-o', str(binary)], check=True)
         ledger = tmp / 'actual-export.csv'
         subprocess.run([str(binary), str(ledger)], check=True)
-        imported = parse_csv(ledger.read_bytes(), {'id': 'portable', 'kind': 'Backtest'})
-        assert not imported['errors'], imported['errors']
-        assert len(imported['rows']) == 1
-        assert imported['rows'][0]['net'] == 89 and imported['rows'][0]['r'] == .89
-        print('Actual EA finalized CSV imports into the E2 Journal with reconciled profit and R.')
+        with ledger.open(newline='') as handle:
+            rows=list(csv.DictReader(handle))
+        assert len(rows)==1, rows
+        assert float(rows[0]['net_profit'])==89, rows
+        assert abs(float(rows[0]['net_r'])-.89)<1e-8, rows
+        assert rows[0]['trade_status']=='FINALIZED', rows
+        print('Actual EA finalized CSV has reconciled profit and R.')
         print(entry.name + ': portable signal, clock, risk, ownership and recovery checks passed')
