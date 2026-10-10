@@ -22,6 +22,7 @@ class PortfolioGuardIntegration(unittest.TestCase):
             "strategies/CompressionBreakout/CompressionEngine.mqh",
             "strategies/EURJPYGotobi/include/Runtime.mqh",
             "strategies/NQOpeningRange/NQ_Opening_Range.mq5",
+            "strategies/EURUSDTwoDayReversal/EURUSD_Two_Day_Reversal.mq5",
         ]
         for p in paths:
             s=read(p)

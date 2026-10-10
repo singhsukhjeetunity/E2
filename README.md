@@ -2,6 +2,8 @@
 
 The four Expert Advisors are Gold Session Fade, Compression Breakout, EURJPY Gotobi and Nasdaq Opening Range (long). Keep the entire `strategies/` tree when installing into `MQL5/Experts/E2/`; each source entry file requires its headers. The `strategies/shared/` folder contains executable dependencies shared by Compression and reporting.
 
+This branch additionally includes [System 6: EURUSD two-day extreme reversal](strategies/EURUSDTwoDayReversal/README.md), a standalone **research EA** with explicit assumptions for the source's undisclosed filters and exits. The four retained systems are unchanged. Published futures results have not been reproduced. See its guide for settings, installation and validation.
+
 **Safety:** This is a research refactor branch. Do not deploy to a funded or live account until every entry compiles in MetaEditor and a trade-by-trade backtest matches the existing deployed versions at identical parameter values, tick data and broker clock settings. CSV exports remain supported without the removed E2 journal application.
 
 Strategy Tester: Ctrl+R, select EA and broker symbol, appropriate timeframe (Gold M5, Gotobi M1, Compression M30, Nasdaq M5), Every tick based on real ticks, set risk and historically verified broker-clock inputs, then inspect Results and Journal.
