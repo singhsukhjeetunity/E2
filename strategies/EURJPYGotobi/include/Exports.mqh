@@ -44,7 +44,7 @@ string RCNumber(const double value){return DoubleToString(value,8);}
 string RCStamp(const datetime server) {
    if(server<=0)return "";
    datetime utc=0;
-   if(!RCUtc(server,InpBrokerDST,InpBrokerWinterUTCMinutes,utc))return "";
+   if(!RCUtc(server,InpBrokerDST,InpBrokerWinterUTCMinutes,utc,InpBrokerSummerUTCMinutes))return "";
    MqlDateTime d;TimeToStruct(utc,d);
    // UTC values, using the same timezone-free representation as the E2 Journal.
    return StringFormat("%04d-%02d-%02d %02d:%02d:%02d",d.year,d.mon,d.day,d.hour,d.min,d.sec);
@@ -152,7 +152,8 @@ bool RCExportSettings() {
    FileWrite(h,"InpMaxSpreadPoints",InpMaxSpreadPoints);
    FileWrite(h,"InpOneEntryPerDay",InpOneEntryPerDay);
    FileWrite(h,"InpBrokerClockVerified",InpBrokerClockVerified);
-   FileWrite(h,"InpBrokerWinterUTCMinutes",InpBrokerWinterUTCMinutes);
+   FileWrite(h,"InpServerUTCOffsetWinterHours",InpServerUTCOffsetWinterHours);
+   FileWrite(h,"InpServerUTCOffsetSummerHours",InpServerUTCOffsetSummerHours);
    FileWrite(h,"InpBrokerDST",InpBrokerDST);
    FileWrite(h,"InpStopATR",InpStopATR);
    FileWrite(h,"InpTargetR",InpTargetR);

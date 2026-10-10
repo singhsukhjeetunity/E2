@@ -105,6 +105,64 @@ public:
       logger.Info("profile="+m_id+", server="+m_server+", mode="+m_mode+", initialOffsetSeconds="+IntegerToString(offset_seconds)+", transitions=0, validFromUTC="+TimeToString(m_from,TIME_DATE|TIME_SECONDS)+", validUntilUTC="+TimeToString(m_until,TIME_DATE|TIME_SECONDS)+", source="+m_source+", digest="+m_digest+".","BROKER_TIME");
       return(true);
    }
+
+   bool InitializeVerifiedSeasonalProfile(const string actual_server,const int winter,const int summer,const int dst,E2Logger &logger)
+   {
+      m_logger=&logger;m_ready=false;m_error="";
+      if(winter< -50400||winter>50400||summer< -50400||summer>50400||
+         winter%60!=0||summer%60!=0||dst<0||dst>2)return Error("SEASONAL_OFFSET_INVALID");
+      if(dst!=0&&winter==summer)return Error("SEASONAL_OFFSETS_IDENTICAL");
+      m_from=E2_TIME_FROM;m_until=E2_TIME_UNTIL;
+      m_id="E2_VERIFIED_BROKER_HOURS";m_server=actual_server;
+      m_mode=(dst==0?"FIXED_OFFSET":"UTC_TRANSITIONS");m_source="verified_input_hours";
+      m_digest="BROKER_HOURS_"+IntegerToString(winter)+"_"+IntegerToString(summer)+"_"+IntegerToString(dst);
+      ArrayResize(m_at,1);ArrayResize(m_offset,1);m_at[0]=m_from;m_offset[0]=winter;
+      if(dst!=0)
+      {
+         for(int year=1996;year<=2037;year++)
+         {
+            MqlDateTime date={};date.year=year;date.mon=(dst==1||year>=2007)?3:4;date.day=1;
+            datetime first=StructToTime(date);MqlDateTime weekday;TimeToStruct(first,weekday);
+            int sunday=1+(7-weekday.day_of_week)%7+((dst==2&&year>=2007)?7:0);
+            if(dst==1) {
+               date.mon=4;date.day=1;datetime april=StructToTime(date);
+               MqlDateTime last;TimeToStruct(april-86400,last);
+               date.mon=3;sunday=last.day-last.day_of_week;
+            }
+            date.day=sunday;date.hour=(dst==1?1:7);datetime spring=StructToTime(date);
+            date.year=year;date.mon=(dst==1||year<2007)?10:11;
+            date.day=1;date.hour=0;datetime fall_first=StructToTime(date);
+            if(dst==1||year<2007)
+            {
+               date.mon=dst==1?11:11;
+               datetime last=StructToTime(date)-86400;MqlDateTime d;TimeToStruct(last,d);
+               date.mon=dst==1?10:10;date.day=d.day-d.day_of_week;
+            }
+            else
+            {
+               MqlDateTime d;TimeToStruct(fall_first,d);
+               date.day=1+(7-d.day_of_week)%7;
+            }
+            date.hour=(dst==1?1:6);date.min=0;date.sec=0;
+            datetime autumn=StructToTime(date);
+            if(spring>=m_from&&spring<m_until)
+            {
+               int n=ArraySize(m_at);ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);
+               m_at[n]=spring;m_offset[n]=summer;
+            }
+            if(autumn>=m_from&&autumn<m_until)
+            {
+               int n=ArraySize(m_at);ArrayResize(m_at,n+1);ArrayResize(m_offset,n+1);
+               m_at[n]=autumn;m_offset[n]=winter;
+            }
+         }
+      }
+      m_ready=true;
+      logger.Info("Verified broker hours profile: winter="+IntegerToString(winter)+
+                  " summer="+IntegerToString(summer)+" DST="+IntegerToString(dst),
+                  "BROKER_TIME");
+      return true;
+   }
    bool ServerToUtc(const datetime server,datetime &utc)const
    {
       utc=0;if(!m_ready)return(false);int matches=0;

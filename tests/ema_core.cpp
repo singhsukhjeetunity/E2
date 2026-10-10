@@ -16,8 +16,8 @@ void TimeToStruct(datetime x,MqlDateTime &m) {
 }
 string IntegerToString(long long x){return std::to_string(x);}
 int StringFind(const string &s,const string &x){auto p=s.find(x);return p==string::npos?-1:(int)p;}
-#include "../strategies/EMAPullback/EMACore.mqh"
-#include "../strategies/EMAPullback/SessionClock.mqh"
+#include "fixtures/EMACore.mqh"
+#include "../strategies/shared/SessionClock.mqh"
 NPBar bar(long i,double close=100,int minutes=60) {
     return {i*minutes*60,100,std::fmax(102,close),std::fmin(98,close),close,minutes};
 }

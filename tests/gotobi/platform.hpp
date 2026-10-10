@@ -70,6 +70,7 @@ double MathAbs(double a){return std::abs(a);}
 bool MathIsValidNumber(double a){return std::isfinite(a);}
 double MathFloor(double a){return std::floor(a);}
 double MathCeil(double a){return std::ceil(a);}
+double MathRound(double a){return std::round(a);}
 double NormalizeDouble(double a,int n){double x=std::pow(10,n);return std::round(a*x)/x;}
 string IntegerToString(long long x){return std::to_string(x);}
 int StringFind(const string &s,const string &x){auto p=s.find(x);return p==string::npos?-1:(int)p;}

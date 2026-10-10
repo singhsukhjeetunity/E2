@@ -1,4 +1,5 @@
 #property strict
+#include "..\\shared\\PortfolioGate.mqh"
 #property version "0.10"
 #property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 
@@ -12,14 +13,15 @@ const double InpMarginBuffer=0.15;
 const ulong InpMagic=420605;
 const int InpDeviationBrokerPoints=50;
 const bool InpVerbose=false;
-input group "=== E2 SYSTEM 5: NQ OPENING RANGE ==="
-input bool InpEnableEntries=false;      // Enable entries after broker clock verification
+input group "=== E2 NASDAQ OPENING RANGE ==="
+const bool InpEnableEntries=true; // No redundant user-facing entry switch; verified clock still required
 input bool InpExportCsv=true;            // Export journal CSV reports
 input group "=== RISK MANAGEMENT ==="
-input int InpRiskMode=0;                 // 0=fixed account cash, 1=balance percentage
+enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 }; 
+input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Same risk-mode UI as Gold
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
-input group "=== OPENING RANGE FILTERS ==="
+input group "=== STRATEGY FILTERS ==="
 input bool InpUseRangeWidthFilter=true;       // Require opening range / prior D1 ATR within bounds
 input double InpMinRangeATR=0.25;           // Minimum range as a fraction of 14-day ATR
 input double InpMaxRangeATR=1.50;           // Maximum range as a fraction of 14-day ATR
@@ -299,6 +301,14 @@ void AttemptEntry(const datetime ny) {
    req.type=side;req.volume=vol;req.price=entry;req.sl=stop;req.tp=target;
    req.deviation=InpDeviationBrokerPoints;req.type_filling=FillPolicy();
    req.comment="E2 NQ ORB research";
+   if(!E2PGCanEnter()) {
+      // Avoid writing thousands of identical diagnostics on every tick.
+      if(g_lastBlockedBar!=bar) {
+         g_lastBlockedBar=bar;
+         NQSignal(TimeCurrent(),"PORTFOLIO_GUARD_BLOCK","Guard missing or daily lock");
+      }
+      return;
+   }
    g_lastAttemptBar=bar;
    ResetLastError();
    bool sent=OrderSend(req,res);
@@ -341,7 +351,7 @@ int OnInit() {
       InpRangeStartNYMinute%5!=0||InpRangeEndNYMinute%5!=0||
       InpStopIndexPoints<=0||InpTargetIndexPoints<=0||
       InpMaxEntriesPerNYDay<1||InpMaxLongSessions<1||
-      InpRiskMode<0||InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
+      (int)InpRiskMode<0||(int)InpRiskMode>1||InpFixedCashRisk<=0||InpBalanceRiskPercent<=0||
       InpMinRangeATR<0||InpMaxRangeATR<=0||InpMaxRangeATR<InpMinRangeATR||
       InpBrokerDST<0||InpBrokerDST>2||InpMarginBuffer<0||
       InpServerUTCOffsetWinterHours< -12||InpServerUTCOffsetWinterHours>14||

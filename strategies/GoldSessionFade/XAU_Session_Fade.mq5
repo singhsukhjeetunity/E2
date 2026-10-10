@@ -117,9 +117,16 @@ int OnInit()
      {
       if(!g_broker_time.InitializeManualFixedOffsetProfile(AccountInfoString(ACCOUNT_SERVER),g_configuration.broker_utc_offset_seconds,g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
      }
+   else if(InpBrokerClockVerified)
+     {
+      int winter=(int)MathRound(InpServerUTCOffsetWinterHours*3600.0);
+      int summer=(int)MathRound(InpServerUTCOffsetSummerHours*3600.0);
+      if(!g_broker_time.InitializeVerifiedSeasonalProfile(AccountInfoString(ACCOUNT_SERVER),
+          winter,summer,InpBrokerDST,g_logger)||!g_broker_time.ValidateNow(TimeCurrent()))return(INIT_PARAMETERS_INCORRECT);
+     }
    else
      {
-      g_logger.Error("PROFILE_OR_MANUAL_OFFSET_REQUIRED: UTC/New York XAU timing needs InpBrokerTimeProfile or InpUseManualBrokerUtcOffset=true.","BROKER_TIME");
+      g_logger.Error("BROKER_CLOCK_NOT_VERIFIED: confirm winter/summer/DST, or retain an existing verified broker-time profile.","BROKER_TIME");
       return(INIT_PARAMETERS_INCORRECT);
      }
    g_configuration.time_policy_digest=g_broker_time.Digest();

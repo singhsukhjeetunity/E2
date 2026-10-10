@@ -19,8 +19,8 @@ int StringFind(const string &s,const string &x){auto p=s.find(x);return p==strin
 #include <vector>
 #include <algorithm>
 #include <iostream>
-#include "../strategies/EMAPullback/EMACore.mqh"
-#include "../strategies/EMAPullback/SessionClock.mqh"
+#include "fixtures/EMACore.mqh"
+#include "../strategies/shared/SessionClock.mqh"
 #include "ema_slot.mqh"
 struct MqlRates {datetime time;double open,high,low,close;};
 NPSlot g_slots[1];

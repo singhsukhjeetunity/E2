@@ -10,7 +10,7 @@
 #define RC_DEFAULT_CLOSE 1440
 #define RC_GOTOBI
 #define RC_REPORT_VERSION "1.16"
-input group "Strategy: Tokyo fix (UTC)"
+input group "=== STRATEGY SETTINGS ==="
 input int InpEntryUTCMinute=955; // Entry UTC minutes (15:40=940, 15:55=955, 16:10=970)
 int InpFixUTCMinute=55; // Fixed 00:55 UTC exit
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 import unittest
 
-from journal.model import HEADERS
+HEADERS = ("schema_version","trade_id","strategy","config_hash","symbol","direction","fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status")
 
 ROOT = Path(__file__).resolve().parents[1] / "strategies" / "NQOpeningRange"
 EA = (ROOT / "NQ_Opening_Range.mq5").read_text()
@@ -28,9 +28,9 @@ class NQReportingTests(unittest.TestCase):
         self.assertIn("g_rangeAllowed=g_rangeAtrRatio>=InpMinRangeATR&&g_rangeAtrRatio<=InpMaxRangeATR;", EA)
 
     def test_dashboard_only_has_operator_controls(self):
-        names = set(re.findall(r"^input\s+(?:bool|int|double|ulong)\s+(\w+)", EA, re.M))
+        names = set(re.findall(r"^input\s+(?:bool|int|double|ulong|E2RiskMode)\s+(\w+)", EA, re.M))
         self.assertEqual(names, {
-            "InpEnableEntries", "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
+            "InpExportCsv", "InpRiskMode", "InpFixedCashRisk",
             "InpBalanceRiskPercent", "InpMaxSpreadIndexPoints", "InpBrokerClockVerified",
             "InpServerUTCOffsetWinterHours", "InpServerUTCOffsetSummerHours", "InpBrokerDST",
             "InpUseRangeWidthFilter", "InpMinRangeATR", "InpMaxRangeATR",

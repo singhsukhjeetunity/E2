@@ -7,6 +7,7 @@
 #include "..\\core\\E2AccountInfo.mqh"
 #include "..\\risk\\E2OrderRequest.mqh"
 #include "E2PositionGuard.mqh"
+#include "..\\..\\..\\shared\\PortfolioGate.mqh"
 #include "E2ExecutionSafety.mqh"
 #include "E2WeekendFlat.mqh"
 #include "..\\time\\E2BrokerTimeAdapter.mqh"
@@ -131,6 +132,7 @@ public:
       if(m_weekend!=NULL&&m_weekend.IsBlockedAt(submit_time))
          {m_weekend.LogEntryBlock(plan.setup_id,submit_time);Fail(result,E2_EXECUTION_WEEKEND_CUTOFF);return(false);}
       if(m_logger!=NULL) m_logger.Debug("Attempt direction="+E2TradeDirectionName(plan.direction)+", symbol="+plan.symbol+", volume="+DoubleToString(plan.volume,4)+", requestedEntry="+DoubleToString(plan.requested_entry_price,spec.digits)+", marketPrice="+DoubleToString(result.requested_market_price,spec.digits)+".","Execution");
+      if(!E2PGCanEnter()) { Fail(result,E2_EXECUTION_TRADING_DISABLED,"PortfolioGuard absent, stale, unseeded or locked."); return(false); }
       result.submitted=true;
       const bool sent=(plan.direction==E2_DIRECTION_LONG ? m_trade.Buy(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment) : m_trade.Sell(plan.volume,plan.symbol,result.requested_market_price,plan.submitted_stop_price,plan.take_profit_price,comment));
       result.retcode=m_trade.ResultRetcode(); result.retcode_description=m_trade.ResultRetcodeDescription(); result.order_ticket=m_trade.ResultOrder(); result.deal_ticket=m_trade.ResultDeal(); result.executed_volume=m_trade.ResultVolume(); result.actual_execution_price=m_trade.ResultPrice();

@@ -26,7 +26,7 @@ int StringSplit(const string &s,char delim,std::vector<string> &out){out.clear()
 bool MathIsValidNumber(double n){return std::isfinite(n);}
 template<class T>void ZeroMemory(T &x){x=T{};}
 template<class T>void ArrayResize(std::vector<T> &x,int n){x.resize(n);}
-#include "../strategies/EMAPullback/EMAState.mqh"
+#include "../strategies/shared/RecoveryState.mqh"
 const string _Symbol="USTEC";const double _Point=.01;
 const int SYMBOL_TRADE_STOPS_LEVEL=1,SYMBOL_VOLUME_STEP=2,SYMBOL_VOLUME_MIN=3,SYMBOL_VOLUME_MAX=4,SYMBOL_FILLING_MODE=5,SYMBOL_TRADE_EXEMODE=6;
 const int SYMBOL_FILLING_FOK=1,SYMBOL_FILLING_IOC=2,SYMBOL_TRADE_EXECUTION_MARKET=4;

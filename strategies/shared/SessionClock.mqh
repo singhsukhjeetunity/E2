@@ -43,6 +43,21 @@ bool NPToUtc(const datetime server,const NPClockMode mode,const int winter,datet
 datetime NPToServer(const datetime utc,const NPClockMode mode,const int winter) {
    return utc+NPBrokerOffset(utc,mode,winter);
 }
+
+bool NPProfileToUtc(const datetime server,const NPClockMode mode,const int winter,const int summer,datetime &utc) {
+   if(mode==NP_CLOCK_UNSET)return false;
+   datetime standard=server-winter;
+   if(mode==NP_FIXED_UTC_OFFSET){utc=standard;return true;}
+   datetime daylight=server-summer;
+   bool standard_valid= !((mode==NP_US_SEASONAL&&NPUSDst(standard))||(mode==NP_EU_SEASONAL&&NPEUDst(standard)));
+   bool daylight_valid=(mode==NP_US_SEASONAL?NPUSDst(daylight):NPEUDst(daylight));
+   if(standard_valid==daylight_valid)return false; // Preserve fail-closed repeated/missing wall clock hours.
+   utc=standard_valid?standard:daylight;return true;
+}
+datetime NPProfileToServer(const datetime utc,const NPClockMode mode,const int winter,const int summer) {
+   bool daylight=(mode==NP_US_SEASONAL&&NPUSDst(utc))||(mode==NP_EU_SEASONAL&&NPEUDst(utc));
+   return utc+(daylight?summer:winter);
+}
 datetime NPNy(const datetime utc) {return utc+(NPUSDst(utc)?-14400:-18000);}
 int NPDay(const datetime wall) {
    MqlDateTime t;TimeToStruct(wall,t);return t.year*10000+t.mon*100+t.day;
