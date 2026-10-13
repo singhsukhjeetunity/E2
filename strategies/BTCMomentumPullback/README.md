@@ -1,4 +1,4 @@
-# BTCUSD H4 momentum / H1 pullback-breakout — research v0.11
+# BTCUSD H4 momentum / H1 pullback-breakout — research v0.12
 
 Standalone EA: `BTCUSD_Momentum_Pullback.mq5` on
 `research/btcusd-momentum-pullback`. This candidate has no verified performance.
@@ -76,6 +76,8 @@ changes requiring new backtests, not a reproduction of the reported system.
 | `InpStopPercent` | 1.25 |
 | Take profit | fixed 1R; no editable reward multiple |
 | `InpMaxHoldingHours` | 0 (SL/TP only) |
+| `InpWeekendFlat` | false; enable to close and block entries over the weekend |
+| `InpFridayFlatHour` / `InpFridayFlatMinute` | 20 / 0, broker server time |
 | `InpRiskMode` / `InpFixedCashRisk` | fixed cash / 1,000 account currency |
 | `InpBalanceRiskPercent` | 1.0, used only in percentage mode |
 | `InpRiskTolerancePercent` | 2.0; permitted initial stop risk is 98–100% of the requested amount |
@@ -104,11 +106,35 @@ A positive `InpMaxHoldingHours` also creates variable-R time exits and must be
 labelled as a separate experiment. Broker SL/TP, manual exits and PortfolioGuard
 are authoritative; the EA does not adjust protection after entry.
 
+## Optional weekend flat
+
+Set `InpWeekendFlat=true` to close this EA's positions at market from Friday
+`InpFridayFlatHour:InpFridayFlatMinute` through Sunday inclusive. New entries
+are blocked throughout that window and resume Monday 00:00 **broker server time**.
+These times follow the server clock, including its DST changes; they are not UTC.
+The option defaults off to preserve the previous trading behavior. Keep stop and
+entry inputs unchanged when testing it; market exits can produce fractional R.
+
+Ticks and the five-second timer both manage the exit, independently of the
+regime, history, verified UTC profile and PortfolioGuard. Definitively rejected
+closes retry at most once every five seconds; ambiguous submissions retain the
+existing pending-exit protection. Signals from blocked hours are not replayed.
+If Friday's close was missed, a position opened before that cutoff remains due
+for closing on Monday's next available quote, including after an EA restart.
+`EXIT_REQUEST` logs `WEEKEND_FLAT` and the broker retcode; all weekend inputs are
+included in the configuration hash. Only this symbol/magic's positions are closed.
+
+Choose a cutoff **before the actual Friday trading-session close** with a buffer.
+The EA cannot force a fill while the market is closed, disconnected or without
+usable quotes, nor guarantee that a position is flat if a close is rejected.
+Verify the custom symbol's sessions against its price history: this option does
+not repair the observed mismatch between weekend quotes and SL/TP execution.
+
 ## Execution and restart protections
 
 PortfolioGuard is required for live/demo entries and bypassed only in MT5's
 standalone tester. Its absence never disables exits. Ticks create entries;
-five-second timers only manage protection/time exits and reporting.
+five-second timers only manage protection/time/weekend exits and reporting.
 Uncertain entry/exit submissions remain blocked until broker history or position
 state resolves them, including connection errors. Durable account/server/symbol/
 magic-scoped terminal globals protect duplicate submissions and signal replay.

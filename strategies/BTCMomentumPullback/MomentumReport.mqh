@@ -20,13 +20,16 @@ uint RHash(const string value) {
    return hash;
 }
 string RConfig() {
-   return "BTC_MOMENTUM_1R_RESEARCH_V2|"+_Symbol+
+   return "BTC_MOMENTUM_1R_RESEARCH_V3|"+_Symbol+
       "|H4_BROKER_WILDER_RSI|period="+IntegerToString(InpRSIPeriod)+"|threshold="+RNumber(InpRSIThreshold)+
       "|entry="+IntegerToString((int)InpEntryMode)+"|base="+IntegerToString((int)InpBaseEntry)+
       "|pullback_pct="+RNumber(InpPullbackPercent)+"|breakout_pct="+RNumber(InpBreakoutPercent)+
       "|lookback="+IntegerToString(InpBreakoutLookback)+"|max_entries="+IntegerToString(InpMaxEntriesPerZone)+
       "|cooldown_hours="+IntegerToString(InpCooldownHours)+"|grace_seconds="+IntegerToString(InpEntryGraceSeconds)+
       "|stop_pct="+RNumber(InpStopPercent)+"|target_r=1|hold_hours="+IntegerToString(InpMaxHoldingHours)+
+      "|weekend_flat="+IntegerToString((int)InpWeekendFlat)+
+      "|friday_flat_server_hour="+IntegerToString(InpFridayFlatHour)+
+      "|friday_flat_server_minute="+IntegerToString(InpFridayFlatMinute)+
       "|risk_mode="+IntegerToString((int)InpRiskMode)+"|cash_risk="+RNumber(InpFixedCashRisk)+
       "|percent_risk="+RNumber(InpBalanceRiskPercent)+"|risk_tolerance_pct="+RNumber(InpRiskTolerancePercent)+
       "|spread_pct="+RNumber(InpMaxSpreadPercent)+
@@ -69,7 +72,9 @@ bool ROpenReports() {
    FileWrite(g_equityFile,"run_id","time_utc","equity_r","equity_cash","open_positions","run_failed");
    FileWriteString(settings,"schema_version=E2_JOURNAL_V1\r\nrun_id="+g_reportRun+"\r\nconfig_hash="+g_reportHash+
       "\r\nmode="+(MQLInfoInteger(MQL_TESTER)?"TESTER":"LIVE")+"\r\nconfig="+config+
-      "\r\nclock=UTC in CSV when profile resolves; H4/H1 bars remain broker-defined\r\nresearch_assumptions=hard intrabar 1.25pct stop and 1R target replace published dual stops/time exit; not a reproduction of source performance\r\n");
+      "\r\nclock=UTC in CSV when profile resolves; H4/H1 bars and weekend cutoff remain broker-defined"+
+      "\r\nresearch_assumptions=hard intrabar stop_pct="+RNumber(InpStopPercent)+
+      " and 1R target replace published dual stops/time exit; optional timed/weekend exits produce variable R; not a reproduction of source performance\r\n");
    FileClose(settings);g_reportStartTime=TimeCurrent();
    RSignal(TimeCurrent(),"RUN_START","broker clock verified="+IntegerToString((int)InpBrokerClockVerified));
    return true;

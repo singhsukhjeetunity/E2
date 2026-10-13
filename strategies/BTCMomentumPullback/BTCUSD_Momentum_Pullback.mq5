@@ -1,5 +1,5 @@
 #property strict
-#property version "0.11"
+#property version "0.12"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"
@@ -23,6 +23,11 @@ input int InpEntryGraceSeconds=60;
 input group "=== FIXED 1R BRACKETS (RESEARCH EXIT ADAPTATION) ==="
 input double InpStopPercent=1.25;
 input int InpMaxHoldingHours=0; // 0: SL/TP only. Positive value adds a time exit.
+input group "=== OPTIONAL WEEKEND FLAT (BROKER SERVER TIME) ==="
+input bool InpWeekendFlat=false;
+input int InpFridayFlatHour=20;
+input int InpFridayFlatMinute=0; // block entries and close from Friday cutoff until Monday 00:00
+input group "=== POSITION RISK ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH;
 input double InpFixedCashRisk=1000.0;
@@ -58,6 +63,26 @@ double TickRound(const double price) {
 }
 
 #include "MomentumReport.mqh"
+
+bool WeekendFlatWindow(const datetime server) {
+   if(!InpWeekendFlat)return false;
+   MqlDateTime clock;
+   if(server<=0||!TimeToStruct(server,clock))return true; // no new entries with an unknown clock
+   return clock.day_of_week==0||clock.day_of_week==6||
+      (clock.day_of_week==5&&clock.hour*60+clock.min>=InpFridayFlatHour*60+InpFridayFlatMinute);
+}
+bool WeekendExitDue(const datetime server,const datetime opened) {
+   if(!InpWeekendFlat)return false;
+   if(WeekendFlatWindow(server))return true;
+   MqlDateTime clock;
+   if(!TimeToStruct(server,clock))return true;
+   // If Friday's close could not execute, still flatten the carried position
+   // on the next available quote, even after a Monday restart.
+   datetime cutoff=server-clock.hour*3600-clock.min*60-clock.sec-
+      ((clock.day_of_week+2)%7)*86400+InpFridayFlatHour*3600+InpFridayFlatMinute*60;
+   if(cutoff>server)cutoff-=7*86400;
+   return opened<=cutoff;
+}
 
 bool SymbolOccupied() {
    for(int i=PositionsTotal()-1;i>=0;i--)if(PositionGetTicket(i)>0&&PositionGetString(POSITION_SYMBOL)==_Symbol)return true;
@@ -121,7 +146,8 @@ void ManageExits() {
       double sl=PositionGetDouble(POSITION_SL),tp=PositionGetDouble(POSITION_TP);
       datetime opened=(datetime)PositionGetInteger(POSITION_TIME);
       string reason=sl<=0||tp<=0?"MISSING_PROTECTION":
-         (InpMaxHoldingHours>0&&TimeCurrent()-opened>=InpMaxHoldingHours*3600?"MAX_HOURS":"");
+         (WeekendExitDue(TimeCurrent(),opened)?"WEEKEND_FLAT":
+         (InpMaxHoldingHours>0&&TimeCurrent()-opened>=InpMaxHoldingHours*3600?"MAX_HOURS":""));
       if(reason==""||GlobalVariableGet(g_statePrefix+"EXIT_PENDING")>0)continue;
       g_lastCloseAttempt=TimeCurrent();
       ClosePosition(ticket,kind,PositionGetDouble(POSITION_VOLUME),reason);
@@ -211,6 +237,7 @@ bool ZoneUsage(const datetime zone_start,int &entries,datetime &last_exit) {
    return true;
 }
 void AttemptEntry(const MqlTick &tick,const datetime zone_start,const string entry_type) {
+   if(WeekendFlatWindow(TimeCurrent()))return;
    if(!MathIsValidNumber(tick.bid)||!MathIsValidNumber(tick.ask)||tick.bid<=0||tick.ask<tick.bid)return;
    if(SymbolOccupied()||SubmissionBlocked())return;
    int entries=0;datetime last_exit=0;
@@ -249,6 +276,7 @@ void AttemptEntry(const MqlTick &tick,const datetime zone_start,const string ent
 void ProcessEntry(const MqlTick &tick) {
    datetime current=iTime(_Symbol,PERIOD_H1,0);
    if(current<=0)return;
+   if(WeekendFlatWindow(TimeCurrent())){g_lastH1=current;return;}
    if(g_lastH1==0){g_lastH1=current;return;} // no replay on attach/restart
    if(current==g_lastH1)return;
    if(current<g_lastH1){g_lastH1=current;return;}
@@ -301,6 +329,7 @@ bool ValidInputs() {
       InpCooldownHours>=0&&InpCooldownHours<=720&&InpEntryGraceSeconds>=0&&InpEntryGraceSeconds<=300&&
       MathIsValidNumber(InpStopPercent)&&InpStopPercent>0&&InpStopPercent<100&&
       InpMaxHoldingHours>=0&&InpMaxHoldingHours<=8760&&
+      InpFridayFlatHour>=0&&InpFridayFlatHour<=23&&InpFridayFlatMinute>=0&&InpFridayFlatMinute<=59&&
       MathIsValidNumber(InpFixedCashRisk)&&InpFixedCashRisk>0&&
       MathIsValidNumber(InpBalanceRiskPercent)&&InpBalanceRiskPercent>0&&InpBalanceRiskPercent<=100&&
       MathIsValidNumber(InpRiskTolerancePercent)&&InpRiskTolerancePercent>=0&&InpRiskTolerancePercent<=10&&

@@ -123,6 +123,7 @@ void reset(){
  InpRSIPeriod=20;InpRSIThreshold=70;InpBaseEntry=true;InpEntryMode=BTC_HYBRID;
  InpFixedCashRisk=1000;InpRiskMode=E2_RISK_FIXED_CASH;InpStopPercent=1.25;
  InpMaxEntriesPerZone=6;InpCooldownHours=2;InpMaxHoldingHours=0;
+ InpWeekendFlat=false;InpFridayFlatHour=20;InpFridayFlatMinute=0;
  InpBrokerClockVerified=true;InpBrokerClockMode=NP_FIXED_UTC_OFFSET;
  InpServerUTCOffsetWinterHours=0;InpServerUTCOffsetSummerHours=0;
  g_rsiHandle=42;g_lastH1=now-3600;g_statePrefix="BTC_TEST_";g_lastCloseAttempt=0;g_running=false;
@@ -194,6 +195,39 @@ int main(){
  reset();occupied=true;guard=false;InpBrokerClockVerified=false;ManageExits();assert(submissions.empty());
  InpMaxHoldingHours=24;ManageExits();assert(submissions.size()==1&&submissions[0].position==123);
  reset();occupied=true;positionSL=0;ManageExits();assert(submissions.size()==1);
+ // Server-time Friday boundary; partial-hour cutoff and the entire weekend.
+ reset();InpWeekendFlat=true;InpFridayFlatMinute=30;
+ assert(!WeekendFlatWindow(D(16,20)+29*60+59));
+ assert(WeekendFlatWindow(D(16,20)+30*60));
+ assert(WeekendFlatWindow(D(17))&&WeekendFlatWindow(D(18,23)));
+ assert(!WeekendFlatWindow(D(19)));
+ InpWeekendFlat=false;assert(!WeekendFlatWindow(D(17)));
+ // Weekend closing is independent of entry history, UTC profile and guard.
+ reset();InpWeekendFlat=true;now=D(16,20);quote.time=now;occupied=true;
+ guard=false;haveHistory=false;InpBrokerClockVerified=false;Run(false);
+ assert(submissions.size()==1&&submissions[0].position==123&&submissions[0].type==ORDER_TYPE_SELL);
+ // Rejected closes retry after five seconds, never open a replacement trade.
+ reset();InpWeekendFlat=true;now=D(16,20);quote.time=now;occupied=true;nextRetcode=10018;
+ Run(true);assert(submissions.size()==1&&submissions[0].position==123);
+ now+=4;Run(true);assert(submissions.size()==1);
+ now++;Run(false);assert(submissions.size()==2&&submissions[1].position==123);
+ // Entry gate cannot be bypassed through the direct submission path.
+ reset();InpWeekendFlat=true;now=D(16,20);quote.time=now;
+ AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ now=D(17);quote.time=now;AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ now=D(18,23);quote.time=now;AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ // Monday may submit a fresh signal; the completed blocked H1 isn't replayed.
+ Run(true);assert(g_lastH1==now);
+ now=D(19);quote.time=now;AttemptEntry(quote,now,"BASE");assert(submissions.size()==1);
+ // A missed Friday close survives a Monday restart; fresh Monday positions stay.
+ reset();InpWeekendFlat=true;now=D(19,1);quote.time=now;occupied=true;positionOpened=D(16,19);
+ Run(false);assert(submissions.size()==1&&submissions[0].position==123);
+ reset();InpWeekendFlat=true;now=D(19,1);quote.time=now;occupied=true;positionOpened=D(19);
+ Run(false);assert(submissions.empty());
+ assert(!WeekendExitDue(D(16,19),D(16,18))); // Friday before this week's cutoff
+ assert(WeekendExitDue(D(16,19),D(9,18))); // already carried over last weekend
+ reset();InpFridayFlatHour=24;assert(!ValidInputs());
+ reset();InpFridayFlatMinute=60;assert(!ValidInputs());
  // Ambiguous close stays pending rather than resubmitting.
  reset();occupied=true;positionSL=0;sendOK=false;nextRetcode=TRADE_RETCODE_CONNECTION;ManageExits();
  now+=10;ManageExits();assert(submissions.size()==1);
@@ -205,5 +239,7 @@ int main(){
  assert(std::abs(std::stod(row[8])-.006)<1e-8&&std::abs(std::stod(row[19])-.6)<1e-8);
  g_equityFile=2;REquity(now);assert(std::abs(std::stod(csv[2][0][3])-.006)<1e-8);
  auto hash=RConfig();InpStopPercent=2;assert(RConfig()!=hash);
+ hash=RConfig();InpWeekendFlat=true;assert(RConfig()!=hash);
+ hash=RConfig();InpFridayFlatMinute=30;assert(RConfig()!=hash);
  std::cout<<"BTC EA runtime: completed H4/H1 signals, strict 1R, guards, costs, zone limits, cooldown, restart/timeout and independent exits passed\n";
 }
