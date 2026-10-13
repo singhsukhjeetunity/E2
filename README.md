@@ -1,5 +1,15 @@
 # E2 — four standalone MT5 systems
 
+## BTCUSD research candidate
+
+This branch additionally contains [BTCUSD Momentum Pullback](strategies/BTCMomentumPullback/README.md),
+a long-only H4 Wilder RSI / H1 base-pullback-breakout experiment with hard fixed
+1R brackets. It is separate from the retained portfolio. Published reference
+results do not apply to this exit adaptation. Native compilation and a real-tick
+backtest are outstanding; see its README for inputs and exact assumptions.
+
+## Retained portfolio
+
 The four Expert Advisors are Gold Session Fade, Compression Breakout, EURJPY Gotobi and Nasdaq Opening Range (long). Keep the entire `strategies/` tree when installing into `MQL5/Experts/E2/`; each source entry file requires its headers. The `strategies/shared/` folder contains executable dependencies shared by Compression and reporting.
 
 **Safety:** This is a research refactor branch. Do not deploy to a funded or live account until every entry compiles in MetaEditor and a trade-by-trade backtest matches the existing deployed versions at identical parameter values, tick data and broker clock settings. CSV exports remain supported without the removed E2 journal application.

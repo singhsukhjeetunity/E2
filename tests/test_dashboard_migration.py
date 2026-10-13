@@ -38,8 +38,10 @@ class DashboardMigration(unittest.TestCase):
         for path in ("strategies/NQOpeningRange/NQReport.mqh",
                      "strategies/EURJPYGotobi/include/Exports.mqh"):
             self.assertIn("_Trades_T.csv",read(path))
-    def test_four_trading_eas_plus_one_guard(self):
-        paths=list((ROOT/"strategies").rglob("*.mq5"))
+    def test_four_retained_eas_plus_guard_and_btc_research(self):
+        research=ROOT/"strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5"
+        self.assertTrue(research.exists())
+        paths=[p for p in (ROOT/"strategies").rglob("*.mq5") if p!=research]
         self.assertEqual(len(paths),5)
         self.assertTrue((ROOT/"strategies/PortfolioGuard/E2_PortfolioGuard.mq5").exists())
         self.assertFalse((ROOT/"strategies/EMAPullback").exists())
