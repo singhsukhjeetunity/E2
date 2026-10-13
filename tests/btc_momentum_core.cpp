@@ -21,6 +21,10 @@ int main(){
  assert(E2BEntryKind(100,100,0,.0075,.0025,2,true)==1);
  assert(E2BEntryKind(100,100,0,.0075,.0025,2,false)==0);
  assert(!E2BValidOHLC(101,100,100));
+ assert(E2BRiskFits(1000,1000,2));assert(E2BRiskFits(980,1000,2));
+ assert(!E2BRiskFits(979,1000,2));assert(!E2BRiskFits(1001,1000,2));
+ assert(!E2BRiskFits(.05,1000,2));assert(!E2BRiskFits(0,1000,2));
+ assert(!E2BRiskFits(std::numeric_limits<double>::infinity(),1000,2));
  assert(E2BVolumeFloor(.009,.01,.01,100)==0);
  assert(E2BVolumeFloor(.029,.01,.01,100)<=.029);
  std::cout<<"BTC pure core: zone boundaries, truncation, entry modes, OHLC and risk flooring passed\n";

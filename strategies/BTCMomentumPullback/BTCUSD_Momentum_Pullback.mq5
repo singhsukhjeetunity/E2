@@ -1,5 +1,5 @@
 #property strict
-#property version "0.10"
+#property version "0.11"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"
@@ -27,6 +27,7 @@ enum E2RiskMode { E2_RISK_FIXED_CASH=0,E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH;
 input double InpFixedCashRisk=1000.0;
 input double InpBalanceRiskPercent=1.0;
+input double InpRiskTolerancePercent=2.0; // reject size below 98% of intended stop risk
 input group "=== EXECUTION SAFETY ==="
 input double InpMaxSpreadPercent=0.05; // percent of Bid; 0 disables
 input int InpDeviationBrokerPoints=100;
@@ -128,12 +129,40 @@ void ManageExits() {
 }
 double SizeForStop(const ENUM_ORDER_TYPE side,const double entry,const double stop) {
    double budget=InpRiskMode==E2_RISK_FIXED_CASH?InpFixedCashRisk:AccountInfoDouble(ACCOUNT_BALANCE)*InpBalanceRiskPercent/100;
+   double minimum=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
+   double maximum=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX);
+   double step=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
    double loss=0,margin=0;
-   if(budget<=0||!OrderCalcProfit(side,_Symbol,1,entry,stop,loss)||loss>=0||
-      !OrderCalcMargin(side,_Symbol,1,entry,margin)||margin<=0)return 0;
-   double raw=MathMin(budget/(-loss),AccountInfoDouble(ACCOUNT_MARGIN_FREE)/(margin*(1+InpMarginBuffer)));
-   return NormalizeDouble(E2BVolumeFloor(raw,SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP),
-      SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX)),8);
+   if(!MathIsValidNumber(budget)||budget<=0||!MathIsValidNumber(minimum)||minimum<=0||
+      !MathIsValidNumber(maximum)||maximum<minimum||!MathIsValidNumber(step)||step<=0||
+      !OrderCalcProfit(side,_Symbol,1,entry,stop,loss)||!MathIsValidNumber(loss)||loss>=0) {
+      RSignal(TimeCurrent(),"RISK_SIZE_BLOCK","INVALID_SPEC_OR_PROFIT_CALC");return 0;
+   }
+   double requested=budget/(-loss);
+   double volume=NormalizeDouble(E2BVolumeFloor(requested,step,minimum,maximum),8);
+   double estimated=-loss*volume;
+   // Lot limits and insufficient margin must not silently change the requested risk.
+   if(volume<=0||volume<minimum||volume>maximum||
+      !E2BRiskFits(estimated,budget,InpRiskTolerancePercent)) {
+      RSignal(TimeCurrent(),"RISK_SIZE_BLOCK",StringFormat(
+         "LOT_LIMIT_OR_STEP intended=%.8f required_lots=%.8f permitted_lots=%.8f estimated_risk=%.8f min=%.8f max=%.8f step=%.8f",
+         budget,requested,volume,estimated,minimum,maximum,step));return 0;
+   }
+   double actual_loss=0;
+   if(!OrderCalcProfit(side,_Symbol,volume,entry,stop,actual_loss)||
+      !E2BRiskFits(-actual_loss,budget,InpRiskTolerancePercent)) {
+      RSignal(TimeCurrent(),"RISK_SIZE_BLOCK",StringFormat(
+         "ACTUAL_RISK_MISMATCH intended=%.8f calculated=%.8f lots=%.8f",budget,-actual_loss,volume));return 0;
+   }
+   if(!OrderCalcMargin(side,_Symbol,volume,entry,margin)||!MathIsValidNumber(margin)||margin<0||
+      !MathIsValidNumber(AccountInfoDouble(ACCOUNT_MARGIN_FREE))||
+      AccountInfoDouble(ACCOUNT_MARGIN_FREE)<margin*(1+InpMarginBuffer)) {
+      RSignal(TimeCurrent(),"RISK_SIZE_BLOCK",StringFormat(
+         "INSUFFICIENT_MARGIN intended=%.8f lots=%.8f margin=%.8f free_margin=%.8f buffer=%.8f",
+         budget,volume,margin,AccountInfoDouble(ACCOUNT_MARGIN_FREE),InpMarginBuffer));return 0;
+   }
+   RSignal(TimeCurrent(),"RISK_SIZE",StringFormat("intended=%.8f calculated=%.8f lots=%.8f",budget,-actual_loss,volume));
+   return volume;
 }
 // Reconstruct the active zone from completed native H4 RSI values. Broker H4
 // alignment is explicit; CSV clocks do not transform bars into Binance UTC bars.
@@ -274,6 +303,7 @@ bool ValidInputs() {
       InpMaxHoldingHours>=0&&InpMaxHoldingHours<=8760&&
       MathIsValidNumber(InpFixedCashRisk)&&InpFixedCashRisk>0&&
       MathIsValidNumber(InpBalanceRiskPercent)&&InpBalanceRiskPercent>0&&InpBalanceRiskPercent<=100&&
+      MathIsValidNumber(InpRiskTolerancePercent)&&InpRiskTolerancePercent>=0&&InpRiskTolerancePercent<=10&&
       MathIsValidNumber(InpMaxSpreadPercent)&&InpMaxSpreadPercent>=0&&InpMaxSpreadPercent<100&&
       InpDeviationBrokerPoints>=0&&InpMaxQuoteAgeSeconds>=1&&InpMaxQuoteAgeSeconds<=300&&
       MathIsValidNumber(InpMarginBuffer)&&InpMarginBuffer>=0&&
@@ -303,6 +333,14 @@ int OnInit() {
    if(g_rsiHandle==INVALID_HANDLE)return INIT_FAILED;
    g_lastH1=iTime(_Symbol,PERIOD_H1,0);
    if(!ROpenReports()){RCloseReports();IndicatorRelease(g_rsiHandle);return INIT_FAILED;}
+   string specification=StringFormat(
+      "contract=%.8f min=%.8f max=%.8f step=%.8f tick_size=%.8f margin_free=%.8f cash_risk=%.8f tolerance_pct=%.8f",
+      SymbolInfoDouble(_Symbol,SYMBOL_TRADE_CONTRACT_SIZE),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN),
+      SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX),SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP),
+      SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE),AccountInfoDouble(ACCOUNT_MARGIN_FREE),
+      InpFixedCashRisk,InpRiskTolerancePercent);
+   RSignal(TimeCurrent(),"SYMBOL_SPEC",specification);
+   Print("[BTCMP] Symbol specification: ",specification);
    if(!EventSetTimer(5)){RCloseReports();IndicatorRelease(g_rsiHandle);return INIT_FAILED;}
    Print("[BTCMP] Research adaptation: completed broker H4 Wilder RSI, H1 entries, hard stop / fixed 1R. Published performance is not replicated.");
    if(!InpBrokerClockVerified)Print("[BTCMP] New entries disabled until broker clock is verified.");

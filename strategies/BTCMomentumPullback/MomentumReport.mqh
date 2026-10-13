@@ -20,7 +20,7 @@ uint RHash(const string value) {
    return hash;
 }
 string RConfig() {
-   return "BTC_MOMENTUM_1R_RESEARCH_V1|"+_Symbol+
+   return "BTC_MOMENTUM_1R_RESEARCH_V2|"+_Symbol+
       "|H4_BROKER_WILDER_RSI|period="+IntegerToString(InpRSIPeriod)+"|threshold="+RNumber(InpRSIThreshold)+
       "|entry="+IntegerToString((int)InpEntryMode)+"|base="+IntegerToString((int)InpBaseEntry)+
       "|pullback_pct="+RNumber(InpPullbackPercent)+"|breakout_pct="+RNumber(InpBreakoutPercent)+
@@ -28,7 +28,8 @@ string RConfig() {
       "|cooldown_hours="+IntegerToString(InpCooldownHours)+"|grace_seconds="+IntegerToString(InpEntryGraceSeconds)+
       "|stop_pct="+RNumber(InpStopPercent)+"|target_r=1|hold_hours="+IntegerToString(InpMaxHoldingHours)+
       "|risk_mode="+IntegerToString((int)InpRiskMode)+"|cash_risk="+RNumber(InpFixedCashRisk)+
-      "|percent_risk="+RNumber(InpBalanceRiskPercent)+"|spread_pct="+RNumber(InpMaxSpreadPercent)+
+      "|percent_risk="+RNumber(InpBalanceRiskPercent)+"|risk_tolerance_pct="+RNumber(InpRiskTolerancePercent)+
+      "|spread_pct="+RNumber(InpMaxSpreadPercent)+
       "|deviation="+IntegerToString(InpDeviationBrokerPoints)+"|quote_age="+IntegerToString(InpMaxQuoteAgeSeconds)+
       "|margin="+RNumber(InpMarginBuffer)+"|clock_verified="+IntegerToString((int)InpBrokerClockVerified)+
       "|clock_mode="+IntegerToString((int)InpBrokerClockMode)+"|winter="+IntegerToString(InpServerUTCOffsetWinterHours)+

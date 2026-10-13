@@ -23,7 +23,7 @@ template<class... T>string StringFormat(const string &s,T...){return s;} // form
 template<class... T>void Print(T...){}template<class... T>void PrintFormat(T...){}
 template<class T>int ArraySize(const std::vector<T>&v){return static_cast<int>(v.size());}
 template<class T>void ArrayResize(std::vector<T>&v,int n){v.resize(n);}template<class T>void ArraySetAsSeries(std::vector<T>&,bool){}
-enum{PERIOD_D1=1440,PERIOD_H1=60,PERIOD_H4=240,PRICE_CLOSE=0,PERIOD_M5=5,PERIOD_M30=30,SYMBOL_TRADE_TICK_SIZE=1,SYMBOL_FILLING_MODE,SYMBOL_VOLUME_STEP,SYMBOL_VOLUME_MIN,SYMBOL_VOLUME_MAX,
+enum{PERIOD_D1=1440,PERIOD_H1=60,PERIOD_H4=240,PRICE_CLOSE=0,PERIOD_M5=5,PERIOD_M30=30,SYMBOL_TRADE_CONTRACT_SIZE=99,SYMBOL_TRADE_TICK_SIZE=1,SYMBOL_FILLING_MODE,SYMBOL_VOLUME_STEP,SYMBOL_VOLUME_MIN,SYMBOL_VOLUME_MAX,
  SYMBOL_TRADE_STOPS_LEVEL,SYMBOL_CURRENCY_BASE,SYMBOL_CURRENCY_PROFIT,ACCOUNT_BALANCE,ACCOUNT_MARGIN_FREE,ACCOUNT_SERVER,ACCOUNT_LOGIN,
  POSITION_SYMBOL,POSITION_MAGIC,POSITION_TYPE,POSITION_SL,POSITION_TP,POSITION_TIME,POSITION_VOLUME,POSITION_IDENTIFIER,
  ORDER_SYMBOL,DEAL_SYMBOL,DEAL_MAGIC,DEAL_ENTRY,DEAL_ENTRY_IN,DEAL_ENTRY_INOUT,DEAL_TIME,
@@ -46,6 +46,7 @@ std::vector<double> rsiValues;std::vector<datetime> h4Times;bool indicatorOK=tru
 datetime now=D(12,12);MqlTick quote;
 bool guard=true,haveHistory=true,checkOK=true,profitOK=true,sendOK=true,tester=false;
 bool occupied=false,closed=false;double positionSL=1.05,positionTP=1.2;datetime positionOpened=D(8,12);
+double volumeMinimum=.01,volumeMaximum=100,volumeStep=.01,contractSize=1,marginPerLot=1000;
 double balance=100000,freeMargin=100000;uint nextRetcode=TRADE_RETCODE_DONE;
 std::vector<MqlTradeRequest> submissions;std::map<string,double> globals;
 struct Deal{ulong id=0;datetime time=0;ulong magic=420609;long edge=DEAL_ENTRY_IN;
@@ -64,7 +65,7 @@ int CopyBuffer(int,int,int shift,int count,std::vector<double>&out){assert(shift
 int CopyTime(const string&,int period,int shift,int count,std::vector<datetime>&out){assert(period==PERIOD_H4&&shift==1);out.assign(h4Times.end()-count,h4Times.end());return count;}
 int CopyRates(const string&,int period,datetime start,datetime end,std::vector<MqlRates>&out){assert(period==PERIOD_H1);out.clear();for(auto b:history)if(b.time>=start&&b.time<=end)out.push_back(b);return ArraySize(out);}
 bool SymbolInfoTick(const string&,MqlTick &tick){tick=quote;return true;}
-double SymbolInfoDouble(const string&,int field){switch(field){case SYMBOL_TRADE_TICK_SIZE:return .01;case SYMBOL_VOLUME_STEP:return .01;case SYMBOL_VOLUME_MIN:return .01;case SYMBOL_VOLUME_MAX:return 100;default:return 0;}}
+double SymbolInfoDouble(const string&,int field){switch(field){case SYMBOL_TRADE_TICK_SIZE:return .01;case SYMBOL_VOLUME_STEP:return volumeStep;case SYMBOL_VOLUME_MIN:return volumeMinimum;case SYMBOL_VOLUME_MAX:return volumeMaximum;case SYMBOL_TRADE_CONTRACT_SIZE:return contractSize;default:return 0;}}
 long SymbolInfoInteger(const string&,int field){return field==SYMBOL_FILLING_MODE?SYMBOL_FILLING_IOC:0;}
 string SymbolInfoString(const string&,int field){return field==SYMBOL_CURRENCY_BASE?"BTC":"USD";}
 double AccountInfoDouble(int field){return field==ACCOUNT_BALANCE?balance:freeMargin;}
@@ -90,8 +91,8 @@ bool GlobalVariableCheck(const string &key){return globals.count(key)>0;}
 datetime GlobalVariableSet(const string &key,double v){globals[key]=v;return now;}
 double GlobalVariableGet(const string &key){return globals[key];}void GlobalVariablesFlush(){}
 bool GlobalVariableSetOnCondition(const string &key,double value,double expected){if(!globals.count(key)||globals[key]!=expected)return false;globals[key]=value;return true;}
-bool OrderCalcProfit(int side,const string&,double volume,double entry,double stop,double &loss){loss=(side==ORDER_TYPE_BUY?stop-entry:entry-stop)*volume;return profitOK;}
-bool OrderCalcMargin(int,const string&,double,const double,double &margin){margin=1000;return true;}
+bool OrderCalcProfit(int side,const string&,double volume,double entry,double stop,double &loss){loss=(side==ORDER_TYPE_BUY?stop-entry:entry-stop)*volume*contractSize;return profitOK;}
+bool OrderCalcMargin(int,const string&,double volume,const double,double &margin){margin=marginPerLot*volume;return true;}
 bool OrderCheck(const MqlTradeRequest&,MqlTradeCheckResult &check){check.retcode=0;return checkOK;}
 bool OrderSend(const MqlTradeRequest &req,MqlTradeResult &res){submissions.push_back(req);res.retcode=nextRetcode;return sendOK;}
 bool E2PGCanEnter(){return guard;}int MQLInfoInteger(int){return tester;}ulong GetMicrosecondCount(){return 99;}
@@ -118,6 +119,7 @@ void reset(){
  history.push_back({now-3600,10000,10010,9990,10000});
  guard=true;haveHistory=true;checkOK=true;profitOK=true;sendOK=true;occupied=false;closed=false;
  nextRetcode=TRADE_RETCODE_DONE;balance=100000;freeMargin=100000;
+ volumeMinimum=.01;volumeMaximum=100;volumeStep=.01;contractSize=1;marginPerLot=1000;InpRiskTolerancePercent=2;
  InpRSIPeriod=20;InpRSIThreshold=70;InpBaseEntry=true;InpEntryMode=BTC_HYBRID;
  InpFixedCashRisk=1000;InpRiskMode=E2_RISK_FIXED_CASH;InpStopPercent=1.25;
  InpMaxEntriesPerZone=6;InpCooldownHours=2;InpMaxHoldingHours=0;
@@ -153,6 +155,22 @@ int main(){
  reset();checkOK=false;AttemptEntry(quote,now,"BASE");assert(submissions.empty());
  reset();InpRiskMode=E2_RISK_BALANCE_PERCENT;InpBalanceRiskPercent=.5;AttemptEntry(quote,now,"BASE");
  assert(submissions.size()==1);OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,submissions[0].volume,submissions[0].price,submissions[0].sl,loss);assert(-loss<=500+1e-8);
+ // Reproduce the uploaded tiny constant-lot configuration: fail rather than risk cents.
+ reset();contractSize=100000;volumeMinimum=1e-8;volumeMaximum=1e-7;volumeStep=1e-8;
+ assert(SizeForStop(ORDER_TYPE_BUY,454.3102,448.6313)==0);
+ AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ // Corrected lot bounds permit the same intended cash risk under a 100,000 contract.
+ volumeMaximum=1;assert(SizeForStop(ORDER_TYPE_BUY,454.3102,448.6313)>0);
+ double lot=SizeForStop(ORDER_TYPE_BUY,454.3102,448.6313);
+ OrderCalcProfit(ORDER_TYPE_BUY,_Symbol,lot,454.3102,448.6313,loss);assert(-loss>=980&&-loss<=1000);
+ // No shrinking risk to accommodate available margin.
+ reset();freeMargin=500;AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ // Lot ceiling and coarse lot steps both enforce the risk tolerance.
+ reset();volumeMaximum=1;assert(SizeForStop(ORDER_TYPE_BUY,10000,9875)==0);
+ reset();volumeStep=3;assert(SizeForStop(ORDER_TYPE_BUY,10000,9875)==0);
+ reset();volumeStep=.1;lot=SizeForStop(ORDER_TYPE_BUY,10000,9871);assert(lot>0&&lot*129>=980&&lot*129<=1000);
+ reset();marginPerLot=0;assert(SizeForStop(ORDER_TYPE_BUY,10000,9875)>0); // valid zero-margin symbol
+ reset();assert(ValidInputs());InpRiskTolerancePercent=11;assert(!ValidInputs());
  // Unknown execution survives restart/rollover; authoritative history resolves it.
  reset();sendOK=false;nextRetcode=TRADE_RETCODE_TIMEOUT;AttemptEntry(quote,now,"BASE");assert(SubmissionBlocked());
  now+=3600;quote.time=now;assert(SubmissionBlocked());AttemptEntry(quote,now,"BASE");assert(submissions.size()==1);

@@ -26,6 +26,12 @@ int E2BEntryKind(const double close,const double zone_high,const double prior_hi
    if(mode!=0&&prior_high>0&&(close-prior_high)/prior_high>=breakout)return 3;
    return 0;
 }
+bool E2BRiskFits(const double actual,const double intended,const double tolerance_percent) {
+   if(!MathIsValidNumber(actual)||!MathIsValidNumber(intended)||!MathIsValidNumber(tolerance_percent)||
+      actual<=0||intended<=0||tolerance_percent<0||tolerance_percent>10)return false;
+   double epsilon=intended*1e-10;
+   return actual<=intended+epsilon&&actual+epsilon>=intended*(1-tolerance_percent/100);
+}
 double E2BVolumeFloor(const double raw,const double step,const double minimum,const double maximum) {
    if(!MathIsValidNumber(raw)||!MathIsValidNumber(step)||!MathIsValidNumber(minimum)||
       !MathIsValidNumber(maximum)||raw<=0||step<=0||minimum<=0||maximum<minimum)return 0;

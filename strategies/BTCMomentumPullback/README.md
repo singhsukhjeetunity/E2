@@ -1,4 +1,4 @@
-# BTCUSD H4 momentum / H1 pullback-breakout — research v0.10
+# BTCUSD H4 momentum / H1 pullback-breakout — research v0.11
 
 Standalone EA: `BTCUSD_Momentum_Pullback.mq5` on
 `research/btcusd-momentum-pullback`. This candidate has no verified performance.
@@ -78,6 +78,7 @@ changes requiring new backtests, not a reproduction of the reported system.
 | `InpMaxHoldingHours` | 0 (SL/TP only) |
 | `InpRiskMode` / `InpFixedCashRisk` | fixed cash / 1,000 account currency |
 | `InpBalanceRiskPercent` | 1.0, used only in percentage mode |
+| `InpRiskTolerancePercent` | 2.0; permitted initial stop risk is 98–100% of the requested amount |
 | `InpMaxSpreadPercent` | 0.05% of Bid; 0 disables |
 | `InpMaxQuoteAgeSeconds` | 10 |
 | `InpMarginBuffer` | 0.15 |
@@ -86,9 +87,18 @@ changes requiring new backtests, not a reproduction of the reported system.
 | `InpExportCsv` | true |
 | `InpBrokerClockVerified` | false until verified |
 
-Risk is sized using `OrderCalcProfit` at the submitted stop, limited by available
-margin and floored to the broker's volume step. Never raise a below-minimum risk
-size to the minimum lot. TP uses the rounded SL distance. Actual fill slippage,
+Risk is sized using `OrderCalcProfit` at the submitted stop and floored to the
+broker's volume step. Volume limits, coarse lot steps and insufficient margin
+must not silently reduce intended risk: the EA skips any order whose calculated
+initial stop risk is outside the tolerance (default $980–$1,000 for a $1,000
+request). It checks margin at the actual requested volume instead of shrinking
+the volume to fit margin. Never raise a below-minimum size to the minimum lot.
+`SYMBOL_SPEC`, `RISK_SIZE` and `RISK_SIZE_BLOCK` in Signals show contract/lot
+specifications, intended/calculated risk, and the reason for a skip. Invalid custom
+symbol limits cannot be corrected by the EA: copy a valid broker BTCUSD template
+and verify min/max/step, contract size, calculation mode and margin specifications
+in MT5. Do not override broker restrictions merely to force a trade.
+TP uses the rounded SL distance. Actual fill slippage,
 price gaps, swaps and commissions can produce outcomes other than exactly ±1R.
 A positive `InpMaxHoldingHours` also creates variable-R time exits and must be
 labelled as a separate experiment. Broker SL/TP, manual exits and PortfolioGuard
