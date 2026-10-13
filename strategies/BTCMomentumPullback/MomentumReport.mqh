@@ -20,9 +20,10 @@ uint RHash(const string value) {
    return hash;
 }
 string RConfig() {
-   return "BTC_MOMENTUM_1R_RESEARCH_V3|"+_Symbol+
+   return "BTC_MOMENTUM_1R_RESEARCH_V4|"+_Symbol+
       "|H4_BROKER_WILDER_RSI|period="+IntegerToString(InpRSIPeriod)+"|threshold="+RNumber(InpRSIThreshold)+
       "|entry="+IntegerToString((int)InpEntryMode)+"|base="+IntegerToString((int)InpBaseEntry)+
+      "|one_trade_per_utc_day="+IntegerToString((int)InpOneTradePerDay)+
       "|pullback_pct="+RNumber(InpPullbackPercent)+"|breakout_pct="+RNumber(InpBreakoutPercent)+
       "|lookback="+IntegerToString(InpBreakoutLookback)+"|max_entries="+IntegerToString(InpMaxEntriesPerZone)+
       "|cooldown_hours="+IntegerToString(InpCooldownHours)+"|grace_seconds="+IntegerToString(InpEntryGraceSeconds)+

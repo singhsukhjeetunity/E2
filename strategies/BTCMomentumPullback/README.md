@@ -1,4 +1,4 @@
-# BTCUSD H4 momentum / H1 pullback-breakout — research v0.12
+# BTCUSD H4 momentum / H1 pullback-breakout — research v0.13
 
 Standalone EA: `BTCUSD_Momentum_Pullback.mq5` on
 `research/btcusd-momentum-pullback`. This candidate has no verified performance.
@@ -68,6 +68,7 @@ changes requiring new backtests, not a reproduction of the reported system.
 | `InpRSIPeriod` / `InpRSIThreshold` | 20 / 70 |
 | `InpEntryMode` | `BTC_HYBRID` |
 | `InpBaseEntry` | true |
+| `InpOneTradePerDay` | false; when enabled, one filled entry per UTC calendar date |
 | `InpPullbackPercent` / `InpBreakoutPercent` | 0.75 / 0.25 (percent, not fractions) |
 | `InpBreakoutLookback` | 8 H1 bars |
 | `InpMaxEntriesPerZone` | 6 |
@@ -105,6 +106,21 @@ price gaps, swaps and commissions can produce outcomes other than exactly ±1R.
 A positive `InpMaxHoldingHours` also creates variable-R time exits and must be
 labelled as a separate experiment. Broker SL/TP, manual exits and PortfolioGuard
 are authoritative; the EA does not adjust protection after entry.
+
+## Optional one trade per day
+
+Set `InpOneTradePerDay=true` to allow at most one filled entry per **UTC calendar
+date**, for this symbol and magic. Broker entry-deal history is authoritative:
+restarting, changing RSI zones, or closing a trade manually or at SL/TP does not
+reset the limit. Partial entry fills still consume only that date's entry slot.
+Rejected orders without a fill do not consume the daily slot, although the existing
+H1 signal-consumption rule still applies. A trade carried overnight consumes its
+entry date, not its exit date; symbol occupancy still blocks concurrent entries.
+The next UTC date unlocks the daily gate, subject to every other entry check.
+
+The option defaults off. Missing history or an unverified/ambiguous UTC clock
+blocks entries when enabled; exits remain independent. `DAILY_TRADE_BLOCK` logs
+the reason, and the option is included in Settings and configuration hashes.
 
 ## Optional weekend flat
 

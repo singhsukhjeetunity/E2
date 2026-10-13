@@ -121,6 +121,7 @@ void reset(){
  nextRetcode=TRADE_RETCODE_DONE;balance=100000;freeMargin=100000;
  volumeMinimum=.01;volumeMaximum=100;volumeStep=.01;contractSize=1;marginPerLot=1000;InpRiskTolerancePercent=2;
  InpRSIPeriod=20;InpRSIThreshold=70;InpBaseEntry=true;InpEntryMode=BTC_HYBRID;
+ InpOneTradePerDay=false;
  InpFixedCashRisk=1000;InpRiskMode=E2_RISK_FIXED_CASH;InpStopPercent=1.25;
  InpMaxEntriesPerZone=6;InpCooldownHours=2;InpMaxHoldingHours=0;
  InpWeekendFlat=false;InpFridayFlatHour=20;InpFridayFlatMinute=0;
@@ -184,6 +185,32 @@ int main(){
  // A manual/guard exit consumes cooldown too.
  reset();deals.push_back({10,now-1000,420609,DEAL_ENTRY_IN,100});
  deals.push_back({11,now-1,999,DEAL_ENTRY_OUT,100});AttemptEntry(quote,now-2000,"PULLBACK");assert(submissions.empty());
+ // A filled entry locks the UTC date even after its position has closed or EA restarted.
+ reset();InpOneTradePerDay=true;deals.push_back({10,now-3*3600,420609,DEAL_ENTRY_IN,100});
+ deals.push_back({11,now-2*3600,999,DEAL_ENTRY_OUT,100});
+ AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ g_lastH1=now-3600;Run(true);assert(submissions.empty());
+ InpOneTradePerDay=false;AttemptEntry(quote,now,"BASE");assert(submissions.size()==1);
+ // New UTC date unlocks, including when server dates differ from UTC dates.
+ reset();InpOneTradePerDay=true;deals.push_back({10,D(11,23),420609,DEAL_ENTRY_IN});
+ assert(DailyEntryAllowed());
+ InpServerUTCOffsetWinterHours=3;InpServerUTCOffsetSummerHours=3;
+ deals.clear();deals.push_back({10,D(12,2),420609,DEAL_ENTRY_IN});assert(DailyEntryAllowed());
+ deals.push_back({11,D(12,3),420609,DEAL_ENTRY_IN});assert(!DailyEntryAllowed());
+ now=D(13,3);quote.time=now;assert(DailyEntryAllowed());
+ // Partial/reversal fills consume the slot; unrelated magic and exit-only deals don't.
+ reset();InpOneTradePerDay=true;deals.push_back({10,now-3600,999,DEAL_ENTRY_IN});
+ deals.push_back({11,now-3600,420609,DEAL_ENTRY_OUT});assert(DailyEntryAllowed());
+ deals.push_back({12,now-3600,420609,DEAL_ENTRY_INOUT});assert(!DailyEntryAllowed());
+ reset();InpOneTradePerDay=true;deals.push_back({10,now-3600,420609,DEAL_ENTRY_IN,100,10000,.5});
+ deals.push_back({11,now-3599,420609,DEAL_ENTRY_IN,100,10000,.5});assert(!DailyEntryAllowed());
+ reset();InpOneTradePerDay=true;haveHistory=false;AttemptEntry(quote,now,"BASE");assert(submissions.empty());
+ haveHistory=true;InpBrokerClockVerified=false;assert(!DailyEntryAllowed());
+ // Rejected orders without entry deals do not consume the daily slot.
+ reset();InpOneTradePerDay=true;nextRetcode=10006;AttemptEntry(quote,now,"BASE");assert(DailyEntryAllowed());
+ // Exits still operate when the daily gate is locked.
+ reset();InpOneTradePerDay=true;deals.push_back({10,now-3600,420609,DEAL_ENTRY_IN});
+ occupied=true;positionSL=0;Run(false);assert(submissions.size()==1&&submissions[0].position==123);
  // Completed H1 pullback and breakout signals, excluding current-bar highs.
  reset();rsiValues[62]=72;InpBaseEntry=false;history.clear();
  history.push_back({now-5*3600,10100,10110,10090,10100});history.push_back({now-3600,10000,10010,9990,10000});
@@ -241,5 +268,6 @@ int main(){
  auto hash=RConfig();InpStopPercent=2;assert(RConfig()!=hash);
  hash=RConfig();InpWeekendFlat=true;assert(RConfig()!=hash);
  hash=RConfig();InpFridayFlatMinute=30;assert(RConfig()!=hash);
+ hash=RConfig();InpOneTradePerDay=true;assert(RConfig()!=hash);
  std::cout<<"BTC EA runtime: completed H4/H1 signals, strict 1R, guards, costs, zone limits, cooldown, restart/timeout and independent exits passed\n";
 }

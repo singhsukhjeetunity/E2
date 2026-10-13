@@ -1,5 +1,5 @@
 #property strict
-#property version "0.12"
+#property version "0.13"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"
@@ -14,6 +14,7 @@ input double InpRSIThreshold=70.0;
 enum E2BEntryMode { BTC_PULLBACK=0,BTC_BREAKOUT=1,BTC_HYBRID=2 };
 input E2BEntryMode InpEntryMode=BTC_HYBRID;
 input bool InpBaseEntry=true;
+input bool InpOneTradePerDay=false; // one filled entry per UTC date, symbol and magic
 input double InpPullbackPercent=0.75;
 input double InpBreakoutPercent=0.25;
 input int InpBreakoutLookback=8;
@@ -236,10 +237,34 @@ bool ZoneUsage(const datetime zone_start,int &entries,datetime &last_exit) {
    }
    return true;
 }
+bool DailyEntryAllowed() {
+   if(!InpOneTradePerDay)return true;
+   datetime now=TimeCurrent(),utc=ServerToUTC(now);
+   if(!InpBrokerClockVerified||utc<=0||!HistorySelect(now-2*86400,now+1)) {
+      RSignal(now,"DAILY_TRADE_BLOCK","CLOCK_OR_HISTORY_UNAVAILABLE");return false;
+   }
+   datetime today=utc-utc%86400;
+   // Scan a server-time window wide enough to cover UTC midnight and DST shifts.
+   // Broker fills survive restarts; partial fills count as the same daily entry.
+   for(int i=0;i<HistoryDealsTotal();i++) {
+      ulong deal=HistoryDealGetTicket(i);
+      if(deal==0||HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol||
+         (ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)continue;
+      long edge=HistoryDealGetInteger(deal,DEAL_ENTRY);
+      if(edge!=DEAL_ENTRY_IN&&edge!=DEAL_ENTRY_INOUT)continue;
+      datetime filled=ServerToUTC((datetime)HistoryDealGetInteger(deal,DEAL_TIME));
+      if(filled<=0) {RSignal(now,"DAILY_TRADE_BLOCK","ENTRY_CLOCK_UNAVAILABLE");return false;}
+      if(filled>=today&&filled<today+86400) {
+         RSignal(now,"DAILY_TRADE_BLOCK","FILLED_ENTRY_EXISTS utc_day="+RStamp(today));return false;
+      }
+   }
+   return true;
+}
 void AttemptEntry(const MqlTick &tick,const datetime zone_start,const string entry_type) {
    if(WeekendFlatWindow(TimeCurrent()))return;
    if(!MathIsValidNumber(tick.bid)||!MathIsValidNumber(tick.ask)||tick.bid<=0||tick.ask<tick.bid)return;
    if(SymbolOccupied()||SubmissionBlocked())return;
+   if(!DailyEntryAllowed())return;
    int entries=0;datetime last_exit=0;
    if(!ZoneUsage(zone_start,entries,last_exit)||entries>=InpMaxEntriesPerZone||
       (last_exit>0&&TimeCurrent()-last_exit<InpCooldownHours*3600))return;
