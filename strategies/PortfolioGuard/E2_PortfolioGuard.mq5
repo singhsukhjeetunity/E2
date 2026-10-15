@@ -1,8 +1,9 @@
 #property strict
-#property version "1.00"
+#property version "1.01"
 #property description "E2 portfolio-wide daily equity loss guard. Attach ONCE per MT5 account."
 #include <Trade/Trade.mqh>
 #include "..\\shared\\PortfolioGate.mqh"
+#include "PortfolioJournal.mqh"
 
 enum E2PGLimitMode { E2PG_PERCENT_OF_REFERENCE=0, E2PG_FIXED_ACCOUNT_CASH=1 };
 
@@ -256,10 +257,15 @@ int OnInit()
       return INIT_FAILED;
    }
    PGRun();
+   PGJInit();
    return INIT_SUCCEEDED;
 }
 void OnTick(){PGRun();}
-void OnTimer(){PGRun();}
+void OnTimer(){PGRun();PGJTimer();}
+void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result)
+{
+   if(pg_owns_guard)PGJTransaction(trans);
+}
 void OnDeinit(const int reason)
 {
    if(pg_owns_guard)
@@ -268,5 +274,6 @@ void OnDeinit(const int reason)
       PGWrite("HB",0.0);
       GlobalVariablesFlush();
    }
+   PGJClose();
    Comment("");
 }

@@ -20,6 +20,14 @@ For identical trading behavior, preserve all original strategy-specific executio
 
 ## PortfolioGuard — shared account-wide daily loss limit
 
+### One live CSV across all five systems
+
+PortfolioGuard v1.01 optionally maintains an account-specific, restart-safe
+closed-trade journal for Gold, Compression, Gotobi, ORB and BTC. It reads broker
+history, includes costs and external closes, and captures available live entry
+risk. Existing trading EAs and backtest exporters are unchanged. See the
+[live journal installation and schema](strategies/PortfolioGuard/README.md).
+
 Source: `strategies/PortfolioGuard/E2_PortfolioGuard.mq5`. This is **one risk controller**, not a fifth trading strategy. All four trading EAs include `strategies/shared/PortfolioGate.mqh` and call `E2PGCanEnter()` immediately before submitting **entry** orders.
 
 ### Installation on one MT5 terminal/account
