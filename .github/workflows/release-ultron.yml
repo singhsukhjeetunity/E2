@@ -1,0 +1,45 @@
+name: Publish E2-Ultron
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/releases/E2-Ultron.md
+      - .github/workflows/release-ultron.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release-E2-Ultron
+  cancel-in-progress: false
+jobs:
+  checks:
+    uses: ./.github/workflows/strategy-checks.yml
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and verify source package
+        run: python3 tools/build_ultron_release.py --output dist
+      - name: Publish named release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view E2-Ultron --json tagName >/dev/null 2>&1; then
+            echo 'E2-Ultron already exists; leaving the published release unchanged.'
+            exit 0
+          fi
+          if git rev-parse --verify refs/tags/E2-Ultron >/dev/null 2>&1; then
+            test "$(git rev-list -n 1 E2-Ultron)" = "$GITHUB_SHA"
+          fi
+          gh release create E2-Ultron dist/E2-Ultron-source.zip dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title 'E2-Ultron' \
+            --notes-file docs/releases/E2-Ultron.md --latest

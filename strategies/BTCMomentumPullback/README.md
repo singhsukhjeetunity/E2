@@ -1,8 +1,8 @@
 # BTCUSD H4 momentum / H1 pullback-breakout — research v0.13
 
-Standalone EA: `BTCUSD_Momentum_Pullback.mq5` on
-`research/btcusd-momentum-pullback`. This candidate has no verified performance.
-The four retained E2 systems and their shared execution guard are unchanged.
+Standalone EA: `BTCUSD_Momentum_Pullback.mq5`, included in E2-Ultron alongside
+the other four E2 systems. Historical backtests are not proof of future/live
+performance. The published reference's results do not apply to this adaptation.
 
 ## Source and adaptation
 

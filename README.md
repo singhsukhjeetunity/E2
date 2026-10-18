@@ -1,58 +1,101 @@
-# E2 — four standalone MT5 systems
+# E2-Ultron
 
-## BTCUSD research candidate
+Five standalone MT5 trading systems, one account-wide PortfolioGuard, and one
+shared live closed-trade CSV per account. **Source release: compile in MetaEditor.**
 
-This branch additionally contains [BTCUSD Momentum Pullback](strategies/BTCMomentumPullback/README.md),
-a long-only H4 Wilder RSI / H1 base-pullback-breakout experiment with hard fixed
-1R brackets. It is separate from the retained portfolio. Published reference
-results do not apply to this exit adaptation. Native compilation and a real-tick
-backtest are outstanding; see its README for inputs and exact assumptions.
+## Components
 
-## Retained portfolio
+| Component | Market | Signal timeframe | Source version | Entry file |
+|---|---|---|---|---|
+| Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
+| Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
+| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.16 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
+| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
+| BTC Momentum Pullback | BTCUSD | Broker H4 regime / H1 entries | 0.13 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
+| PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.01 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
 
-The four Expert Advisors are Gold Session Fade, Compression Breakout, EURJPY Gotobi and Nasdaq Opening Range (long). Keep the entire `strategies/` tree when installing into `MQL5/Experts/E2/`; each source entry file requires its headers. The `strategies/shared/` folder contains executable dependencies shared by Compression and reporting.
+All five trading systems are long-only. EMA Pullback is not part of this release.
+Ultron adds reporting to the existing guard; it does **not** change any of the five
+systems' trading code, shared execution headers, risk defaults or account allocations.
 
-**Safety:** This is a research refactor branch. Do not deploy to a funded or live account until every entry compiles in MetaEditor and a trade-by-trade backtest matches the existing deployed versions at identical parameter values, tick data and broker clock settings. CSV exports remain supported without the removed E2 journal application.
+## Install or upgrade
 
-Strategy Tester: Ctrl+R, select EA and broker symbol, appropriate timeframe (Gold M5, Gotobi M1, Compression M30, Nasdaq M5), Every tick based on real ticks, set risk and historically verified broker-clock inputs, then inspect Results and Journal.
+- [Installation, upgrade, configuration and rollback](docs/INSTALLATION.md)
+- [E2-Ultron release notes](docs/releases/E2-Ultron.md)
+- [Shared live journal schema and recovery](strategies/PortfolioGuard/README.md)
+- [BTC rules and optional entry/exit switches](strategies/BTCMomentumPullback/README.md)
 
-For identical trading behavior, preserve all original strategy-specific execution controls. The input panels share common headings but not all risk or execution safety controls are equivalent; do not assume matching labels imply matching behavior.
+For an existing five-system installation, replace and recompile **PortfolioGuard
+only**, preserving its inputs. The five existing trading EX5s can remain installed.
+For a new installation, copy the entire `strategies/` tree under
+`MQL5/Experts/E2/` and compile the six entry files above. All relative includes
+must retain their folder structure.
 
-## PortfolioGuard — shared account-wide daily loss limit
+Do not replace saved account settings with generic source defaults. Risk, magic
+numbers, historical broker-clock profiles, filters, weekend exits and daily-entry
+switches must match the configuration being traded or backtested. In particular:
 
-### One live CSV across all five systems
+- BTC's selected base + pullback / 2% stop / weekend-flat / one-trade-per-day
+  configuration differs from its generic defaults. Load your saved preset.
+- ORB's code permits two entries per New York day. A portfolio analysis that
+  retains only the first trade does not impose that limit in the EA.
+- Fixed cash risk is available in all five EAs. A fixed-balance prop-account plan
+  requires fixed cash sizing; balance-percent mode changes cash sizing as balance moves.
 
-PortfolioGuard v1.01 optionally maintains an account-specific, restart-safe
-closed-trade journal for Gold, Compression, Gotobi, ORB and BTC. It reads broker
-history, includes costs and external closes, and captures available live entry
-risk. Existing trading EAs and backtest exporters are unchanged. See the
-[live journal installation and schema](strategies/PortfolioGuard/README.md).
+## PortfolioGuard
 
-Source: `strategies/PortfolioGuard/E2_PortfolioGuard.mq5`. This is **one risk controller**, not a fifth trading strategy. All four trading EAs include `strategies/shared/PortfolioGate.mqh` and call `E2PGCanEnter()` immediately before submitting **entry** orders.
+Every trading EA checks `E2PGCanEnter()` before live/demo entries. The guard must
+run in the **same MT5 terminal/account**. Missing, stale, unseeded or daily-locked
+guard state blocks new entries. Strategy exits remain independent.
 
-### Installation on one MT5 terminal/account
+The guard maintains a reference account equity at the configured broker-server
+daily reset. Its equity floor is either reference minus a fixed cash limit, or
+reference times one minus the chosen daily-loss percentage. A breach latches a
+daily lock. With `InpCloseAllOnLimit=true`, it also cancels pending orders and
+attempts to close **all account positions**, including manual/copied trades.
 
-1. **Back up your current EX5 files and inputs**, especially on evaluation accounts. Keep all four trading EAs and their existing chart settings.
-2. Copy the **entire** updated `strategies/` folder into the same terminal's `MQL5/Experts/E2/` tree. Do not install only the guard: all four trading EAs must be recompiled with the shared gate header.
-3. Open MetaEditor; compile `E2_PortfolioGuard.mq5` **and all four trading EAs** with F7. Require zero native compilation errors. The GitHub C++ tests do not replace this step.
-4. Attach **one** PortfolioGuard instance to any open chart in that terminal/account. All terminal account positions (including manual and copy-traded positions) are included in equity and the emergency flattening mechanism.
-5. Configure `InpDailyLossMode` (percent of daily reference equity or fixed account cash), its amount, `InpCloseAllOnLimit` (true=close all positions and cancel all pending orders, false=stop only E2 entries), and the **firm's verified reset time expressed in MT5 broker-server hours and minutes**. The default midnight-server reset is only a placeholder, **not a declaration of The5ers' rule**.
-6. First attach during the **first five minutes after the firm reset** to snapshot account equity automatically. If attaching for the first time later in the day, enter the **actual reference equity at today's reset** in `InpFirstDayReferenceEquity`; do not use current equity if the account has moved. Otherwise the guard remains unseeded and all four E2 EAs refuse new live/demo entries until the next reset. A verified reference can be supplied by editing guard inputs and reinitializing. On restart it recovers the previous valid day reference and latched state without rebaselining.
-7. Check Experts logs and the guard chart comment for `ACTIVE`, today's reference equity, account equity and floor. With the guard active, all four EAs run their original entry/exit logic **except** that they require a recent guard heartbeat and an unbreached account-equity floor. Removing/stopping PortfolioGuard fails **closed for new E2 entries** but does not stop their exits.
-8. On **each separate The5ers or copier receiving MT5 account terminal**, install its **own** guard. The shared state is stored as terminal Global Variables, account/server-scoped. Multiple terminals cannot share one guard.
-9. Before production: demo-test simultaneous entries, loss cutoff including floating P&L, temporary disconnection, manual/copied positions and pending orders, order-close rejection, terminal restart, midnight rollover and the reset timezone/DST. Compare trading results with guard unlocked against your original baseline. No branch merge or production deployment before native compilation and broker-specific validation.
+This equity monitor does **not** reserve aggregate stop-loss exposure or enforce
+an allocation budget before simultaneous entries. Set each EA's cash risk to your
+allocation separately. No release installation changes your planned daily cap.
+Reset time/reference settings must match the actual account, rather than a presumed
+firm rule. Do not delete daily reference/lock globals during an upgrade.
 
-### Guard behavior and limits
+## One live journal
 
-- Reference: first verified **account equity** at each configured reset. Equity includes closed and open/floating gains and losses, commission/swap impact. Daily floor is **reference − chosen fixed cash amount** or **reference × (1 − daily loss %)**. This is an **account-equity floor**, **not** a high-watermark trailing drawdown rule, and not necessarily the firm's own formula.
-- Once equity touches/breaches the floor, a **persistent daily lock** blocks all **E2-generated entries** for that day. A recovery in equity does **not** unlock the account. Automatic unlock occurs only at the next verified daily reset; broker server clock/timezone rules must match the firm.
-- Optional `InpCloseAllOnLimit=true`: the guard cancels **ALL pending orders** and repeatedly attempts to close **ALL open positions** belonging to the account, **including trades from copiers or manual positions**. Rejections and closed markets are retried. This does not guarantee exact fills or prevention of prop-firm breaches when gaps, outages, copier re-entry or slippage occur.
-- Without `InpCloseAllOnLimit`, it blocks **only E2-generated entries**; it cannot prevent external manual/copy-trading systems from opening new orders. A copier may reopen closed orders after flattening unless configured not to.
-- The guard **does not reserve or cap aggregate stop-loss exposure at entry**. Several EAs can open positions together while equity is above the floor and later collectively lose more than the limit before forced closes execute. This is intentionally the simpler daily-equity guard, not a pre-trade capital/risk allocation controller.
-- The guard's 1-second terminal timer is best effort. The terminal must be running and connected for monitoring and forced closes; a broker-side SL remains each strategy's critical protection.
-- In the ordinary single-EA **Strategy Tester**, E2 trading entries bypass the shared guard by design, so historical standalone strategy tests remain comparable. **This does not test portfolio-wide limit behavior**; run the guard and all four EAs together in a multi-chart demo terminal for integration verification.
-- Changing reset parameters mid-day or deleting terminal global variables may invalidate the daily reference. **Never reset the daily lock manually to continue trading.**
+`InpLiveJournalEnabled=true` enables the guard-owned journal by default. Match its
+five magic mappings to the running EAs. It reads broker history directly and does
+not depend on the individual EA CSV exporters.
 
-### Safety reminder
+The Experts log prints the exact stable account-specific filename under:
 
-A firm can calculate daily drawdown differently (prior-day balance vs equity, timezone/DST, commissions, intraday high watermark, positions held over reset). Verify the **exact account's** firm program and use a conservative internal cutoff. PortfolioGuard is **not** broker-side or guaranteed protection.
+`Common/Files/E2/Portfolio/E2_<encoded-server>_<login>_Trades.csv`
+
+The file contains one row per fully closed E2 position, combining partial fills
+and closes. It includes strategy, prices, costs, net cash P&L and available R.
+Normal close updates occur on timer reconciliation, throttled to five seconds;
+periodic reconciliation also catches missed events and later cost corrections.
+Restarting does not create another trade CSV or append duplicate rows.
+
+The schema is `E2_PORTFOLIO_JOURNAL_V1`; timestamps are explicitly
+`BROKER_SERVER`, not UTC. Live entry risk snapshots persist in `_risk.dat`.
+Historical trades without a snapshot retain cash P&L with risk/R blank. Keep that
+sidecar with the journal. Do not combine this schema blindly with UTC backtest files.
+
+After verifying the shared file, optionally disable the five per-EA live exports
+through their existing inputs. Re-enable them for backtests as needed. The shared
+journal is disabled in Strategy Tester; standalone backtest exports and guard
+bypass behavior are unchanged.
+
+## Verification and limits
+
+The release workflow runs portable strategy, lifecycle, reporting, clock and guard
+checks before publishing the source package and SHA-256 checksum. The journal tests
+exercise production reporting code against simulated broker/file APIs, including
+fees, partial fills, restarts, missing history, storage failures and writer isolation.
+
+Portable checks are **not** native MQL compilation or a broker execution guarantee.
+Compile changed entries in MetaEditor and verify operation in the target terminal.
+The guard and reporter share an EA event loop. Slow history/disk can delay processing.
+Server-side SLs remain important during outages; market closure, slippage or rejected
+closes can prevent an exact equity cutoff. Reporting faults do not change guard
+globals or place trades. See the installation guide for validation and rollback.
