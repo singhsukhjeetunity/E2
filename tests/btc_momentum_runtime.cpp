@@ -40,7 +40,7 @@ struct MqlTick{double bid=10000,ask=10000.01;datetime time=0;};
 struct MqlTradeRequest{int action=0,type=0,type_filling=0;string symbol,comment;ulong magic=0,position=0;double volume=0,price=0,sl=0,tp=0;int deviation=0;};
 struct MqlTradeResult{uint retcode=0;};struct MqlTradeCheckResult{uint retcode=0;string comment;};
 struct MqlTradeTransaction{int type=0;ulong deal=0;};
-string _Symbol="BTCUSD";int _Digits=2;double _Point=.01;
+string _Symbol="BTCUSD",symbolBase="BTC",symbolProfit="USD";int _Digits=2;double _Point=.01;
 std::vector<MqlRates> history,m30History;
 std::vector<double> rsiValues;std::vector<datetime> h4Times;bool indicatorOK=true;
 datetime now=D(12,12);MqlTick quote;
@@ -67,7 +67,7 @@ int CopyRates(const string&,int period,datetime start,datetime end,std::vector<M
 bool SymbolInfoTick(const string&,MqlTick &tick){tick=quote;return true;}
 double SymbolInfoDouble(const string&,int field){switch(field){case SYMBOL_TRADE_TICK_SIZE:return .01;case SYMBOL_VOLUME_STEP:return volumeStep;case SYMBOL_VOLUME_MIN:return volumeMinimum;case SYMBOL_VOLUME_MAX:return volumeMaximum;case SYMBOL_TRADE_CONTRACT_SIZE:return contractSize;default:return 0;}}
 long SymbolInfoInteger(const string&,int field){return field==SYMBOL_FILLING_MODE?SYMBOL_FILLING_IOC:0;}
-string SymbolInfoString(const string&,int field){return field==SYMBOL_CURRENCY_BASE?"BTC":"USD";}
+string SymbolInfoString(const string&,int field){return field==SYMBOL_CURRENCY_BASE?symbolBase:symbolProfit;}
 double AccountInfoDouble(int field){return field==ACCOUNT_BALANCE?balance:freeMargin;}
 string AccountInfoString(int){return "Mock";}long AccountInfoInteger(int){return 42;}
 int PositionsTotal(){return occupied&&!closed?1:0;}ulong PositionGetTicket(int){return PositionsTotal()?123:0;}
@@ -112,6 +112,7 @@ void FileWriteString(int,const string&){}void FileFlush(int){}void FileClose(int
 #include "core.mqh"
 #include "runtime.mqh"
 void reset(){
+ _Symbol="BTCUSD";symbolBase="BTC";symbolProfit="USD";
  globals.clear();submissions.clear();deals.clear();history.clear();csv.clear();filePaths.clear();nextFile=1;
  now=D(12,12);quote={10000,10000.01,now};indicatorOK=true;
  rsiValues.assign(64,50);rsiValues.back()=72;h4Times.clear();
@@ -133,6 +134,11 @@ void reset(){
  positionSL=1.05;positionTP=1.2;positionOpened=D(8,12);
 }
 int main(){
+ // Brokers may publish missing/nonstandard currencies even on a BTCUSD chart.
+ reset();symbolBase="";symbolProfit="";assert(OnInit()==INIT_SUCCEEDED);OnDeinit(0);
+ reset();_Symbol="BTCUSD.r";symbolBase="XBT";assert(OnInit()==INIT_SUCCEEDED);OnDeinit(0);
+ reset();_Symbol="EURUSD";symbolBase="EUR";assert(OnInit()==INIT_SUCCEEDED);OnDeinit(0);
+ reset();InpStopPercent=0;assert(OnInit()==INIT_PARAMETERS_INCORRECT);
  reset();datetime start=0;double r=0;assert(ActiveZone(now,start,r)&&start==now&&r==72);
  Run(true);assert(submissions.size()==1&&submissions[0].type==ORDER_TYPE_BUY);
  auto req=submissions[0];assert(req.sl<quote.bid&&req.tp>quote.ask);

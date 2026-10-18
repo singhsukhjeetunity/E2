@@ -9,6 +9,12 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '57e808d7a36ca05a40b38f6bef60940d76f0f28b'
+BTC_ENTRY = 'strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5'
+BTC_OLD_SYMBOL_CHECK = '''   // Symbol suffixes are supported; prevent accidental attachment to a different currency pair.
+   if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="BTC"||SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD") {
+      Print("[BTCMP] This research EA requires a BTCUSD symbol.");return INIT_PARAMETERS_INCORRECT;
+   }
+'''
 COMPONENTS = {
     'Gold': 'GoldSessionFade/XAU_Session_Fade.mq5',
     'Compression': 'CompressionBreakout/Compression_Breakout_Long.mq5',
@@ -40,6 +46,13 @@ def build(destination):
         data = p.read_bytes()
         if p.suffix in ('.mq5', '.mqh') and not name.startswith('strategies/PortfolioGuard/'):
             original = git('show', BASELINE + ':' + name)
+            if name == BTC_ENTRY:
+                # Permit precisely the requested v0.14 attachment fix, not changes
+                # to BTC's signals, sizing, exits, defaults or guard integration.
+                text = original.decode()
+                if text.count(BTC_OLD_SYMBOL_CHECK) != 1:
+                    raise RuntimeError('Unexpected BTC baseline initialization')
+                original = text.replace('#property version "0.13"', '#property version "0.14"', 1).replace(BTC_OLD_SYMBOL_CHECK, '', 1).encode()
             if data != original:
                 raise RuntimeError('Trading/shared code differs from baseline: ' + name)
         content['MQL5/Experts/E2/' + name] = data
@@ -58,6 +71,7 @@ def build(destination):
     manifest = {
         'release': 'E2-Ultron', 'commit': git('rev-parse', 'HEAD').decode().strip(),
         'trading_baseline': BASELINE, 'source_only': True, 'versions': versions,
+        'authorized_code_changes': ['BTC v0.14: remove chart currency-metadata restriction'],
         'files_sha256': {name: digest(data) for name, data in sorted(content.items())},
     }
     content['MANIFEST.json'] = (json.dumps(manifest, indent=2, sort_keys=True)+'\n').encode()
@@ -75,7 +89,7 @@ def build(destination):
         for name, data in content.items():
             assert z.read('E2-Ultron/' + name) == data
     (destination/'SHA256SUMS.txt').write_text(digest(archive.read_bytes())+'  '+archive.name+'\n')
-    print(f'Verified {len(content)} files; trading code matches {BASELINE[:7]}; source-only ZIP ready.')
+    print(f'Verified {len(content)} files; baseline {BASELINE[:7]} plus exact BTC symbol fix; source-only ZIP ready.')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

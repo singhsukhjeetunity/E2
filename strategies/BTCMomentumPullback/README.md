@@ -1,4 +1,4 @@
-# BTCUSD H4 momentum / H1 pullback-breakout — research v0.13
+# BTCUSD H4 momentum / H1 pullback-breakout — research v0.14
 
 Standalone EA: `BTCUSD_Momentum_Pullback.mq5`, included in E2-Ultron alongside
 the other four E2 systems. Historical backtests are not proof of future/live
@@ -28,8 +28,11 @@ changes requiring new backtests, not a reproduction of the reported system.
 
 ## Exact rules
 
-- Long only on BTC base currency / USD profit currency. Broker suffixes are
-  supported via symbol properties. BTCUSDT is not accepted by this USD CFD EA.
+- Long only on the attached chart symbol (`_Symbol`). There is no symbol-name,
+  base-currency or profit-currency restriction. Broker aliases, missing currency
+  metadata and other instruments are accepted. Risk sizing still uses that
+  symbol's actual contract/lot/tick properties; invalid inputs/specs remain blocked.
+  The existing BTC research does not establish performance on other instruments.
 - Native broker **H4 Wilder RSI(20) > 70** defines an active zone. Equality is off.
   A zone begins at the CLOSE time of the first completed H4 bar above 70 after
   an inactive bar, and ends when the completed H4 RSI falls to/below 70.

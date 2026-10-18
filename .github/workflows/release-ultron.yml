@@ -34,7 +34,13 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view E2-Ultron --json tagName >/dev/null 2>&1; then
-            echo 'E2-Ultron already exists; leaving the published release unchanged.'
+            old_tag=$(gh api "repos/$GH_REPO/git/ref/tags/E2-Ultron" --jq '.object.sha')
+            gh release upload E2-Ultron dist/E2-Ultron-source.zip dist/SHA256SUMS.txt --clobber
+            git tag -f E2-Ultron "$GITHUB_SHA"
+            git push origin refs/tags/E2-Ultron \
+              --force-with-lease="refs/tags/E2-Ultron:$old_tag"
+            gh release edit E2-Ultron --title 'E2-Ultron' \
+              --target "$GITHUB_SHA" --notes-file docs/releases/E2-Ultron.md --latest
             exit 0
           fi
           if git rev-parse --verify refs/tags/E2-Ultron >/dev/null 2>&1; then

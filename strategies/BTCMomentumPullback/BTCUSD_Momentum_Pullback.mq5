@@ -1,5 +1,5 @@
 #property strict
-#property version "0.13"
+#property version "0.14"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"
@@ -368,10 +368,6 @@ bool ValidInputs() {
 }
 int OnInit() {
    if(!ValidInputs())return INIT_PARAMETERS_INCORRECT;
-   // Symbol suffixes are supported; prevent accidental attachment to a different currency pair.
-   if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="BTC"||SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD") {
-      Print("[BTCMP] This research EA requires a BTCUSD symbol.");return INIT_PARAMETERS_INCORRECT;
-   }
    g_statePrefix="E2B_"+StringFormat("%08X",RHash(AccountInfoString(ACCOUNT_SERVER)+"|"+_Symbol+"|"+StringFormat("%I64u",InpMagic)))+
       "_"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"_";
    if(MQLInfoInteger(MQL_TESTER))g_statePrefix="E2BT_"+StringFormat("%I64u",GetMicrosecondCount())+"_";

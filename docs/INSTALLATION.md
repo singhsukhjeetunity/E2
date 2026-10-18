@@ -4,7 +4,18 @@ This is an MT5 **source-only** release. No EX5 binaries are supplied. The releas
 ZIP contains `MQL5/Experts/E2/strategies/`, documentation and a file-hash manifest.
 The repository checkout stores the same strategy sources directly in `strategies/`.
 
-## Existing installation: guard-only upgrade
+## Existing Ultron installation: BTC symbol fix
+
+BTC Momentum Pullback v0.14 removes its BTC/USD currency-metadata attachment check.
+It now accepts the attached chart symbol even when the broker uses missing or
+nonstandard currency metadata. Save the existing BTC EX5 and inputs, replace
+`BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5`, and compile it in MetaEditor.
+Retain its existing headers, or copy the full BTC folder from the release.
+Load the saved inputs when replacing the EA on its chart. Its signal, risk, exit,
+daily-limit and PortfolioGuard rules are unchanged. No other EA needs replacing
+for this patch. The chart timeframe does not override its internal H4/H1 signals.
+
+## Pre-Ultron installation: add the shared journal
 
 1. Save the current PortfolioGuard EX5 and its input preset. Retain the five
    trading EX5s, their presets, broker-clock files, recovery files and existing
@@ -13,8 +24,8 @@ The repository checkout stores the same strategy sources directly in `strategies
    the terminal's data directory. Preserve `PortfolioJournal.mqh` beside the guard
    entry file. Ensure `strategies/shared/` is also present; its code is unchanged.
 3. Open `E2_PortfolioGuard.mq5` in MetaEditor and compile with F7. Require no
-   compilation errors. The other five trading EAs do not need recompiling for
-   this reporting-only upgrade.
+   compilation errors. The other trading EAs do not need recompiling for the
+   journal itself; update BTC separately as above if its symbol fix is needed.
 4. Replace the existing guard on its chart and restore its saved inputs. Keep
    one guard instance per terminal/account. Preserve the existing loss mode,
    loss amount, reset time and `InpCloseAllOnLimit` setting. Do not attach a
