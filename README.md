@@ -9,15 +9,16 @@ shared live closed-trade CSV per account. **Source release: compile in MetaEdito
 |---|---|---|---|---|
 | Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
 | Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
-| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.16 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
+| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.17 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
 | Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
 | BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.14 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
 | PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.01 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
 
 All five trading systems are long-only. EMA Pullback is not part of this release.
 Ultron adds reporting to the existing guard. The BTC v0.14 update removes only
-the BTC/USD currency-metadata attachment restriction. Its signal/exit/sizing rules,
-all other systems, shared execution headers, risk defaults and allocations are unchanged.
+the BTC/USD currency-metadata attachment restriction. Gotobi v1.17 adds durable
+entry reservations and a single-instance lock to prevent duplicate submissions.
+Signal/exit/sizing rules, shared execution headers, risk defaults and allocations are unchanged.
 
 ## Install or upgrade
 
@@ -26,10 +27,11 @@ all other systems, shared execution headers, risk defaults and allocations are u
 - [Shared live journal schema and recovery](strategies/PortfolioGuard/README.md)
 - [BTC rules and optional entry/exit switches](strategies/BTCMomentumPullback/README.md)
 
-For an existing Ultron installation, replace and recompile **BTC Momentum Pullback
-only** to get the v0.14 symbol fix, preserving its inputs. If upgrading from before
-Ultron, also replace/recompile PortfolioGuard to add the shared journal. The other
-four trading EX5s can remain installed.
+For an existing Ultron installation, copy the complete **EURJPYGotobi** folder
+and recompile Gotobi to get the v1.17 duplicate-entry fix, preserving its inputs.
+Keep one Gotobi instance per account/symbol/magic. Update BTC separately if its
+v0.14 symbol fix is needed. If upgrading from before Ultron, also replace/recompile
+PortfolioGuard to add the shared journal. Other trading EX5s can remain installed.
 For a new installation, copy the entire `strategies/` tree under
 `MQL5/Experts/E2/` and compile the six entry files above. All relative includes
 must retain their folder structure.

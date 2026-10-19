@@ -4,6 +4,44 @@ This is an MT5 **source-only** release. No EX5 binaries are supplied. The releas
 ZIP contains `MQL5/Experts/E2/strategies/`, documentation and a file-hash manifest.
 The repository checkout stores the same strategy sources directly in `strategies/`.
 
+## Existing Ultron installation: Gotobi duplicate-entry fix
+
+Gotobi v1.17 saves an entry reservation **before** submitting an order. A broker
+fill consumes that scheduled event even after a restart or manual close. An
+uncertain response remains blocked across restarts and day rollover until broker
+history proves a fill or a terminal zero-fill cancellation/rejection/expiry.
+Explicit broker refusals allow a retry; absence of a cached position is not proof.
+
+Save the existing EX5 and input preset. Copy the complete `EURJPYGotobi/` folder,
+including `include/EntryGuard.mqh`, and keep `strategies/shared/` in place. Compile
+`EURJPY_Gotobi.mq5` in MetaEditor with no errors. Replace the EA at a planned
+maintenance point, preferably when flat, and reload the same risk, magic, clock,
+entry and exit settings. Keep just one instance for that account/symbol/magic.
+The new reservation supplements the existing position/history checks; it cannot
+retroactively reserve an old-version submission still in flight during upgrade.
+Other systems and PortfolioGuard do not need replacing for this fix.
+
+Live state is stored under **File → Open Shared Data Folder → Files → E2 →
+GotobiEntry**, keyed by broker server, login, symbol and magic. Preserve its
+`.state` files during restarts and upgrades. An exclusive file handle rejects a
+second same-key Gotobi on charts or terminals sharing that Common Files location.
+It cannot coordinate a separate VPS, a trade copier, or EAs with different magic
+numbers. Use a single execution source per strategy/account across machines.
+
+`[ENTRY_SUBMISSION]` records the broker order/retcode and reservation status:
+1 means unresolved, 2 means consumed. `[ENTRY_BLOCK]` reports unresolved broker
+submissions or state/storage faults. Existing timed exits and stop management
+continue when entry state is unreadable or unresolved. If an entry remains
+blocked, restore storage/history access and reconcile the submitted order with
+the broker. **Do not delete state or change magic to bypass it.** If no definitive
+broker evidence exists, the reservation intentionally stays blocked and requires
+manual investigation before any offline state repair. A duplicate-instance lock
+failure rejects initialization; leave the original owning instance active.
+
+Strategy Tester uses in-memory reservation only, with a fresh state for each run;
+live recovery files cannot contaminate a backtest. No signal, sizing, stop, target,
+session, daily-limit setting or guard permission rule changes in this patch.
+
 ## Existing Ultron installation: BTC symbol fix
 
 BTC Momentum Pullback v0.14 removes its BTC/USD currency-metadata attachment check.
@@ -25,7 +63,7 @@ for this patch. The chart timeframe does not override its internal H4/H1 signals
    entry file. Ensure `strategies/shared/` is also present; its code is unchanged.
 3. Open `E2_PortfolioGuard.mq5` in MetaEditor and compile with F7. Require no
    compilation errors. The other trading EAs do not need recompiling for the
-   journal itself; update BTC separately as above if its symbol fix is needed.
+   journal itself; update Gotobi and BTC separately as above if needed.
 4. Replace the existing guard on its chart and restore its saved inputs. Keep
    one guard instance per terminal/account. Preserve the existing loss mode,
    loss amount, reset time and `InpCloseAllOnLimit` setting. Do not attach a

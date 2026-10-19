@@ -159,6 +159,7 @@ int main(int argc,char **argv) {
    InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;
    InpSessionDST=RC_FIXED;InpSessionWinterUTCMinutes=0;
    // Exercise each complete strategy through its actual OnTick entry point.
+   assert(RCEInit()); // Independent historical fixture / fresh tester run.
    test_positions.clear();test_deals.clear();InpATRPeriod=3;InpStopATR=1;
    InpOneEntryPerDay=true;InpFridayFlat=false;InpMaximumHoldingDays=5;
    InpSessionOpenMinute=0;InpSessionCloseMinute=1320;
@@ -183,6 +184,7 @@ int main(int argc,char **argv) {
 
    // Predeclared timing variants: no early entry, one successful entry at the configured time.
    for(int entry_minute:{940,970}) {
+      assert(RCEInit()); // Each timing variant is a separate tester run.
       InpEntryUTCMinute=entry_minute;assert(RCValidate());
       test_deals.clear();test_positions.clear();
       test_now=RCDate(2025,7,3)+entry_minute*60-1;OnTick();assert(test_positions.empty());
@@ -194,5 +196,84 @@ int main(int argc,char **argv) {
       RCCloseOwn();OnTick();assert(test_positions.empty()); // Signal cannot re-enter.
    }
    InpEntryUTCMinute=1440;assert(!RCValidate());InpEntryUTCMinute=955;
+   // Live entry-reservation fixtures. Persisted files survive the memory resets.
+   auto fresh_entry_case=[&](){
+      RCEClose();test_tester=0;mock_file_fail=false;mock_move_fail=false;
+      mock_files.clear();mock_handles.clear();mock_read_cursor.clear();
+      test_positions.clear();test_deals.clear();test_deal_orders.clear();
+      test_active_orders.clear();test_order_history.clear();test_on_send=nullptr;
+      test_history_ok=true;test_defer_fill=false;test_send_ok=true;test_order_rejected=false;
+      test_retcode=TRADE_RETCODE_DONE;test_sends=0;test_next_order=1000;test_login=42;test_server="Broker";
+      _Symbol="EURJPY";_Point=.001;_Digits=3;test_tick={177.65,177.66};
+      InpBrokerDST=RC_FIXED;InpBrokerWinterUTCMinutes=0;InpBrokerSummerUTCMinutes=0;
+      InpSessionDST=RC_FIXED;InpSessionWinterUTCMinutes=0;
+      InpRiskMode=E2_RISK_FIXED_CASH;InpFixedCashRisk=420;InpOneEntryPerDay=true;
+      InpFridayFlat=false;InpMaxSpreadPoints=30;test_min_lot=.01;
+      test_now=RCDate(2026,10,19,15,55);rc_trade.SetExpertMagicNumber(InpMagic);
+      assert(RCEInit());
+   };
+   auto enter_event=[&](){return RCEnter(1,.5,4,RCNow(),RCDate(2026,10,19,15,55));};
+   fresh_entry_case();
+   int owner=rc_entry_lock;string owner_base=rc_entry_base;assert(owner!=INVALID_HANDLE);
+   assert(!RCEInit()); // Second chart/terminal sharing Common Files is rejected.
+   rc_entry_lock=owner;rc_entry_base=owner_base;rc_entry_ready=true;
+   // Reentrant/concurrent attempt while the first broker request is in flight.
+   test_defer_fill=true;bool nested=false;
+   test_on_send=[&](){nested=enter_event();};
+   assert(enter_event());assert(!nested&&test_sends==1&&rc_entry_state.status==1);
+   assert(!enter_event()&&test_sends==1);
+   RCEClose();assert(RCEInit());assert(!enter_event()&&test_sends==1); // Same pending order after restart.
+   test_now+=86400;assert(!enter_event()&&test_sends==1); // Midnight never releases ambiguity.
+   // An unconfirmed TIMEOUT with no cached fill cannot generate a second request.
+   fresh_entry_case();test_defer_fill=true;test_send_ok=false;test_retcode=TRADE_RETCODE_TIMEOUT;
+   assert(!enter_event()&&test_sends==1&&rc_entry_state.status==1);
+   test_history_ok=false;test_now++;assert(!enter_event()&&test_sends==1);
+   test_history_ok=true;RCEClose();assert(RCEInit());assert(!enter_event()&&test_sends==1);
+   // Late partial fill proves the entry, even if its position has already closed.
+   ulong order=rc_entry_state.order;
+   test_deals.push_back({1,InpMagic,_Symbol,test_now,DEAL_ENTRY_IN,DEAL_TYPE_BUY,800,.1,177.66,177.16,179.66});
+   test_deal_orders[1]=order;assert(RCEReconcile(true)&&rc_entry_state.status==2);
+   test_deals.clear();test_deal_orders.clear();InpOneEntryPerDay=false;
+   RCEClose();assert(RCEInit());assert(!enter_event()&&test_sends==1); // Durable consumed-event marker.
+   // Fresh UTC date after a confirmed fill may submit its own new event.
+   test_now+=86400;test_retcode=TRADE_RETCODE_DONE;test_send_ok=true;test_defer_fill=false;
+   assert(RCEnter(1,.5,4,RCNow(),RCNow())&&test_sends==2);
+   // Definite broker rejection is zero-fill evidence and permits a safe retry.
+   fresh_entry_case();test_send_ok=false;test_retcode=10006;
+   assert(!enter_event()&&test_sends==1&&rc_entry_state.status==0);
+   test_send_ok=true;test_retcode=TRADE_RETCODE_DONE;
+   assert(enter_event()&&test_sends==2&&rc_entry_state.status==2);
+   // Accepted PLACED: canceled with full unfilled volume unlocks; partial fills do not.
+   fresh_entry_case();test_defer_fill=true;test_retcode=TRADE_RETCODE_PLACED;
+   assert(!enter_event()&&rc_entry_state.status==1);
+   order=rc_entry_state.order;
+   test_order_history.push_back({order,InpMagic,_Symbol,ORDER_STATE_CANCELED,.1,.05});
+   assert(!RCEReconcile(true)&&rc_entry_state.status==1);
+   test_order_history.back().remaining=.1;
+   assert(RCEReconcile(true)&&rc_entry_state.status==0);
+   // Storage failure before submission: no Buy/Sell; restoring storage allows retry.
+   fresh_entry_case();mock_file_fail=true;assert(!enter_event()&&test_sends==0);
+   mock_file_fail=false;mock_move_fail=true;assert(!enter_event()&&test_sends==0);
+   mock_move_fail=false;assert(enter_event()&&test_sends==1);
+   // Lost post-send state writes recover the pre-send reservation and broker fill.
+   fresh_entry_case();test_on_send=[&](){mock_move_fail=true;};
+   assert(enter_event()&&test_sends==1&&rc_entry_state.status==1);
+   RCCloseOwn();mock_move_fail=false;RCEClose();assert(RCEInit());
+   assert(RCEReconcile(true)&&rc_entry_state.status==2);assert(!enter_event()&&test_sends==1);
+   // Active pending orders and corrupt state cannot open another position.
+   fresh_entry_case();test_active_orders.push_back({900,InpMagic,_Symbol,ORDER_STATE_PLACED,.1,.1});
+   assert(!enter_event()&&test_sends==0);test_active_orders.clear();
+   string state_path=rc_entry_base+".state";RCEClose();mock_files[state_path]={{"CORRUPT"}};
+   assert(RCEInit()&&!rc_entry_ready);assert(!enter_event()&&test_sends==0);
+   test_positions.push_back({800,InpMagic,_Symbol,test_now,0,.1});rc_last_close_attempt=0;
+   RCManage(RCNow());assert(test_positions.empty()); // Entry fault never disables exits.
+   // Independent accounts / magic mappings do not share a lock or consumed slot.
+   fresh_entry_case();owner=rc_entry_lock;owner_base=rc_entry_base;
+   test_login=43;assert(RCEInit()&&rc_entry_base!=owner_base);RCEClose();
+   rc_entry_lock=owner;rc_entry_base=owner_base;rc_entry_ready=true;RCEClose();
+   // Strategy Tester has no shared disk state; each run starts clean.
+   test_tester=1;size_t disk_count=mock_files.size();assert(RCEInit());
+   assert(rc_entry_state.status==0&&rc_entry_lock==INVALID_HANDLE&&mock_files.size()==disk_count);
+   std::cout<<"Gotobi duplicate entry: exclusive writer, pre-send persistence, delayed fills, timeouts, restart, rollover, zero-fill rejection and independent exits passed\n";
    std::cout<<RC_NAME<<": checks OK\n";
 }

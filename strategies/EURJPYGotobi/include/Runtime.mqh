@@ -159,6 +159,7 @@ bool RCEnteredSince(const datetime since_utc) {
    }
    return false;
 }
+#include "EntryGuard.mqh"
 bool RCEnter(const int direction,const double distance,const double target_r,const datetime utc,
              const datetime unique_since=0) {
    if(direction==0||distance<=0||RCHasOwn())return false;
@@ -202,8 +203,12 @@ bool RCEnter(const int direction,const double distance,const double target_r,con
       }
       return false;
    }
+   if(!RCEReserve(utc,session_start,unique_since))return false;
    bool sent=direction>0?rc_trade.Buy(lots,_Symbol,0,stop,target,RC_NAME):rc_trade.Sell(lots,_Symbol,0,stop,target,RC_NAME);
-   if(!RCTradeOK(sent)){Print(RC_NAME," entry rejected: ",rc_trade.ResultRetcodeDescription());return false;}
+   RCEResult(sent,rc_trade.ResultRetcode(),rc_trade.ResultOrder());
+   Print(RC_NAME," [ENTRY_SUBMISSION] order=",rc_trade.ResultOrder()," retcode=",rc_trade.ResultRetcode(),
+      " reservation_status=",rc_entry_state.status);
+   if(!RCTradeOK(sent)){Print(RC_NAME," entry not confirmed: ",rc_trade.ResultRetcodeDescription());return false;}
    Print(RC_NAME," entry ",direction," lots=",lots," SL=",stop," TP=",target," risk_budget=",budget);
    RCManage(utc);return true;
 }
@@ -300,7 +305,8 @@ int OnInit() {
    Print(RC_NAME," v",RC_REPORT_VERSION," risk_mode=",(int)InpRiskMode,
          " fixed_cash_risk=",InpFixedCashRisk," balance_risk_percent=",InpBalanceRiskPercent,
          " broker_winter_utc_minutes=",InpBrokerWinterUTCMinutes," broker_dst=",(int)InpBrokerDST);
-   if(!RCExportInit())return INIT_FAILED;
+   if(!RCEInit())return INIT_FAILED;
+   if(!RCExportInit()){RCEClose();return INIT_FAILED;}
    return INIT_SUCCEEDED;
 }
 void OnTick() {
@@ -308,14 +314,15 @@ void OnTick() {
    datetime utc=RCNow();if(utc==0)return;
    static datetime last_health=0;
    if(utc-last_health>=300){last_health=utc;Print("[HEALTH] Gotobi utc=",utc," owned_position=",RCHasOwn()," entry_utc_minute=",InpEntryUTCMinute," spread_cap_points=",InpMaxSpreadPoints);}
-   RCManage(utc);RCProcess(utc);
+   RCManage(utc);RCEReconcile();RCProcess(utc);
    MqlTick tick;if(SymbolInfoTick(_Symbol,tick))rc_last_bid=tick.bid;
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {
    if(InpExportCsv&&trans.type==TRADE_TRANSACTION_DEAL_ADD)RCCaptureRisk(trans.deal);
    rc_export_dirty=true; // Include manual/broker closes of owned positions.
+   RCEReconcile(true);
 }
 double OnTester() {RCExportTrades();RCExportEquity(true);return 0;}
-void OnDeinit(const int reason) {RCExportTrades();RCExportEquity(true);RCExportClose();}
+void OnDeinit(const int reason) {RCExportTrades();RCExportEquity(true);RCExportClose();RCEClose();}
 
 #endif

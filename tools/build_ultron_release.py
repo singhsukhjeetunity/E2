@@ -15,6 +15,17 @@ BTC_OLD_SYMBOL_CHECK = '''   // Symbol suffixes are supported; prevent accidenta
       Print("[BTCMP] This research EA requires a BTCUSD symbol.");return INIT_PARAMETERS_INCORRECT;
    }
 '''
+# Exact reviewed Gotobi v1.17 entry-reservation patch; all other strategy/shared
+# sources remain checked against the original baseline below.
+GOTOBI_PATCH_SHA256 = {
+    'strategies/EURJPYGotobi/EURJPY_Gotobi.mq5':
+        '945d0aaa63585ff5f15358f5b692a0e04bf756f85615b13429afe30bd38e61de',
+    'strategies/EURJPYGotobi/include/Runtime.mqh':
+        'f428ba3d4cd223f27da7609a9893d3c3039e683380e7c569e650e5d73cd9cc80',
+    'strategies/EURJPYGotobi/include/EntryGuard.mqh':
+        '01ae5963e447dd620cb4383d200007541fffdb09740a9061d6847e5512d7e24a',
+}
+
 COMPONENTS = {
     'Gold': 'GoldSessionFade/XAU_Session_Fade.mq5',
     'Compression': 'CompressionBreakout/Compression_Breakout_Long.mq5',
@@ -45,6 +56,11 @@ def build(destination):
         p = ROOT / name
         data = p.read_bytes()
         if p.suffix in ('.mq5', '.mqh') and not name.startswith('strategies/PortfolioGuard/'):
+            if name in GOTOBI_PATCH_SHA256:
+                if digest(data) != GOTOBI_PATCH_SHA256[name]:
+                    raise RuntimeError('Gotobi source differs from approved v1.17 patch: ' + name)
+                content['MQL5/Experts/E2/' + name] = data
+                continue
             original = git('show', BASELINE + ':' + name)
             if name == BTC_ENTRY:
                 # Permit precisely the requested v0.14 attachment fix, not changes
@@ -71,7 +87,8 @@ def build(destination):
     manifest = {
         'release': 'E2-Ultron', 'commit': git('rev-parse', 'HEAD').decode().strip(),
         'trading_baseline': BASELINE, 'source_only': True, 'versions': versions,
-        'authorized_code_changes': ['BTC v0.14: remove chart currency-metadata restriction'],
+        'authorized_code_changes': ['BTC v0.14: remove chart currency-metadata restriction',
+                                    'Gotobi v1.17: durable entry reservation and exclusive instance lock'],
         'files_sha256': {name: digest(data) for name, data in sorted(content.items())},
     }
     content['MANIFEST.json'] = (json.dumps(manifest, indent=2, sort_keys=True)+'\n').encode()
@@ -89,7 +106,7 @@ def build(destination):
         for name, data in content.items():
             assert z.read('E2-Ultron/' + name) == data
     (destination/'SHA256SUMS.txt').write_text(digest(archive.read_bytes())+'  '+archive.name+'\n')
-    print(f'Verified {len(content)} files; baseline {BASELINE[:7]} plus exact BTC symbol fix; source-only ZIP ready.')
+    print(f'Verified {len(content)} files; baseline {BASELINE[:7]} plus exact BTC symbol and Gotobi submission fixes; source-only ZIP ready.')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

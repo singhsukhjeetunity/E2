@@ -11,6 +11,7 @@
 #include <sstream>
 #include <cstdarg>
 #include <fstream>
+#include <functional>
 using string=std::string;
 using datetime=long long;
 using ENUM_TIMEFRAMES=int;
@@ -22,6 +23,7 @@ constexpr int PERIOD_M1=1,PERIOD_M15=15,PERIOD_M30=30;
 constexpr int INIT_FAILED=1;
 constexpr int INIT_SUCCEEDED=0,INIT_PARAMETERS_INCORRECT=2;
 constexpr int TRADE_RETCODE_DONE=10009,TRADE_RETCODE_DONE_PARTIAL=10010;
+constexpr int TRADE_RETCODE_TIMEOUT=10012,TRADE_RETCODE_PLACED=10008,TRADE_RETCODE_CONNECTION=10031;
 constexpr int ACCOUNT_MARGIN_MODE=1,ACCOUNT_MARGIN_MODE_RETAIL_HEDGING=2,ACCOUNT_EQUITY=3,ACCOUNT_MARGIN_FREE=4;
 constexpr int POSITION_SYMBOL=5,POSITION_MAGIC=6,POSITION_TIME=7,POSITION_SL=8;
 constexpr int DEAL_SYMBOL=9,DEAL_MAGIC=10,DEAL_ENTRY=11,DEAL_TYPE=12;
@@ -36,20 +38,42 @@ constexpr int INVALID_HANDLE=-1,FILE_WRITE=1,FILE_CSV=2,FILE_ANSI=4,FILE_COMMON=
 constexpr int ACCOUNT_BALANCE=52,ACCOUNT_TRADE_MODE=53,ACCOUNT_TRADE_MODE_DEMO=0,ACCOUNT_LOGIN=54;
 constexpr int MQL_TESTER=55,TERMINAL_COMMONDATA_PATH=56;
 constexpr int TRADE_TRANSACTION_DEAL_ADD=1;
+constexpr int ACCOUNT_SERVER=80,DEAL_ORDER=81,ORDER_SYMBOL=82,ORDER_MAGIC=83,ORDER_STATE=84;
+constexpr int ORDER_VOLUME_INITIAL=85,ORDER_VOLUME_CURRENT=86;
+constexpr int ORDER_STATE_CANCELED=90,ORDER_STATE_REJECTED=91,ORDER_STATE_EXPIRED=92,ORDER_STATE_PLACED=93;
+constexpr int FILE_READ=128,FILE_TXT=256,FILE_BIN=512,FILE_REWRITE=1024;
 struct MqlTradeTransaction{int type=TRADE_TRANSACTION_DEAL_ADD;ulong deal=0;};struct MqlTradeRequest{};struct MqlTradeResult{};
-int mock_error=0;bool mock_file_fail=false;
+int mock_error=0;bool mock_file_fail=false,mock_move_fail=false;
 int GetLastError(){return mock_error;}void ResetLastError(){mock_error=0;}
 string DoubleToString(double x,int n){std::ostringstream s;s.precision(n);s<<std::fixed<<x;return s.str();}
 string StringFormat(const char *fmt,...){char buf[256];va_list args;va_start(args,fmt);vsnprintf(buf,sizeof(buf),fmt,args);va_end(args);return buf;}
 void StringReplace(string &s,const string &from,const string &to){size_t pos=0;while((pos=s.find(from,pos))!=string::npos){s.replace(pos,from.size(),to);pos+=to.size();}}
 std::map<string,std::vector<std::vector<string>>> mock_files;
-std::map<int,string> mock_handles;int mock_next_handle=1;
-int FileOpen(const string &path,int,char,int){if(mock_file_fail){mock_error=5004;return INVALID_HANDLE;}int h=mock_next_handle++;mock_handles[h]=path;mock_files[path].clear();return h;}
+std::map<int,string> mock_handles;std::map<int,int> mock_read_cursor;int mock_next_handle=1;
+int FileOpen(const string &path,int mode,char=0,int=CP_UTF8){
+ if(mock_file_fail){mock_error=5004;return INVALID_HANDLE;}
+ if(mode&FILE_BIN)for(const auto &item:mock_handles)if(item.second==path)return INVALID_HANDLE;
+ if((mode&FILE_READ)&&!(mode&FILE_WRITE)&&!mock_files.count(path))return INVALID_HANDLE;
+ int h=mock_next_handle++;mock_handles[h]=path;mock_read_cursor[h]=0;
+ if((mode&FILE_WRITE)&&!(mode&FILE_READ))mock_files[path].clear();else if(!mock_files.count(path))mock_files[path]={};
+ return h;
+}
 bool FileIsExist(const string &path,int){return mock_files.count(path)>0;}
 template<class T>string mock_string(const T &x){std::ostringstream out;out<<x;return out.str();}
 template<class... T>int FileWrite(int h,const T&... values){mock_files[mock_handles.at(h)].push_back({mock_string(values)...});return sizeof...(values);}
-void FileFlush(int){}void FileClose(int h){mock_handles.erase(h);}
-int MQLInfoInteger(int){return 1;}
+unsigned FileWriteString(int h,const string &text){
+ if(mock_file_fail){mock_error=5004;return 0;}
+ std::istringstream input(text);string line;while(std::getline(input,line))mock_files[mock_handles.at(h)].push_back({line});return text.size();
+}
+string FileReadString(int h){auto &n=mock_read_cursor[h];auto &rows=mock_files[mock_handles.at(h)];return n<(int)rows.size()?rows[n++][0]:"";}
+bool FileMove(const string &from,int,const string &to,int){if(mock_move_fail)return false;mock_files[to]=mock_files[from];mock_files.erase(from);return true;}
+void FileFlush(int){}void FileClose(int h){mock_handles.erase(h);mock_read_cursor.erase(h);}
+int test_tester=1;int MQLInfoInteger(int){return test_tester;}
+bool E2ReportFolder(const string &name,string &folder){folder="E2/"+name;return !mock_file_fail;}
+string E2PathPart(const string &value){return "v-"+value;}
+int StringLen(const string &s){return s.size();}unsigned short StringGetCharacter(const string &s,int i){return s.at(i);}
+long long StringToInteger(const string &s){try{return std::stoll(s);}catch(...){return 0;}}
+int StringSplit(const string &s,char delimiter,std::vector<string> &fields){fields.clear();std::istringstream in(s);string f;while(std::getline(in,f,delimiter))fields.push_back(f);return fields.size();}
 string TerminalInfoString(int){return "COMMON";}
 datetime TimeLocal(){return 1000000;}ulong GetMicrosecondCount(){return 123;}
 string _Symbol="TEST";double _Point=.01;int _Digits=2;
@@ -94,9 +118,16 @@ struct TestDeal {
 std::vector<TestDeal> test_deals;
 std::vector<MqlRates> test_minutes,test_m15,test_m30;
 bool test_session_closed=false,test_order_rejected=false;
+bool test_history_ok=true,test_defer_fill=false,test_send_ok=true;
+uint test_retcode=TRADE_RETCODE_DONE;int test_sends=0;
+ulong test_login=42,test_next_order=1000;string test_server="Broker";
+std::function<void()> test_on_send;
+struct TestOrder{ulong ticket,magic;string symbol;int state;double initial,remaining;};
+std::vector<TestOrder> test_active_orders,test_order_history;int test_selected_order=0;
 bool SymbolInfoSessionTrade(const string&,int,uint i,datetime &from,datetime &to){if(i>0||test_session_closed)return false;from=0;to=86400;return true;}
 datetime TimeCurrent(){return test_now;}
-long long AccountInfoInteger(int){return test_mode;}
+long long AccountInfoInteger(int property){return property==ACCOUNT_LOGIN?test_login:test_mode;}
+string AccountInfoString(int){return test_server;}
 double AccountInfoDouble(int property){return property==ACCOUNT_BALANCE?test_balance:property==ACCOUNT_EQUITY?test_cash:test_free;}
 bool SymbolInfoTick(const string&,MqlTick &t){t=test_tick;return true;}
 double SymbolInfoDouble(const string&,int property) {
@@ -112,11 +143,12 @@ ulong PositionGetTicket(int i){selected=i;return test_positions[i].ticket;}
 string PositionGetString(int){return test_positions[selected].symbol;}
 long long PositionGetInteger(int property){return property==POSITION_MAGIC?test_positions[selected].magic:test_positions[selected].time;}
 double PositionGetDouble(int){return test_positions[selected].stop;}
-bool HistorySelect(datetime from,datetime to){history_since=from;history_until=to;return true;}
+bool HistorySelect(datetime from,datetime to){history_since=from;history_until=to;return test_history_ok;}
 int HistoryDealsTotal(){return (int)test_deals.size();}
 ulong HistoryDealGetTicket(int i){return test_deals[i].ticket;}
 bool HistoryDealSelect(ulong){history_since=0;history_until=test_now;return true;}
 TestDeal &deal(ulong ticket){return test_deals.at(ticket-1);}
+std::map<ulong,ulong> test_deal_orders;
 string HistoryDealGetString(ulong t,int){return deal(t).symbol;}
 long long HistoryDealGetInteger(ulong t,int property) {
    auto &d=deal(t);
@@ -126,6 +158,7 @@ long long HistoryDealGetInteger(ulong t,int property) {
    if(property==DEAL_TIME)return d.time;
    if(property==DEAL_TIME_MSC)return d.time*1000;
    if(property==DEAL_REASON)return d.reason;
+   if(property==DEAL_ORDER)return test_deal_orders[t];
    return property==DEAL_ENTRY?d.entry:d.type;
 }
 double HistoryDealGetDouble(ulong t,int property) {
@@ -140,6 +173,15 @@ double HistoryDealGetDouble(ulong t,int property) {
  return d.fee;
 }
 datetime iTime(const string&,int,int){return test_now-test_now%60;}
+int OrdersTotal(){return test_active_orders.size();}
+ulong OrderGetTicket(int i){test_selected_order=i;return test_active_orders[i].ticket;}
+string OrderGetString(int){return test_active_orders[test_selected_order].symbol;}
+long OrderGetInteger(int){return test_active_orders[test_selected_order].magic;}
+TestOrder &historicOrder(ulong id){for(auto &o:test_order_history)if(o.ticket==id)return o;assert(false);return test_order_history.front();}
+bool HistoryOrderSelect(ulong id){for(auto o:test_order_history)if(o.ticket==id)return true;return false;}
+string HistoryOrderGetString(ulong id,int){return historicOrder(id).symbol;}
+long HistoryOrderGetInteger(ulong id,int field){auto o=historicOrder(id);return field==ORDER_MAGIC?o.magic:o.state;}
+double HistoryOrderGetDouble(ulong id,int field){auto o=historicOrder(id);return field==ORDER_VOLUME_INITIAL?o.initial:o.remaining;}
 long test_copied_minutes=0;
 int CopyRates(const string&,int frame,datetime from,datetime to,std::vector<MqlRates> &out) {
    out.clear();const auto &source=frame==PERIOD_M1?test_minutes:frame==PERIOD_M15?test_m15:test_m30;
@@ -157,18 +199,25 @@ int CopyRates(const string&,int frame,int shift,int count,std::vector<MqlRates> 
 }
 class CTrade {
    ulong magic=0;
+   ulong last_order=0;
    bool enter(int side,double lots,const string &symbol,double stop,double target) {
+      test_sends++;last_order=test_next_order++;
+      if(test_on_send){auto hook=test_on_send;test_on_send=nullptr;hook();}
       if(test_order_rejected)return false;
+      if(test_defer_fill)return test_send_ok;
+      if(!test_send_ok)return false;
       ulong ticket=test_positions.size()+100;
       test_positions.push_back({ticket,magic,symbol,test_now,stop,lots,target});
-      test_deals.push_back({test_deals.size()+1,magic,symbol,test_now,DEAL_ENTRY_IN,side});return true;
+      test_deals.push_back({test_deals.size()+1,magic,symbol,test_now,DEAL_ENTRY_IN,side,ticket,lots,test_tick.ask,stop,target});
+      test_deal_orders[test_deals.back().ticket]=last_order;return true;
    }
 public:
    void SetExpertMagicNumber(ulong m){magic=m;}
    void SetDeviationInPoints(ulong){}
    void SetAsyncMode(bool){}
    void SetTypeFillingBySymbol(const string&){}
-   uint ResultRetcode(){return TRADE_RETCODE_DONE;}
+   uint ResultRetcode(){return test_retcode;}
+   ulong ResultOrder(){return last_order;}
    string ResultRetcodeDescription(){return "mock";}
    bool Buy(double lots,const string &symbol,double,double stop,double target,const string&){return enter(0,lots,symbol,stop,target);}
    bool Sell(double lots,const string &symbol,double,double stop,double target,const string&){return enter(1,lots,symbol,stop,target);}
