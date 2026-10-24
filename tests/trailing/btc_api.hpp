@@ -1,3 +1,4 @@
+using ENUM_TIMEFRAMES=int;
 // Compile real overlay code in the existing disabled BTC baseline harness.
 constexpr int PERIOD_CURRENT=0,MODE_EMA=1,SYMBOL_TRADE_FREEZE_LEVEL=200,TRADE_ACTION_SLTP=6;
 int _Period=PERIOD_M5;
