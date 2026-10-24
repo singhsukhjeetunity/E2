@@ -118,3 +118,12 @@ and demo-terminal filesystem/trade-event checks remain required.
 MetaQuotes references: [entry deal SL and costs](https://www.mql5.com/en/docs/constants/tradingconstants/dealproperties),
 [trade callbacks](https://www.mql5.com/en/docs/event_handlers/ontradetransaction),
 [staged file replacement](https://www.mql5.com/en/docs/files/filemove).
+
+## Session Momentum research branch
+
+PortfolioGuard v1.02 adds `InpJournalSessionMomentumMagic=420611` and the
+`NAS100_SESSION_MOMENTUM` label. Both LONG/SHORT and zero-TP trades use the existing
+journal and live entry-risk snapshot logic. Set the mapping to 0 to exclude it.
+The five existing mappings and all guard risk/closure behavior are unchanged.
+Preserve loaded loss/reset inputs and recovery globals when recompiling this
+branch's guard. The candidate remains unallocated pending research.

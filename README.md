@@ -3,6 +3,16 @@
 Five standalone MT5 trading systems, one account-wide PortfolioGuard, and one
 shared live closed-trade CSV per account. **Source release: compile in MetaEditor.**
 
+## Research candidate: Session Momentum
+
+A new, unallocated NAS100 M5 candidate is available on the research branch:
+[Session Momentum rules, inputs and backtest steps](strategies/SessionMomentum/README.md).
+It trades both directions from the first New York opening candle versus EMA12,
+with an EMA trailing stop and optional session-end close. It does not replace or
+change any of the five existing trading systems. PortfolioGuard v1.02 adds only
+its journal magic mapping; guard risk/closure functions are unchanged. This branch
+is not a refreshed E2-Ultron release.
+
 ## Components
 
 | Component | Market | Signal timeframe | Source version | Entry file |

@@ -1,5 +1,5 @@
 #property strict
-#property version "1.01"
+#property version "1.02"
 #property description "E2 portfolio-wide daily equity loss guard. Attach ONCE per MT5 account."
 #include <Trade/Trade.mqh>
 #include "..\\shared\\PortfolioGate.mqh"

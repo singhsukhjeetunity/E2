@@ -23,3 +23,4 @@ jobs:
       - run: python3 tests/run_nq_orb_clock.py
       - run: python3 tests/run_btc_momentum.py
       - run: python3 tests/run_portfolio_journal.py
+      - run: python3 tests/session_momentum/run_checks.py

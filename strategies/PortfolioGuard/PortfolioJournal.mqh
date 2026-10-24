@@ -11,6 +11,7 @@ input ulong InpJournalCompressionMagic=2026091703;
 input ulong InpJournalGotobiMagic=420603;
 input ulong InpJournalORBMagic=420605;
 input ulong InpJournalBTCMagic=420609;
+input ulong InpJournalSessionMomentumMagic=420611; // Research candidate; 0 excludes it.
 
 struct PGJRisk { ulong deal,position; double cash,sl,tp; };
 struct PGJPending { ulong deal; datetime queued; };
@@ -41,6 +42,7 @@ string PGJName(const ulong magic) {
    if(magic==InpJournalGotobiMagic)return "EURJPY_GOTOBI";
    if(magic==InpJournalORBMagic)return "NQ_OPENING_RANGE";
    if(magic==InpJournalBTCMagic)return "BTC_MOMENTUM_PULLBACK";
+   if(magic==InpJournalSessionMomentumMagic)return "NAS100_SESSION_MOMENTUM";
    return "";
 }
 string PGJN(const double value) {return DoubleToString(value,8);}
@@ -238,7 +240,7 @@ bool PGJExport() {
 }
 void PGJInit() {
    if(!InpLiveJournalEnabled||MQLInfoInteger(MQL_TESTER)!=0)return;
-   ulong magics[]={InpJournalGoldMagic,InpJournalCompressionMagic,InpJournalGotobiMagic,InpJournalORBMagic,InpJournalBTCMagic};
+   ulong magics[]={InpJournalGoldMagic,InpJournalCompressionMagic,InpJournalGotobiMagic,InpJournalORBMagic,InpJournalBTCMagic,InpJournalSessionMomentumMagic};
    bool valid=InpJournalRefreshSeconds>=5&&InpJournalRefreshSeconds<=3600;
    for(int i=0;i<ArraySize(magics);i++)for(int j=i+1;j<ArraySize(magics);j++)
       if(magics[i]>0&&magics[i]==magics[j])valid=false;

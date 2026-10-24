@@ -1,0 +1,12 @@
+name: Session Momentum research checks
+on:
+  push:
+    branches: [research/session-momentum]
+  pull_request:
+    paths: ['strategies/SessionMomentum/**', 'tests/session_momentum/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    uses: ./.github/workflows/strategy-checks.yml

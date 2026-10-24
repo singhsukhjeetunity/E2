@@ -162,6 +162,19 @@ int main(){
  // A temporarily missing conversion retries, without substituting requested risk.
  PGJClose();reset();PGJInit();profitOK=false;liveEntry(entry(1,601));assert(pgj_pending.size()==1);
  profitOK=true;now+=2;PGJTimer();assert(pgj_pending.empty()&&pgj_risks.size()==1);
+ // Session Momentum both sides, zero TP and preserved initial-risk snapshots.
+ PGJClose();reset();PGJInit();
+ assert(PGJName(420611)=="NAS100_SESSION_MOMENTUM");
+ auto smLong=entry(1,701,420611);smLong.tp=0;liveEntry(smLong);finish(close(2,701));
+ assert(csv()[1][2]=="NAS100_SESSION_MOMENTUM"&&csv()[1][4]=="LONG");
+ assert(csv()[1][8]=="10.00000000"&&csv()[1][20].empty());
+ auto smShort=entry(3,702,420611);smShort.type=DEAL_TYPE_SELL;smShort.sl=110;smShort.tp=0;
+ liveEntry(smShort);auto shortExit=close(4,702);shortExit.type=DEAL_TYPE_BUY;finish(shortExit);
+ assert(csv()[2][4]=="SHORT"&&csv()[2][8]=="10.00000000");
+ // New mapping participates in duplicate-magic validation; 0 disables only it.
+ PGJClose();reset();InpJournalSessionMomentumMagic=InpJournalORBMagic;PGJInit();assert(!pgj_active);
+ InpJournalSessionMomentumMagic=0;PGJInit();assert(pgj_active&&PGJName(420611)=="");
+ PGJClose();InpJournalSessionMomentumMagic=420611;
  // Rows follow final close time, independently of position identifier order.
  PGJClose();reset();PGJInit();liveEntry(entry(1,900));liveEntry(entry(2,100));
  finish(close(3,900));finish(close(4,100));assert(csv()[1][14]=="900"&&csv()[2][14]=="100");

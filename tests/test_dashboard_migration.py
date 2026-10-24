@@ -41,7 +41,9 @@ class DashboardMigration(unittest.TestCase):
     def test_four_retained_eas_plus_guard_and_btc_research(self):
         research=ROOT/"strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5"
         self.assertTrue(research.exists())
-        paths=[p for p in (ROOT/"strategies").rglob("*.mq5") if p!=research]
+        session=ROOT/"strategies/SessionMomentum/NAS100_Session_Momentum.mq5"
+        self.assertTrue(session.exists())
+        paths=[p for p in (ROOT/"strategies").rglob("*.mq5") if p not in (research,session)]
         self.assertEqual(len(paths),5)
         self.assertTrue((ROOT/"strategies/PortfolioGuard/E2_PortfolioGuard.mq5").exists())
         self.assertFalse((ROOT/"strategies/EMAPullback").exists())
