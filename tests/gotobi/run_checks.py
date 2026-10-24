@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory() as directory:
     trail=(test_root.parents[1]/'strategies/shared/EMATrailing.mqh').read_text()
     trail=portable(trail)
     trail=re.sub(r'E2TrailAttempt (\w+)\[\];',r'std::vector<E2TrailAttempt> \1;',trail)
-    trail=trail.replace('MqlRates bars[];double ema[];', 'std::vector<MqlRates> bars;std::vector<double> ema;')
+    trail=re.sub(r'\bdouble (\w+)\[\];',r'std::vector<double> \1;',trail)
     (tmp/'trailing.mqh').write_text(trail)
     platform=(test_root/'platform.hpp').read_text()
     platform=platform.replace('struct MqlTick {double bid=100,ask=100.02;};',

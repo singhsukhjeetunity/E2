@@ -8,7 +8,7 @@ input ENUM_TIMEFRAMES InpTrailingTimeframe=PERIOD_M5; // PERIOD_CURRENT uses the
 int e2trail_handle=INVALID_HANDLE;
 ENUM_TIMEFRAMES e2trail_frame=PERIOD_M5;
 ulong e2trail_magic=0;
-struct E2TrailAttempt { ulong ticket; datetime modify,close; };
+struct E2TrailAttempt { ulong ticket; datetime modify,close; double desired; };
 E2TrailAttempt e2trail_attempts[];
 // Implemented by each host EA using its existing ticket-based close/recovery path.
 bool E2TrailClose(const ulong ticket);
@@ -78,9 +78,14 @@ void E2TrailRun() {
       int direction=PositionGetInteger(POSITION_TYPE)==POSITION_TYPE_BUY?1:-1;
       double old=PositionGetDouble(POSITION_SL);
       double next=NormalizeDouble((direction>0?MathFloor(ema[0]/step):MathCeil(ema[0]/step))*step,_Digits);
-      if(old>0&&!E2TrailTightens(direction,old,next))continue;
-      double reference=direction>0?tick.bid:tick.ask;
       int slot=E2TrailAttemptIndex(ticket);
+      // Remember the tightest observed EMA even when a modify was rejected/frozen.
+      // A later lower/higher EMA must not turn a retry into a loosening request.
+      if(e2trail_attempts[slot].desired>0)next=direction>0?MathMax(next,e2trail_attempts[slot].desired):
+         MathMin(next,e2trail_attempts[slot].desired);
+      if(old>0&&!E2TrailTightens(direction,old,next))continue;
+      e2trail_attempts[slot].desired=next;
+      double reference=direction>0?tick.bid:tick.ask;
       if(old<=0||(direction>0?reference<=next:reference>=next)) {
          if(e2trail_attempts[slot].close>0&&now-e2trail_attempts[slot].close<5)continue;
          e2trail_attempts[slot].close=now;

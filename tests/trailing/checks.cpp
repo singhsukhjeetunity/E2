@@ -48,7 +48,7 @@ int main(){
  reset();positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};send_ok=false;
  E2TrailRun();assert(requests.size()==1&&positions[0].sl==90);
  E2TrailRun();assert(requests.size()==1);
- now++;quote.time=now;send_ok=true;E2TrailRun();assert(requests.size()==2&&positions[0].sl==100);
+ now++;quote.time=now;send_ok=true;value=99;E2TrailRun();assert(requests.size()==2&&positions[0].sl==100);
  // Missing/unready/forming/stale data cannot alter protection.
  for(int scenario=0;scenario<7;scenario++){
   reset();positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};
