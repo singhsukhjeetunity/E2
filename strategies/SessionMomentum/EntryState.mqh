@@ -8,7 +8,7 @@ string sm_state_base="";
 int sm_lock=INVALID_HANDLE;
 bool sm_state_ready=false;
 datetime sm_reconcile_time=0;
-uint SMHash(const string text) {
+uint SMStateHash(const string text) {
    uint h=2166136261;
    for(int i=0;i<StringLen(text);i++){h^=(uint)StringGetCharacter(text,i);h*=16777619;}
    return h;
@@ -23,7 +23,7 @@ bool SMSaveState(const SMState &next) {
       string payload=SMStatePayload(next),temp=sm_state_base+".tmp";
       int f=FileOpen(temp,FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
       if(f==INVALID_HANDLE)return false;
-      string text="E2_SM_ENTRY_V1\r\n"+payload+"\r\n"+StringFormat("%08X",SMHash(payload))+"\r\n";
+      string text="E2_SM_ENTRY_V1\r\n"+payload+"\r\n"+StringFormat("%08X",SMStateHash(payload))+"\r\n";
       ResetLastError();uint written=FileWriteString(f,text);FileFlush(f);
       int error=GetLastError();FileClose(f);
       if(written!=StringLen(text)||error!=0||
@@ -38,7 +38,7 @@ bool SMLoadState() {
    string schema=FileReadString(f),payload=FileReadString(f),checksum=FileReadString(f);
    FileClose(f);StringReplace(schema,"\r","");StringReplace(payload,"\r","");StringReplace(checksum,"\r","");
    string fields[];
-   if(schema!="E2_SM_ENTRY_V1"||checksum!=StringFormat("%08X",SMHash(payload))||
+   if(schema!="E2_SM_ENTRY_V1"||checksum!=StringFormat("%08X",SMStateHash(payload))||
       StringSplit(payload,'|',fields)!=5||fields[0]!=sm_state_base)return false;
    SMState next;ZeroMemory(next);
    next.status=(int)StringToInteger(fields[1]);next.day=(int)StringToInteger(fields[2]);
