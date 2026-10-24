@@ -6,6 +6,7 @@
 #include "CompressionClock.mqh"
 #include "..\\shared\\ReportFolders.mqh"
 #include "..\\shared\\PortfolioGate.mqh"
+#include "..\\shared\\EMATrailing.mqh"
 
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // Verify the historical broker feed clock
@@ -385,9 +386,11 @@ void Reconcile(const int s,const datetime now) {
       }
       if(!PositionSelectByTicket(ticket))return;
       double tol=SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE)*0.51;
-      if(MathAbs(PositionGetDouble(POSITION_SL)-g_records[k].sl)>tol || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
-         g_trade.SetExpertMagicNumber(Magic(s));g_trade.PositionModify(ticket,g_records[k].sl,g_records[k].tp);
-         if(!PositionSelectByTicket(ticket) || MathAbs(PositionGetDouble(POSITION_SL)-g_records[k].sl)>tol || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
+      if(!E2TrailStopOK(1,g_records[k].sl,PositionGetDouble(POSITION_SL),tol) || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
+         g_trade.SetExpertMagicNumber(Magic(s));
+         double restore_sl=InpUseEMATrailingStop?MathMax(g_records[k].sl,PositionGetDouble(POSITION_SL)):g_records[k].sl;
+         g_trade.PositionModify(ticket,restore_sl,g_records[k].tp);
+         if(!PositionSelectByTicket(ticket) || !E2TrailStopOK(1,g_records[k].sl,PositionGetDouble(POSITION_SL),tol) || MathAbs(PositionGetDouble(POSITION_TP)-g_records[k].tp)>tol) {
             g_records[k].integrity="PROTECTION_RECONCILIATION_FAILED";
             ClosePosition(s,ticket,"PROTECTION_FAILURE");Fail("Cannot restore saved SL/TP");return;
          }
@@ -610,6 +613,17 @@ bool ExportTrades() {
    g_export_paused=false;
    return true;
 }
+bool E2TrailClose(const ulong ticket) {
+   int k=g_slots[0].active;
+   if(k<0||g_slots[0].pending||PositionFor(0,g_records[k].position)!=ticket)return false;
+   return ClosePosition(0,ticket,"EMA_TRAILING");
+}
+void CBManageTrailing(const datetime now) {
+   int k=g_slots[0].active;
+   if(k<0||g_slots[0].pending)return; // Actual-fill protection/risk must be finalized first.
+   E2TrailRun();
+   if(InpUseEMATrailingStop)Reconcile(0,now); // Record an EMA market close before considering another signal.
+}
 int OnInit() {
    g_integrity_failed=false;
    InpBrokerClock=(InpBrokerDST==1?NP_EU_SEASONAL:(InpBrokerDST==2?NP_US_SEASONAL:NP_FIXED_UTC_OFFSET));
@@ -634,6 +648,7 @@ int OnInit() {
    string canonical="CB_V1_M30_AUTO|"+IntegerToString((int)InpBrokerClock)+"|"+IntegerToString(InpBrokerWinterUtcOffsetSeconds)+"|"+IntegerToString(InpATRLength)+"|"+IntegerToString(InpChannelBars)+"|"+IntegerToString(InpCompressionBars)+"|"+Number(InpCompressionRatio)+"|"+Number(InpStopATR)+"|"+Number(InpTargetR)+"|"+Number(InpCashRisk)+"|"+Number(InpMaxSpreadPriceUnits)+"|"+Number(InpMaxDeviationPriceUnits)+"|"+IntegerToString(InpMaxEntryDelaySeconds)+"|"+IntegerToString(InpBrokerCloseBufferMinutes);
    if(InpRiskMode!=E2_RISK_FIXED_CASH)canonical+="|balance_risk_percent="+Number(InpBalanceRiskPercent);
    canonical+="|one_trade_per_day="+IntegerToString(InpOneTradePerDay?1:0);
+   canonical+=E2TrailDigest();
    g_config=Hash(canonical);
    g_run="CB_"+g_config+"_"+IntegerToString((long)TimeLocal())+"_"+StringFormat("%I64u",GetTickCount64())+"_"+StringFormat("%I64u",GetMicrosecondCount());
    if(InpExportCsv) {
@@ -658,6 +673,7 @@ int OnInit() {
    }
    g_trade.SetAsyncMode(false);g_trade.SetTypeFillingBySymbol(_Symbol);
    g_trade.SetDeviationInPoints((ulong)MathCeil(InpMaxDeviationPriceUnits/_Point));
+   if(!E2TrailInit(InpMagic))return INIT_PARAMETERS_INCORRECT;
    if(!InitializeState())return INIT_FAILED;
    Reconcile(0,now);
    if(!ApplyStoppedReset())return INIT_FAILED;
@@ -672,6 +688,7 @@ void OnTick() {
    if(!g_ready)return;
    datetime now;if(!Utc(TimeCurrent(),now))return;g_test_until=now;
    for(int s=0;s<1;s++)Reconcile(s,now);
+   CBManageTrailing(now);
    if(!g_failed && Feed(TimeCurrent(),now))for(int s=0;s<1;s++)Enter(s,now);
    SaveState();
    Equity(now);
@@ -681,6 +698,7 @@ void OnTimer() {
    datetime now;if(!Utc(TimeCurrent(),now))return;
    for(int s=0;s<1;s++)Reconcile(s,now);
    SaveState();
+   CBManageTrailing(now);
    static datetime last_health=0;
    if(now-last_health>=300) {
       last_health=now;
@@ -711,7 +729,7 @@ double OnTester() {
    return (g_failed||g_integrity_failed)?-1e100:g_r[0];
 }
 void OnDeinit(const int reason) {
-   EventKillTimer();
+   E2TrailShutdown();EventKillTimer();
    if(g_ready){
       datetime now;if(Utc(TimeCurrent(),now))for(int s=0;s<1;s++)Reconcile(s,now);
       ExportTrades();

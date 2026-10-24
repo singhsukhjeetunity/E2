@@ -37,7 +37,7 @@ string RConfig() {
       "|deviation="+IntegerToString(InpDeviationBrokerPoints)+"|quote_age="+IntegerToString(InpMaxQuoteAgeSeconds)+
       "|margin="+RNumber(InpMarginBuffer)+"|clock_verified="+IntegerToString((int)InpBrokerClockVerified)+
       "|clock_mode="+IntegerToString((int)InpBrokerClockMode)+"|winter="+IntegerToString(InpServerUTCOffsetWinterHours)+
-      "|summer="+IntegerToString(InpServerUTCOffsetSummerHours)+"|magic="+RId(InpMagic);
+      "|summer="+IntegerToString(InpServerUTCOffsetSummerHours)+"|magic="+RId(InpMagic)+E2TrailDigest();
 }
 void RSignal(const datetime time,const string event,const string detail) {
    if(g_signalFile==INVALID_HANDLE)return;

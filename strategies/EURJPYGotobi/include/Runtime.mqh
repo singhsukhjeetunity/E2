@@ -3,6 +3,7 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
+#include "..\\..\\shared\\EMATrailing.mqh"
 #include "..\\..\\shared\\PortfolioGate.mqh"
 input group "=== RISK MANAGEMENT ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
@@ -284,6 +285,13 @@ bool RCRecentBars(const ENUM_TIMEFRAMES frame,const int count,RCBar &bars[]) {
    }
    return true;
 }
+bool E2TrailClose(const ulong ticket) {
+   if(!PositionSelectByTicket(ticket)||!RCIsOwn())return false;
+   datetime utc=RCNow();if(utc<=0||utc-rc_last_close_attempt<5)return false;
+   rc_last_close_attempt=utc;
+   bool ok=RCTradeOK(rc_trade.PositionClose(ticket,InpDeviationPoints));
+   Print(RC_NAME," EMA_TRAILING close ticket=",ticket," confirmed=",ok);return ok;
+}
 int OnInit() {
    InpBrokerWinterUTCMinutes=(int)MathRound(InpServerUTCOffsetWinterHours*60.0);
    InpBrokerSummerUTCMinutes=(int)MathRound(InpServerUTCOffsetSummerHours*60.0);
@@ -305,6 +313,7 @@ int OnInit() {
    Print(RC_NAME," v",RC_REPORT_VERSION," risk_mode=",(int)InpRiskMode,
          " fixed_cash_risk=",InpFixedCashRisk," balance_risk_percent=",InpBalanceRiskPercent,
          " broker_winter_utc_minutes=",InpBrokerWinterUTCMinutes," broker_dst=",(int)InpBrokerDST);
+   if(!E2TrailInit(InpMagic))return INIT_PARAMETERS_INCORRECT;
    if(!RCEInit())return INIT_FAILED;
    if(!RCExportInit()){RCEClose();return INIT_FAILED;}
    return INIT_SUCCEEDED;
@@ -314,7 +323,7 @@ void OnTick() {
    datetime utc=RCNow();if(utc==0)return;
    static datetime last_health=0;
    if(utc-last_health>=300){last_health=utc;Print("[HEALTH] Gotobi utc=",utc," owned_position=",RCHasOwn()," entry_utc_minute=",InpEntryUTCMinute," spread_cap_points=",InpMaxSpreadPoints);}
-   RCManage(utc);RCEReconcile();RCProcess(utc);
+   RCManage(utc);E2TrailRun();RCEReconcile();RCProcess(utc);
    MqlTick tick;if(SymbolInfoTick(_Symbol,tick))rc_last_bid=tick.bid;
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {
@@ -323,6 +332,6 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
    RCEReconcile(true);
 }
 double OnTester() {RCExportTrades();RCExportEquity(true);return 0;}
-void OnDeinit(const int reason) {RCExportTrades();RCExportEquity(true);RCExportClose();RCEClose();}
+void OnDeinit(const int reason) {E2TrailShutdown();RCExportTrades();RCExportEquity(true);RCExportClose();RCEClose();}
 
 #endif

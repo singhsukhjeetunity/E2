@@ -145,6 +145,7 @@ bool RCExportSettings() {
    ResetLastError();FileWrite(h,"setting","value");
    FileWrite(h,"strategy",RC_NAME);FileWrite(h,"symbol",_Symbol);FileWrite(h,"run_id",rc_run);
    FileWrite(h,"version",RC_REPORT_VERSION);
+   if(InpUseEMATrailingStop){FileWrite(h,"InpUseEMATrailingStop",true);FileWrite(h,"InpTrailingEMAPeriod",InpTrailingEMAPeriod);FileWrite(h,"InpTrailingTimeframe",(int)InpTrailingTimeframe);}
    FileWrite(h,"InpMagic",InpMagic);
    FileWrite(h,"InpRiskMode",(int)InpRiskMode);
    FileWrite(h,"InpFixedCashRisk",InpFixedCashRisk);

@@ -13,16 +13,23 @@ change any of the five existing trading systems. PortfolioGuard v1.02 adds only
 its journal magic mapping; guard risk/closure functions are unchanged. This branch
 is not a refreshed E2-Ultron release.
 
+## Optional trailing backtests
+
+All five existing systems now have an optional EMA trailing overlay, default OFF.
+See [inputs and backtest comparisons](docs/EMA_TRAILING_BACKTESTS.md).
+Original initial stops, risk, targets and timed exits remain active. This research
+branch includes updated shared/recovery headers; install the complete strategies tree.
+
 ## Components
 
 | Component | Market | Signal timeframe | Source version | Entry file |
 |---|---|---|---|---|
-| Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
-| Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
-| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.17 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
-| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
-| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.14 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
-| PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.01 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
+| Gold Session Fade | XAUUSD | M5 | 4.4 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
+| Compression Breakout | USDJPY | M30, built from M1 | 0.13 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
+| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.18 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
+| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.11 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
+| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.15 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
+| PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.02 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
 
 All five trading systems are long-only. EMA Pullback is not part of this release.
 Ultron adds reporting to the existing guard. The BTC v0.14 update removes only

@@ -26,7 +26,7 @@ string NQConfig() {
       IntegerToString((int)InpUseRangeWidthFilter)+"|"+NQNumber(InpMinRangeATR)+"|"+
       NQNumber(InpMaxRangeATR)+"|"+IntegerToString((int)InpRequireClosedM5Breakout)+"|"+
       NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
-      IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic);
+      IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic)+E2TrailDigest();
 }
 void NQSignal(const datetime time,const string event,const string detail) {
    if(g_signalFile==INVALID_HANDLE)return;

@@ -15,7 +15,8 @@ def portable(text):
     text = re.sub(r'^input group.*\n', '', text, flags=re.M)
     text = text.replace('input ', '').replace('#include <Trade/Trade.mqh>', '')
     text = '\n'.join('bool E2PGCanEnter(){return true;}' if 'PortfolioGate.mqh' in line else
-                     '' if 'ReportFolders.mqh' in line else line
+                     '' if 'ReportFolders.mqh' in line else
+                     '#include "../trailing.mqh"' if 'EMATrailing.mqh' in line else line
                      for line in text.splitlines()) + '\n'
     text = re.sub(r'const RCBar &([a-z_]+)\[\]', r'const std::vector<RCBar> &\1', text)
     text = re.sub(r'RCBar &([a-z_]+)\[\]', r'std::vector<RCBar> &\1', text)
@@ -25,12 +26,24 @@ def portable(text):
 with tempfile.TemporaryDirectory() as directory:
     tmp = Path(directory)
     (tmp / 'include').mkdir()
+    trail=(test_root.parents[1]/'strategies/shared/EMATrailing.mqh').read_text()
+    trail=portable(trail)
+    trail=re.sub(r'E2TrailAttempt (\w+)\[\];',r'std::vector<E2TrailAttempt> \1;',trail)
+    trail=trail.replace('MqlRates bars[];double ema[];', 'std::vector<MqlRates> bars;std::vector<double> ema;')
+    (tmp/'trailing.mqh').write_text(trail)
+    platform=(test_root/'platform.hpp').read_text()
+    platform=platform.replace('struct MqlTick {double bid=100,ask=100.02;};',
+                              'struct MqlTick {double bid=100,ask=100.02;datetime time=0;};')
+    platform=platform.replace('struct MqlTradeRequest{};struct MqlTradeResult{};',
+       'struct MqlTradeRequest{int action=0;ulong position=0,magic=0;string symbol;double sl=0,tp=0;};struct MqlTradeResult{uint retcode=0;};')
+    (tmp/'platform.hpp').write_text(platform)
+    (tmp/'trailing_api.hpp').write_text((test_root.parents[1]/'tests/trailing/gotobi_api.hpp').read_text())
     for file in (root / 'include').glob('*.mqh'):
         (tmp / 'include' / file.name).write_text(portable(file.read_text()))
     for entry in sorted(root.glob('*.mq5')):
         target = tmp / (entry.stem + '.cpp')
-        target.write_text('#include "' + str(test_root / 'platform.hpp') + '"\n' +
-                          portable(entry.read_text()) + '\n#include "' +
+        target.write_text('#include "' + str(tmp / 'platform.hpp') + '"\n' +
+                          '#include "trailing_api.hpp"\n' + portable(entry.read_text()) + '\n#include "' +
                           str(test_root / 'checks.hpp') + '"\n')
         binary = tmp / entry.stem
         # MQL event hooks may legitimately leave one parameter unused.

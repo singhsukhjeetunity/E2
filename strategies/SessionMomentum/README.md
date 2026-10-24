@@ -105,3 +105,9 @@ shims and check signal/window/DST, both directions, sizing, trailing, exits, gua
 duplicate/restart/storage behavior and zero-TP exports. Journal tests cover the
 new mapping in both directions. This does not replace native MT5 compilation,
 broker execution testing or historical performance evaluation.
+
+## Other E2 systems: optional trailing experiments
+
+The same branch adds an optional EMA trailing overlay to the five existing trading
+systems, default OFF. [Settings and backtest steps](../../docs/EMA_TRAILING_BACKTESTS.md).
+This candidate retains its built-in EMA12 stop and does not use the overlay inputs.

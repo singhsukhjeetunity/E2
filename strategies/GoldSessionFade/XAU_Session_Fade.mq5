@@ -1,7 +1,8 @@
 #property strict
-#property version "4.3"
+#property version "4.4"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
+#include "..\\shared\\EMATrailing.mqh"
 #include "include\\core\\E2Config.mqh"
 #include "include\\time\\E2BrokerTimeAdapter.mqh"
 #include "include\\core\\E2Environment.mqh"
@@ -80,6 +81,18 @@ void E2EmitVerification(void)
    g_logger.Info("totalExposedInputs="+IntegerToString(E2ExposedInputCount())+", deadInputs="+IntegerToString(E2DeadInputCount())+", duplicateInputs="+IntegerToString(E2DuplicateInputCount())+", invalidMappings="+IntegerToString(E2InvalidInputMappingCount())+".","E2_INPUT_VERIFY");
   }
 
+bool E2TrailClose(const ulong ticket)
+  {
+   if(g_entry_pending||!PositionSelectByTicket(ticket)||PositionGetString(POSITION_SYMBOL)!=_Symbol||
+      (ulong)PositionGetInteger(POSITION_MAGIC)!=g_configuration.expert_magic_number)return(false);
+   ulong id=(ulong)PositionGetInteger(POSITION_IDENTIFIER);E2PositionCloseResult result;
+   bool ok=g_order_executor.CloseOwnedPosition(_Symbol,ticket,id,result);
+   if(ok)g_trade_reporter.MarkExitReason(id,"EMA_TRAILING");
+   g_trade_reporter.Reconcile();
+   g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(id));
+   return(ok);
+  }
+
 int OnInit()
   {
    E2LoadConfiguration(g_configuration);
@@ -139,6 +152,7 @@ int OnInit()
    E2EnforceWeekendFlat();
    if(!g_xau_engine.Initialize(_Symbol,g_configuration,g_broker_time,g_weekend_flat,g_logger)){g_logger.Error("XAU session-fade reconstruction failed.","Initialization");return(INIT_FAILED);}
    MqlRates latest;if(g_market_data.GetClosedBar(_Symbol,PERIOD_M5,0,latest)){g_last_observed_m5_bar=latest.time;g_logger.Info("Completed M5 market data is ready; latestClosedBar="+TimeToString(latest.time,TIME_DATE|TIME_MINUTES)+".","MarketData");}else g_logger.Warning("Completed M5 market data is not ready at initialization; the inert core will retry on ticks.","MarketData");
+   if(!E2TrailInit(g_configuration.expert_magic_number))return(INIT_PARAMETERS_INCORRECT);
    if(!EventSetTimer(1)){Print("[E2][ERROR] Could not start entry reconciliation timer.");return(INIT_FAILED);}
    g_initialized=true;
    g_logger.Info("Initialized in "+g_environment.Name()+". "+E2ActiveStrategyName()+" planning, execution, fixed-R protection, lifecycle reporting, and recovery are active.","Core");
@@ -152,6 +166,7 @@ void OnTick()
    g_trade_reporter.Reconcile();g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
    E2EnforceWeekendFlat();
    if(g_entry_pending)return;
+   E2TrailRun();
    g_trade_reporter.ObserveBar(iTime(_Symbol,PERIOD_M5,1));
    E2Candidate candidates[];if(!g_xau_engine.Evaluate(candidates,g_position_recovery))return;
    E2SignalVerification verification=g_xau_engine.SignalVerification();
@@ -185,7 +200,7 @@ void OnTick()
 
 void OnDeinit(const int reason)
   {
-   EventKillTimer();
+   E2TrailShutdown();EventKillTimer();
    if(g_reporter_ready){g_trade_reporter.Close();E2EmitVerification();g_reporter_ready=false;}
    g_xau_engine.Shutdown();
    g_initialized=false;
@@ -198,6 +213,7 @@ void OnTimer()
    g_trade_reporter.Reconcile();
    g_position_recovery.Reconcile(g_trade_reporter.IsFinalizedPosition(g_position_recovery.ActivePositionId()));
    E2EnforceWeekendFlat();
+   if(!g_entry_pending)E2TrailRun();
    static datetime last_health=0;
    datetime now=TimeCurrent();
    if(now-last_health>=300){last_health=now;Print("[HEALTH] Gold initialized=",g_initialized," entry_pending=",g_entry_pending," regime_observations=",g_xau_engine.RegimeObservations()," minimum_observations=",g_configuration.xau_regime_minimum_observations);}
