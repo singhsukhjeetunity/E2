@@ -1,5 +1,5 @@
 #property strict
-#include "..\\shared\\PortfolioGate.mqh"
+#include "..\\..\\shared\\PortfolioGate.mqh"
 #property version "0.10"
 #property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 

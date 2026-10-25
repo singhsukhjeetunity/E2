@@ -1,46 +1,57 @@
-#ifndef E2_NQ_REPORT_MQH
-#define E2_NQ_REPORT_MQH
-#include "..\\shared\\ReportFolders.mqh"
+#ifndef E2_BTC_MOMENTUM_REPORT_MQH
+#define E2_BTC_MOMENTUM_REPORT_MQH
+#include "..\\..\\shared\\ReportFolders.mqh"
 
 string g_reportBase="",g_reportRun="",g_reportHash="";
 int g_equityFile=INVALID_HANDLE,g_signalFile=INVALID_HANDLE;
 datetime g_equityMinute=0;
 datetime g_reportStartTime=0;
 
-string NQStamp(const datetime time) {
+string RStamp(const datetime time) {
    if(time<=0)return "";
    string value=TimeToString(time,TIME_DATE|TIME_SECONDS);
    StringReplace(value,".","-");return value;
 }
-string NQNumber(const double value) {return DoubleToString(value,8);}
-string NQId(const ulong value) {return StringFormat("%I64u",value);}
-uint NQHash(const string value) {
+string RNumber(const double value) {return DoubleToString(value,8);}
+string RId(const ulong value) {return StringFormat("%I64u",value);}
+uint RHash(const string value) {
    uint hash=2166136261;
    for(int i=0;i<StringLen(value);i++){hash^=(uint)StringGetCharacter(value,i);hash*=16777619;}
    return hash;
 }
-string NQConfig() {
-   return "NQ_ORB_LONG_FILTERS_V3|"+_Symbol+"|M5|"+NQNumber(InpStopIndexPoints)+"|"+NQNumber(InpTargetIndexPoints)+"|"+
-      IntegerToString(InpMaxEntriesPerNYDay)+"|"+IntegerToString(InpMaxLongSessions)+"|"+
-      IntegerToString((int)InpRiskMode)+"|"+NQNumber(InpFixedCashRisk)+"|"+NQNumber(InpBalanceRiskPercent)+"|"+
-      IntegerToString((int)InpUseRangeWidthFilter)+"|"+NQNumber(InpMinRangeATR)+"|"+
-      NQNumber(InpMaxRangeATR)+"|"+IntegerToString((int)InpRequireClosedM5Breakout)+"|"+
-      NQNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString(InpServerUTCOffsetWinterHours)+"|"+
-      IntegerToString(InpServerUTCOffsetSummerHours)+"|"+IntegerToString(InpBrokerDST)+"|"+NQId(InpMagic);
+string RConfig() {
+   return "BTC_MOMENTUM_1R_RESEARCH_V4|"+_Symbol+
+      "|H4_BROKER_WILDER_RSI|period="+IntegerToString(InpRSIPeriod)+"|threshold="+RNumber(InpRSIThreshold)+
+      "|entry="+IntegerToString((int)InpEntryMode)+"|base="+IntegerToString((int)InpBaseEntry)+
+      "|one_trade_per_utc_day="+IntegerToString((int)InpOneTradePerDay)+
+      "|pullback_pct="+RNumber(InpPullbackPercent)+"|breakout_pct="+RNumber(InpBreakoutPercent)+
+      "|lookback="+IntegerToString(InpBreakoutLookback)+"|max_entries="+IntegerToString(InpMaxEntriesPerZone)+
+      "|cooldown_hours="+IntegerToString(InpCooldownHours)+"|grace_seconds="+IntegerToString(InpEntryGraceSeconds)+
+      "|stop_pct="+RNumber(InpStopPercent)+"|target_r=1|hold_hours="+IntegerToString(InpMaxHoldingHours)+
+      "|weekend_flat="+IntegerToString((int)InpWeekendFlat)+
+      "|friday_flat_server_hour="+IntegerToString(InpFridayFlatHour)+
+      "|friday_flat_server_minute="+IntegerToString(InpFridayFlatMinute)+
+      "|risk_mode="+IntegerToString((int)InpRiskMode)+"|cash_risk="+RNumber(InpFixedCashRisk)+
+      "|percent_risk="+RNumber(InpBalanceRiskPercent)+"|risk_tolerance_pct="+RNumber(InpRiskTolerancePercent)+
+      "|spread_pct="+RNumber(InpMaxSpreadPercent)+
+      "|deviation="+IntegerToString(InpDeviationBrokerPoints)+"|quote_age="+IntegerToString(InpMaxQuoteAgeSeconds)+
+      "|margin="+RNumber(InpMarginBuffer)+"|clock_verified="+IntegerToString((int)InpBrokerClockVerified)+
+      "|clock_mode="+IntegerToString((int)InpBrokerClockMode)+"|winter="+IntegerToString(InpServerUTCOffsetWinterHours)+
+      "|summer="+IntegerToString(InpServerUTCOffsetSummerHours)+"|magic="+RId(InpMagic);
 }
-void NQSignal(const datetime time,const string event,const string detail) {
+void RSignal(const datetime time,const string event,const string detail) {
    if(g_signalFile==INVALID_HANDLE)return;
-   FileWrite(g_signalFile,"E2_JOURNAL_V1",g_reportRun,"NQ_OPENING_RANGE",NQStamp(ServerToUTC(time)),event,detail);
+   FileWrite(g_signalFile,"E2_JOURNAL_V1",g_reportRun,"BTC_MOMENTUM_PULLBACK",RStamp(ServerToUTC(time)),event,detail);
    FileFlush(g_signalFile);
 }
-bool NQOpenReports() {
+bool ROpenReports() {
    if(!InpExportCsv)return true;
    string folder;
-   if(!E2ReportFolder("NQOpeningRange",folder))return false;
-   string config=NQConfig();g_reportHash=StringFormat("%08X",NQHash(config));
+   if(!E2ReportFolder("BTCMomentumPullback",folder))return false;
+   string config=RConfig();g_reportHash=StringFormat("%08X",RHash(config));
    string stamp=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);
    StringReplace(stamp,".","");StringReplace(stamp,":","");StringReplace(stamp," ","-");
-   g_reportRun=E2UniqueReportRun("NQ_"+stamp+"_"+g_reportHash);
+   g_reportRun=E2UniqueReportRun("BTCMP_"+stamp+"_"+g_reportHash);
    string base=folder+"\\"+E2ReportBase(_Symbol,g_reportRun);
    bool found=false;
    for(int n=0;n<1000;n++) {
@@ -54,45 +65,77 @@ bool NQOpenReports() {
    g_signalFile=FileOpen(g_reportBase+"_Signals_S.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
    g_equityFile=FileOpen(g_reportBase+"_Equity_E.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
    int settings=FileOpen(g_reportBase+"_Settings.txt",FILE_WRITE|FILE_TXT|FILE_ANSI|FILE_COMMON,0,CP_UTF8);
-   if(g_signalFile==INVALID_HANDLE||g_equityFile==INVALID_HANDLE||settings==INVALID_HANDLE)return false;
+   if(g_signalFile==INVALID_HANDLE||g_equityFile==INVALID_HANDLE||settings==INVALID_HANDLE) {
+      if(settings!=INVALID_HANDLE)FileClose(settings);
+      return false;
+   }
    FileWrite(g_signalFile,"schema_version","run_id","strategy","time_utc","event","detail");
    FileWrite(g_equityFile,"run_id","time_utc","equity_r","equity_cash","open_positions","run_failed");
    FileWriteString(settings,"schema_version=E2_JOURNAL_V1\r\nrun_id="+g_reportRun+"\r\nconfig_hash="+g_reportHash+
       "\r\nmode="+(MQLInfoInteger(MQL_TESTER)?"TESTER":"LIVE")+"\r\nconfig="+config+
-      "\r\nclock=UTC in CSV; broker profile must be historically verified\r\n");
+      "\r\nclock=UTC in CSV when profile resolves; H4/H1 bars and weekend cutoff remain broker-defined"+
+      "\r\nresearch_assumptions=hard intrabar stop_pct="+RNumber(InpStopPercent)+
+      " and 1R target replace published dual stops/time exit; optional timed/weekend exits produce variable R; not a reproduction of source performance\r\n");
    FileClose(settings);g_reportStartTime=TimeCurrent();
-   NQSignal(TimeCurrent(),"RUN_START","broker clock verified="+IntegerToString((int)InpBrokerClockVerified));
+   RSignal(TimeCurrent(),"RUN_START","broker clock verified="+IntegerToString((int)InpBrokerClockVerified));
    return true;
 }
-void NQEquity(const datetime server) {
+void REquity(const datetime server) {
    if(g_equityFile==INVALID_HANDLE||server<=0)return;
    datetime minute=server-server%60;if(minute==g_equityMinute)return;g_equityMinute=minute;
    int open=0;double equity=0;
    for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&PositionGetString(POSITION_SYMBOL)==_Symbol&&(ulong)PositionGetInteger(POSITION_MAGIC)==InpMagic){open++;equity+=PositionGetDouble(POSITION_PROFIT)+PositionGetDouble(POSITION_SWAP);}}
-   if(HistorySelect(g_reportStartTime,server+1))for(int i=0;i<HistoryDealsTotal();i++) {
+   // Discover this run's owned position IDs from entry deals. Exit deal magic
+   // may belong to a manual close or PortfolioGuard, so never filter exits by magic.
+   ulong owned[];
+   bool history_ok=HistorySelect(0,server+1);
+   if(history_ok) {
+      for(int i=0;i<HistoryDealsTotal();i++) {
+         ulong deal=HistoryDealGetTicket(i);
+         if(deal==0||HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol||
+            (ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)continue;
+         long edge=HistoryDealGetInteger(deal,DEAL_ENTRY);
+         if(edge!=DEAL_ENTRY_IN&&edge!=DEAL_ENTRY_INOUT)continue;
+         ulong id=(ulong)HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+         bool recovered=false;
+         for(int r=0;r<ArraySize(g_recoveredIds);r++)if(g_recoveredIds[r]==id){recovered=true;break;}
+         if(!recovered&&(datetime)HistoryDealGetInteger(deal,DEAL_TIME)<g_reportStartTime)continue;
+         int n=ArraySize(owned);ArrayResize(owned,n+1);owned[n]=id;
+      }
+      for(int i=0;i<HistoryDealsTotal();i++) {
       ulong deal=HistoryDealGetTicket(i);
-      if(deal==0||HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol||(ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)continue;
+      if(deal==0||HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol||
+         (datetime)HistoryDealGetInteger(deal,DEAL_TIME)<g_reportStartTime)continue;
+      ulong id=(ulong)HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+      bool ours=false;
+      for(int p=0;p<ArraySize(owned);p++)if(owned[p]==id){ours=true;break;}
+      if(!ours)continue;
       equity+=HistoryDealGetDouble(deal,DEAL_PROFIT)+HistoryDealGetDouble(deal,DEAL_COMMISSION)+HistoryDealGetDouble(deal,DEAL_SWAP)+HistoryDealGetDouble(deal,DEAL_FEE);
+      }
    }
    // R is blank because multiple fills can have different initial risks.
-   FileWrite(g_equityFile,g_reportRun,NQStamp(ServerToUTC(server)),"",NQNumber(equity),open,0);
+   FileWrite(g_equityFile,g_reportRun,RStamp(ServerToUTC(server)),"",RNumber(equity),open,history_ok?0:1);
    FileFlush(g_equityFile);
 }
-bool NQPositionOpen(const ulong id) {
+bool RPositionOpen(const ulong id) {
    for(int i=0;i<PositionsTotal();i++){ulong t=PositionGetTicket(i);if(t>0&&(ulong)PositionGetInteger(POSITION_IDENTIFIER)==id)return true;}
    return false;
 }
-void NQExportTrades() {
+void RExportTrades() {
    if(!InpExportCsv||g_reportBase=="")return;
+   // Preserve the last good CSV if the broker history is temporarily unavailable.
+   if(!HistorySelect(0,TimeCurrent()+86400)){Print("[BTCMP] Trade history unavailable");return;}
    int file=FileOpen(g_reportBase+"_Trades_T.csv",FILE_WRITE|FILE_CSV|FILE_ANSI|FILE_COMMON,',',CP_UTF8);
-   if(file==INVALID_HANDLE){Print("[NQORB] Trade CSV open failed error=",GetLastError());return;}
+   if(file==INVALID_HANDLE){Print("[BTCMP] Trade CSV open failed error=",GetLastError());return;}
    FileWrite(file,"schema_version","trade_id","strategy","config_hash","symbol","direction","fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status","run_id","entry_msc","exit_msc","position_id","volume","fill_price","initial_sl","initial_tp","net_r","exit_reason","integrity_flags","gross_profit","commission","swap","fee");
-   if(!HistorySelect(0,TimeCurrent()+86400)){FileClose(file);Print("[NQORB] Trade history unavailable");return;}
    ulong ids[];
    for(int i=0;i<HistoryDealsTotal();i++) {
       ulong deal=HistoryDealGetTicket(i);if(deal==0||HistoryDealGetString(deal,DEAL_SYMBOL)!=_Symbol||(ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)continue;
       long edge=HistoryDealGetInteger(deal,DEAL_ENTRY);if(edge!=DEAL_ENTRY_IN&&edge!=DEAL_ENTRY_INOUT)continue;
-      if((datetime)HistoryDealGetInteger(deal,DEAL_TIME)<g_reportStartTime)continue;
+      bool recovered=false;
+      ulong position=(ulong)HistoryDealGetInteger(deal,DEAL_POSITION_ID);
+      for(int r=0;r<ArraySize(g_recoveredIds);r++)if(g_recoveredIds[r]==position){recovered=true;break;}
+      if(!recovered&&(datetime)HistoryDealGetInteger(deal,DEAL_TIME)<g_reportStartTime)continue;
       ulong id=(ulong)HistoryDealGetInteger(deal,DEAL_POSITION_ID);bool seen=false;
       for(int j=0;j<ArraySize(ids);j++)if(ids[j]==id){seen=true;break;}
       if(!seen){int n=ArraySize(ids);ArrayResize(ids,n+1);ids[n]=id;}
@@ -108,6 +151,7 @@ void NQExportTrades() {
          gross+=HistoryDealGetDouble(deal,DEAL_PROFIT);commission+=HistoryDealGetDouble(deal,DEAL_COMMISSION);
          swap+=HistoryDealGetDouble(deal,DEAL_SWAP);fee+=HistoryDealGetDouble(deal,DEAL_FEE);
          if(edge==DEAL_ENTRY_IN||edge==DEAL_ENTRY_INOUT) {
+            if((ulong)HistoryDealGetInteger(deal,DEAL_MAGIC)!=InpMagic)flags="EXTERNAL_POSITION_ENTRY";
             direction=HistoryDealGetInteger(deal,DEAL_TYPE);volume+=amount;weighted+=amount*price;
             if(entryMs==0||ms<entryMs){entryMs=ms;entry=(datetime)HistoryDealGetInteger(deal,DEAL_TIME);}
             ulong order=(ulong)HistoryDealGetInteger(deal,DEAL_ORDER);
@@ -124,22 +168,22 @@ void NQExportTrades() {
                reason=(why==DEAL_REASON_SL?"SL":(why==DEAL_REASON_TP?"TP":(why==DEAL_REASON_SO?"SO":(why==DEAL_REASON_EXPERT?"EXPERT":"OTHER"))));}
          }
       }
-      bool finalized=(volume>0&&exited>=volume-1e-8&&!NQPositionOpen(id));
+      bool finalized=(volume>0&&exited>=volume-1e-8&&!RPositionOpen(id));
       double net=gross+commission+swap+fee;
       string status=finalized?"FINALIZED":"OPEN";
-      FileWrite(file,"E2_JOURNAL_V1","NQ|"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"|"+NQId(id),
-         "NQ_OPENING_RANGE",g_reportHash,_Symbol,direction==DEAL_TYPE_BUY?"LONG":"SHORT",
-         NQStamp(ServerToUTC(entry)),finalized?NQStamp(ServerToUTC(exit)):"",finalized?NQNumber(net):"",
-         risk>0?NQNumber(risk):"",status,g_reportRun,entryMs,finalized?exitMs:0,NQId(id),
-         NQNumber(volume),volume>0?NQNumber(weighted/volume):"",sl>0?NQNumber(sl):"",tp>0?NQNumber(tp):"",
-         finalized&&risk>0?NQNumber(net/risk):"",finalized?reason:"",flags,
-         finalized?NQNumber(gross):"",finalized?NQNumber(commission):"",finalized?NQNumber(swap):"",finalized?NQNumber(fee):"");
+      FileWrite(file,"E2_JOURNAL_V1","BTCMP|"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"|"+RId(id),
+         "BTC_MOMENTUM_PULLBACK",g_reportHash,_Symbol,direction==DEAL_TYPE_BUY?"LONG":"SHORT",
+         RStamp(ServerToUTC(entry)),finalized?RStamp(ServerToUTC(exit)):"",finalized?RNumber(net):"",
+         risk>0&&flags=="NONE"?RNumber(risk):"",status,g_reportRun,entryMs,finalized?exitMs:0,RId(id),
+         RNumber(volume),volume>0?RNumber(weighted/volume):"",sl>0?RNumber(sl):"",tp>0?RNumber(tp):"",
+         finalized&&risk>0&&flags=="NONE"?RNumber(net/risk):"",finalized?reason:"",flags,
+         finalized?RNumber(gross):"",finalized?RNumber(commission):"",finalized?RNumber(swap):"",finalized?RNumber(fee):"");
    }
    FileFlush(file);FileClose(file);
 }
-void NQCloseReports() {
+void RCloseReports() {
    if(!InpExportCsv)return;
-   NQEquity(TimeCurrent());NQExportTrades();
+   REquity(TimeCurrent());RExportTrades();
    if(g_signalFile!=INVALID_HANDLE){FileClose(g_signalFile);g_signalFile=INVALID_HANDLE;}
    if(g_equityFile!=INVALID_HANDLE){FileClose(g_equityFile);g_equityFile=INVALID_HANDLE;}
 }

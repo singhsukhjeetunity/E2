@@ -6,7 +6,7 @@ import tempfile
 import sys
 
 test_root = Path(__file__).resolve().parent
-root = test_root.parents[1] / "strategies" / "EURJPYGotobi"
+root = test_root.parents[1] / "strategies" / "MID WR" / "EURJPYGotobi"
 sys.path.insert(0, str(test_root.parents[1]))
 import csv
 

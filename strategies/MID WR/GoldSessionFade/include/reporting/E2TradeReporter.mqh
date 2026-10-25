@@ -1,7 +1,7 @@
 #ifndef E2_REPORTING_E2TRADEREPORTER_MQH
 #define E2_REPORTING_E2TRADEREPORTER_MQH
 #include "E2CsvExporter.mqh"
-#include "..\\..\\..\\shared\\ReportFolders.mqh"
+#include "..\\..\\..\\..\\shared\\ReportFolders.mqh"
 #include "..\\strategy\\E2StrategyTypes.mqh"
 #include "..\\execution\\E2OrderExecutor.mqh"
 

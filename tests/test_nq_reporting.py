@@ -5,7 +5,7 @@ import unittest
 
 HEADERS = ("schema_version","trade_id","strategy","config_hash","symbol","direction","fill_time","exit_time","net_profit","actual_initial_cash_risk","trade_status")
 
-ROOT = Path(__file__).resolve().parents[1] / "strategies" / "NQOpeningRange"
+ROOT = Path(__file__).resolve().parents[1] / "strategies" / "MID WR" / "NQOpeningRange"
 EA = (ROOT / "NQ_Opening_Range.mq5").read_text()
 REPORT = (ROOT / "NQReport.mqh").read_text()
 

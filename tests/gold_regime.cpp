@@ -36,7 +36,7 @@ struct E2Logger{void Info(const string&,const string&){}void Error(const string&
 struct E2BrokerTimeAdapter{bool ServerToUtc(datetime t,datetime &u){u=t;return true;}};
 struct E2WeekendFlat{bool IsBlockedAt(datetime){return false;}void LogExpire(const string&,datetime){} };
 struct E2PositionRecovery{bool DayConsumed(datetime){return false;}};
-#include "../strategies/GoldSessionFade/include/time/E2TimeUtils.mqh"
+#include "../strategies/MID WR/GoldSessionFade/include/time/E2TimeUtils.mqh"
 struct MqlRates{datetime time=0;double open=105,high=110,low=100,close=105;};
 std::vector<MqlRates> history;datetime now;
 datetime TimeCurrent(){return now;}int iATR(const string&,int,int){return 1;}void IndicatorRelease(int){}

@@ -134,7 +134,7 @@ as part of setting these defaults. Live entry-state storage remains under
 SessionMomentumEntry so moving the source folder cannot reset a pending reservation.
 The journal strategy label and magic remain unchanged for continuity.
 
-Gold, Compression, Gotobi, NQ ORB and BTC are restored to the exact source from
+Gold, Compression, Gotobi, NQ ORB and BTC are grouped under strategies/MID WR/ and restored to the exact source from
 before the optional trailing experiment. None of those five has trailing options.
 Compile LOW WR from its complete folder with the normal strategies/shared/ files
 beside it. Do not retain old trailing-enabled EX5 builds when testing restored EAs.

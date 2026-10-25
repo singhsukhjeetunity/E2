@@ -1,9 +1,9 @@
 name: Gotobi checks
 on:
   push:
-    paths: ['strategies/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
+    paths: ['strategies/MID WR/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
   pull_request:
-    paths: ['strategies/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
+    paths: ['strategies/MID WR/EURJPYGotobi/**', 'tests/gotobi/**', '.github/workflows/gotobi.yml']
   workflow_dispatch:
 permissions:
   contents: read

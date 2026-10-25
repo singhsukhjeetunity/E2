@@ -18,10 +18,10 @@ class PortfolioGuardIntegration(unittest.TestCase):
         self.assertIn("GlobalVariablesFlush();",gate)
     def test_all_four_entry_calls_covered(self):
         paths=[
-            "strategies/GoldSessionFade/include/execution/E2OrderExecutor.mqh",
-            "strategies/CompressionBreakout/CompressionEngine.mqh",
-            "strategies/EURJPYGotobi/include/Runtime.mqh",
-            "strategies/NQOpeningRange/NQ_Opening_Range.mq5",
+            "strategies/MID WR/GoldSessionFade/include/execution/E2OrderExecutor.mqh",
+            "strategies/MID WR/CompressionBreakout/CompressionEngine.mqh",
+            "strategies/MID WR/EURJPYGotobi/include/Runtime.mqh",
+            "strategies/MID WR/NQOpeningRange/NQ_Opening_Range.mq5",
         ]
         for p in paths:
             s=read(p)

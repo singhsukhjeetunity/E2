@@ -4,6 +4,17 @@ This is an MT5 **source-only** release. No EX5 binaries are supplied. The releas
 ZIP contains `MQL5/Experts/E2/strategies/`, documentation and a file-hash manifest.
 The repository checkout stores the same strategy sources directly in `strategies/`.
 
+## Research-branch folder layout
+
+The five existing trading EAs are now under strategies/MID WR/, each in its
+original strategy subfolder. LOW WR remains a separate sibling folder.
+PortfolioGuard and shared remain directly under strategies/. Copy the full tree
+and compile the entry files in the new locations. Preserve saved inputs, magic,
+state files and guard globals. A folder move does not enable trailing or reset
+entry/guard state. Keep one active copy per strategy; remove old chart attachments
+before activating a relocated build. The published Ultron release is not changed
+by this research-branch organization.
+
 ## Existing Ultron installation: Gotobi duplicate-entry fix
 
 Gotobi v1.17 saves an entry reservation **before** submitting an order. A broker
@@ -12,7 +23,7 @@ uncertain response remains blocked across restarts and day rollover until broker
 history proves a fill or a terminal zero-fill cancellation/rejection/expiry.
 Explicit broker refusals allow a retry; absence of a cached position is not proof.
 
-Save the existing EX5 and input preset. Copy the complete `EURJPYGotobi/` folder,
+Save the existing EX5 and input preset. Copy the complete `MID WR/EURJPYGotobi/` folder,
 including `include/EntryGuard.mqh`, and keep `strategies/shared/` in place. Compile
 `EURJPY_Gotobi.mq5` in MetaEditor with no errors. Replace the EA at a planned
 maintenance point, preferably when flat, and reload the same risk, magic, clock,
@@ -47,7 +58,7 @@ session, daily-limit setting or guard permission rule changes in this patch.
 BTC Momentum Pullback v0.14 removes its BTC/USD currency-metadata attachment check.
 It now accepts the attached chart symbol even when the broker uses missing or
 nonstandard currency metadata. Save the existing BTC EX5 and inputs, replace
-`BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5`, and compile it in MetaEditor.
+`MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5`, and compile it in MetaEditor.
 Retain its existing headers, or copy the full BTC folder from the release.
 Load the saved inputs when replacing the EA on its chart. Its signal, risk, exit,
 daily-limit and PortfolioGuard rules are unchanged. No other EA needs replacing
@@ -95,11 +106,11 @@ replacing the guard briefly removes its active monitoring until it restarts.
    folder there, preserving all subdirectories and includes.
 2. Compile these six entries in MetaEditor:
 
-   - `GoldSessionFade/XAU_Session_Fade.mq5`
-   - `CompressionBreakout/Compression_Breakout_Long.mq5`
-   - `EURJPYGotobi/EURJPY_Gotobi.mq5`
-   - `NQOpeningRange/NQ_Opening_Range.mq5`
-   - `BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5`
+   - `MID WR/GoldSessionFade/XAU_Session_Fade.mq5`
+   - `MID WR/CompressionBreakout/Compression_Breakout_Long.mq5`
+   - `MID WR/EURJPYGotobi/EURJPY_Gotobi.mq5`
+   - `MID WR/NQOpeningRange/NQ_Opening_Range.mq5`
+   - `MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5`
    - `PortfolioGuard/E2_PortfolioGuard.mq5`
 
 3. Attach each trading EA to its matching broker instrument. Use Gold M5,

@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-ENTRY = ROOT / "strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5"
+ENTRY = ROOT / "strategies/MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5"
 with tempfile.TemporaryDirectory() as folder:
     dest = Path(folder)
     core = (ENTRY.parent / "MomentumCore.mqh").read_text().replace("const double &values[]", "const std::vector<double> &values")

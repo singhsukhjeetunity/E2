@@ -2,10 +2,10 @@
 #define COMPRESSION_ENGINE_MQH
 #include <Trade/Trade.mqh>
 #include "CompressionCore.mqh"
-#include "..\\shared\\RecoveryState.mqh"
+#include "..\\..\\shared\\RecoveryState.mqh"
 #include "CompressionClock.mqh"
-#include "..\\shared\\ReportFolders.mqh"
-#include "..\\shared\\PortfolioGate.mqh"
+#include "..\\..\\shared\\ReportFolders.mqh"
+#include "..\\..\\shared\\PortfolioGate.mqh"
 
 input group "=== BROKER CLOCK PROFILE ==="
 input bool InpBrokerClockVerified=false; // Verify the historical broker feed clock

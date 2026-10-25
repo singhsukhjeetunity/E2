@@ -3,7 +3,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 root = Path(__file__).resolve().parents[1]
-s = (root / 'strategies/GoldSessionFade/include/strategy/E2XauSessionFadeEngine.mqh').read_text()
+s = (root / 'strategies/MID WR/GoldSessionFade/include/strategy/E2XauSessionFadeEngine.mqh').read_text()
 with tempfile.TemporaryDirectory() as tmp:
     p = Path(tmp)
     (p / 'gold_range.mqh').write_text(s[s.index('class E2XauSessionRange'):s.index('class E2XauSessionFadeEngine')])

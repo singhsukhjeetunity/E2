@@ -2,7 +2,7 @@
 from pathlib import Path
 import subprocess,tempfile,random,math
 root=Path(__file__).resolve().parents[1]
-s=(root/'strategies/CompressionBreakout/CompressionEngine.mqh').read_text()
+s=(root/'strategies/MID WR/CompressionBreakout/CompressionEngine.mqh').read_text()
 def compile_run(p,name,code):
     f=p/(name+'.cpp');f.write_text(code)
     binary=p/name
@@ -45,12 +45,12 @@ with tempfile.TemporaryDirectory() as tmp:
     feed=s[s.index('void FinalBar'):s.index('// Resolve the session')].replace('MqlRates m[];','std::vector<MqlRates> m;')
     (p/'ema_feed.mqh').write_text(feed)
     (p/'ema_warmup_size.mqh').write_text('')
-    h=(root/'tests/ema_warmup.cpp').read_text().replace('fixtures/EMACore.mqh','../strategies/CompressionBreakout/CompressionCore.mqh')
+    h=(root/'tests/ema_warmup.cpp').read_text().replace('fixtures/EMACore.mqh','../strategies/MID WR/CompressionBreakout/CompressionCore.mqh')
     h=h.replace('InpEMAFast=20,InpEMASlow=50','InpChannelBars=20,InpCompressionBars=100; double InpCompressionRatio=0.8').replace('NPReset(','CBReset(')
     h=h.replace('indicators.count>=1000','indicators.count>=599').replace('31440','18000').replace('EMA warm','Compression warm')
     compile_run(p,'feed',absolute_includes(h))
     # Compile clock from the production source, adapting only its include separator for Linux.
-    clock=(root/'strategies/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\shared\\\\SessionClock.mqh"','"'+str(root/'strategies/shared/SessionClock.mqh')+'"')
+    clock=(root/'strategies/MID WR/CompressionBreakout/CompressionClock.mqh').read_text().replace('"..\\\\..\\\\shared\\\\SessionClock.mqh"','"'+str(root/'strategies/shared/SessionClock.mqh')+'"')
     (p/'compression_clock.mqh').write_text(clock)
     prefix=(root/'tests/ema_core.cpp').read_text().split('#include "fixtures/EMACore.mqh"')[0]
     checks='''
@@ -77,7 +77,7 @@ int main(){
 #include "CORE"
 int main(){CBState s;CBReset(s);CBBar b;double a;std::cout<<std::setprecision(17);
  while(std::cin>>b.start>>b.open>>b.high>>b.low>>b.close>>b.minutes){bool hit=CBConsume(s,b,30,14,20,100,0.8,a);std::cout<<hit<<" "<<a<<"\\n";}}
-'''.replace('CORE',str(root/'strategies/CompressionBreakout/CompressionCore.mqh'))
+'''.replace('CORE',str(root/'strategies/MID WR/CompressionBreakout/CompressionCore.mqh'))
     f=p/'signal.cpp';f.write_text(runner);binary=p/'signal'
     subprocess.run(['g++','-std=c++17','-Wall','-Wextra','-Werror',str(f),'-o',str(binary)],check=True)
     rng=random.Random(20260917);bars=[];close=100

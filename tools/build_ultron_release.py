@@ -9,6 +9,7 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE = '57e808d7a36ca05a40b38f6bef60940d76f0f28b'
+LOW_WR_BASELINE = '48e4912acc2e8fe7039ff9448b7474f6436a6bda'
 BTC_ENTRY = 'strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5'
 BTC_OLD_SYMBOL_CHECK = '''   // Symbol suffixes are supported; prevent accidental attachment to a different currency pair.
    if(SymbolInfoString(_Symbol,SYMBOL_CURRENCY_BASE)!="BTC"||SymbolInfoString(_Symbol,SYMBOL_CURRENCY_PROFIT)!="USD") {
@@ -27,11 +28,12 @@ GOTOBI_PATCH_SHA256 = {
 }
 
 COMPONENTS = {
-    'Gold': 'GoldSessionFade/XAU_Session_Fade.mq5',
-    'Compression': 'CompressionBreakout/Compression_Breakout_Long.mq5',
-    'Gotobi': 'EURJPYGotobi/EURJPY_Gotobi.mq5',
-    'ORB': 'NQOpeningRange/NQ_Opening_Range.mq5',
-    'BTC': 'BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5',
+    'Gold': 'MID WR/GoldSessionFade/XAU_Session_Fade.mq5',
+    'Compression': 'MID WR/CompressionBreakout/Compression_Breakout_Long.mq5',
+    'Gotobi': 'MID WR/EURJPYGotobi/EURJPY_Gotobi.mq5',
+    'ORB': 'MID WR/NQOpeningRange/NQ_Opening_Range.mq5',
+    'BTC': 'MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5',
+    'LOW WR': 'LOW WR/NAS100_Session_Momentum.mq5',
     'PortfolioGuard': 'PortfolioGuard/E2_PortfolioGuard.mq5',
 }
 
@@ -40,6 +42,18 @@ def git(*args):
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+def historical_source(name, data):
+    """Undo only the added MID WR path level for immutable-code comparisons."""
+    if not name.startswith('strategies/MID WR/'):
+        return name, data
+    name = 'strategies/' + name[len('strategies/MID WR/'):]
+    parent = '..' + chr(92)*2
+    lines = data.decode().splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if line.startswith('#include "'+parent) and 'shared' in line:
+            lines[i] = line.replace(parent, '', 1)
+    return name, ''.join(lines).encode()
 
 def build(destination):
     guard_path = 'strategies/PortfolioGuard/E2_PortfolioGuard.mq5'
@@ -56,20 +70,26 @@ def build(destination):
         p = ROOT / name
         data = p.read_bytes()
         if p.suffix in ('.mq5', '.mqh') and not name.startswith('strategies/PortfolioGuard/'):
-            if name in GOTOBI_PATCH_SHA256:
-                if digest(data) != GOTOBI_PATCH_SHA256[name]:
+            if name.startswith('strategies/LOW WR/'):
+                if data != git('show', LOW_WR_BASELINE + ':' + name):
+                    raise RuntimeError('LOW WR differs from reviewed preset source: ' + name)
+                content['MQL5/Experts/E2/' + name] = data
+                continue
+            original_name, checked_data = historical_source(name, data)
+            if original_name in GOTOBI_PATCH_SHA256:
+                if digest(checked_data) != GOTOBI_PATCH_SHA256[original_name]:
                     raise RuntimeError('Gotobi source differs from approved v1.17 patch: ' + name)
                 content['MQL5/Experts/E2/' + name] = data
                 continue
-            original = git('show', BASELINE + ':' + name)
-            if name == BTC_ENTRY:
+            original = git('show', BASELINE + ':' + original_name)
+            if original_name == BTC_ENTRY:
                 # Permit precisely the requested v0.14 attachment fix, not changes
                 # to BTC's signals, sizing, exits, defaults or guard integration.
                 text = original.decode()
                 if text.count(BTC_OLD_SYMBOL_CHECK) != 1:
                     raise RuntimeError('Unexpected BTC baseline initialization')
                 original = text.replace('#property version "0.13"', '#property version "0.14"', 1).replace(BTC_OLD_SYMBOL_CHECK, '', 1).encode()
-            if data != original:
+            if checked_data != original:
                 raise RuntimeError('Trading/shared code differs from baseline: ' + name)
         content['MQL5/Experts/E2/' + name] = data
     for name in ['README.md', 'docs/INSTALLATION.md', 'docs/releases/E2-Ultron.md']:
@@ -88,7 +108,9 @@ def build(destination):
         'release': 'E2-Ultron', 'commit': git('rev-parse', 'HEAD').decode().strip(),
         'trading_baseline': BASELINE, 'source_only': True, 'versions': versions,
         'authorized_code_changes': ['BTC v0.14: remove chart currency-metadata restriction',
-                                    'Gotobi v1.17: durable entry reservation and exclusive instance lock'],
+                                    'Gotobi v1.17: durable entry reservation and exclusive instance lock',
+                                    'MID WR: folder relocation and corresponding include paths only',
+                                    'LOW WR: isolated research source and uploaded preset at ' + LOW_WR_BASELINE],
         'files_sha256': {name: digest(data) for name, data in sorted(content.items())},
     }
     content['MANIFEST.json'] = (json.dumps(manifest, indent=2, sort_keys=True)+'\n').encode()

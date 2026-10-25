@@ -10,7 +10,7 @@ bool TimeToStruct(datetime x,MqlDateTime &m){std::time_t v=x;auto t=*std::gmtime
 datetime date(int y,int m,int d,int h=0,int minute=0){return StructToTime({y,m,d,h,minute,0,0});}
 double MathMax(double a,double b){return std::max(a,b);}double MathMin(double a,double b){return std::min(a,b);}
 struct E2Config{int xau_range_start=480,xau_range_end=510;};
-#include "../strategies/GoldSessionFade/include/time/E2TimeUtils.mqh"
+#include "../strategies/MID WR/GoldSessionFade/include/time/E2TimeUtils.mqh"
 #include "gold_range.mqh"
 int main(){
  assert(E2NewYorkTime(date(2026,1,15,13))==date(2026,1,15,8));

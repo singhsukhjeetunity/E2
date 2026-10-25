@@ -14,15 +14,26 @@ source and contain no optional trailing-stop inputs or hooks.
 PortfolioGuard v1.02 retains the candidate's consolidated journal mapping; its
 risk/closure functions remain unchanged. This branch is not a new Ultron release.
 
+## Strategy groups
+
+- **MID WR/** contains Gold, Compression, Gotobi, NQ ORB and BTC in their original
+  strategy subfolders, without the optional trailing overlay.
+- **LOW WR/** contains the separate Session Momentum candidate and its uploaded-run defaults.
+- **PortfolioGuard/** and **shared/** remain directly under strategies/ for both groups.
+
+Copy the complete strategies/ tree and recompile after this layout change.
+Only include paths changed in the five MID WR systems; inputs, rules and state/report
+identities are preserved. Avoid retaining a second active copy at the old location.
+
 ## Components
 
 | Component | Market | Signal timeframe | Source version | Entry file |
 |---|---|---|---|---|
-| Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
-| Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
-| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.17 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
-| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
-| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.14 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
+| Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/MID WR/GoldSessionFade/XAU_Session_Fade.mq5` |
+| Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/MID WR/CompressionBreakout/Compression_Breakout_Long.mq5` |
+| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.17 | `strategies/MID WR/EURJPYGotobi/EURJPY_Gotobi.mq5` |
+| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/MID WR/NQOpeningRange/NQ_Opening_Range.mq5` |
+| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.14 | `strategies/MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
 | PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.02 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
 
 All five trading systems are long-only. EMA Pullback is not part of this release.
@@ -36,7 +47,7 @@ Signal/exit/sizing rules, shared execution headers, risk defaults and allocation
 - [Installation, upgrade, configuration and rollback](docs/INSTALLATION.md)
 - [E2-Ultron release notes](docs/releases/E2-Ultron.md)
 - [Shared live journal schema and recovery](strategies/PortfolioGuard/README.md)
-- [BTC rules and optional entry/exit switches](strategies/BTCMomentumPullback/README.md)
+- [BTC rules and optional entry/exit switches](strategies/MID%20WR/BTCMomentumPullback/README.md)
 
 For an existing Ultron installation, copy the complete **EURJPYGotobi** folder
 and recompile Gotobi to get the v1.17 duplicate-entry fix, preserving its inputs.

@@ -3,7 +3,7 @@
 #include <Trade/Trade.mqh>
 #include "Core.mqh"
 #include "Clock.mqh"
-#include "..\\..\\shared\\PortfolioGate.mqh"
+#include "..\\..\\..\\shared\\PortfolioGate.mqh"
 input group "=== RISK MANAGEMENT ==="
 enum E2RiskMode { E2_RISK_FIXED_CASH=0, E2_RISK_BALANCE_PERCENT=1 };
 input E2RiskMode InpRiskMode=E2_RISK_FIXED_CASH; // Risk Mode

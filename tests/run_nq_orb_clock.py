@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE=(ROOT/"strategies/NQOpeningRange/NQ_Opening_Range.mq5").read_text()
+SOURCE=(ROOT/"strategies/MID WR/NQOpeningRange/NQ_Opening_Range.mq5").read_text()
 start=SOURCE.index("datetime DayStart(")
 end=SOURCE.index("double TickRound(")
 calendar=SOURCE[start:end]

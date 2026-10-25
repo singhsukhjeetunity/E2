@@ -1,6 +1,6 @@
 #ifndef RC_ENTRY_GUARD_MQH
 #define RC_ENTRY_GUARD_MQH
-#include "..\\..\\shared\\ReportFolders.mqh"
+#include "..\\..\\..\\shared\\ReportFolders.mqh"
 
 // One writer across charts and MT5 terminals sharing Common Files. Never release
 // an ambiguous entry just because a timeout, restart or midnight has occurred.

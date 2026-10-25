@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 
 root = Path(__file__).resolve().parents[1]
-folder = root / 'strategies/GoldSessionFade/include/strategy'
+folder = root / 'strategies/MID WR/GoldSessionFade/include/strategy'
 def portable(text):
     text = re.sub(r'^#include.*$', '', text, flags=re.M)
     for kind in ('E2XauRegimeObservation', 'MqlRates', 'E2Candidate', 'double'):
