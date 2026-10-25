@@ -1,6 +1,6 @@
 #ifndef E2_SESSION_REPORT_MQH
 #define E2_SESSION_REPORT_MQH
-#include "..\\shared\\ReportFolders.mqh"
+#include "..\\..\\shared\\ReportFolders.mqh"
 
 string g_reportBase="",g_reportRun="",g_reportHash="";
 int g_equityFile=INVALID_HANDLE,g_signalFile=INVALID_HANDLE;

@@ -7,7 +7,8 @@ The repository checkout stores the same strategy sources directly in `strategies
 ## Research-branch folder layout
 
 The five existing trading EAs are now under strategies/MID WR/, each in its
-original strategy subfolder. LOW WR remains a separate sibling folder.
+original strategy subfolder. LOW WR is a separate sibling group, with the new
+EA under LOW WR/SessionMomentum/.
 PortfolioGuard and shared remain directly under strategies/. Copy the full tree
 and compile the entry files in the new locations. Preserve saved inputs, magic,
 state files and guard globals. A folder move does not enable trailing or reset

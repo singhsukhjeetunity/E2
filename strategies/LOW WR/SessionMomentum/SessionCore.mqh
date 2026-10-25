@@ -1,6 +1,6 @@
 #ifndef E2_SESSION_MOMENTUM_CORE
 #define E2_SESSION_MOMENTUM_CORE
-#include "..\\shared\\SessionClock.mqh"
+#include "..\\..\\shared\\SessionClock.mqh"
 // Signal compares levels, not a crossover; no use of the forming M5 candle.
 int SMDirection(const double close,const double ema) {
    if(!MathIsValidNumber(close)||!MathIsValidNumber(ema)||close<=0||ema<=0)return 0;

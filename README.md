@@ -18,7 +18,7 @@ risk/closure functions remain unchanged. This branch is not a new Ultron release
 
 - **MID WR/** contains Gold, Compression, Gotobi, NQ ORB and BTC in their original
   strategy subfolders, without the optional trailing overlay.
-- **LOW WR/** contains the separate Session Momentum candidate and its uploaded-run defaults.
+- **LOW WR/SessionMomentum/** contains the separate Session Momentum candidate and its uploaded-run defaults.
 - **PortfolioGuard/** and **shared/** remain directly under strategies/ for both groups.
 
 Copy the complete strategies/ tree and recompile after this layout change.

@@ -33,7 +33,7 @@ COMPONENTS = {
     'Gotobi': 'MID WR/EURJPYGotobi/EURJPY_Gotobi.mq5',
     'ORB': 'MID WR/NQOpeningRange/NQ_Opening_Range.mq5',
     'BTC': 'MID WR/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5',
-    'LOW WR': 'LOW WR/NAS100_Session_Momentum.mq5',
+    'LOW WR': 'LOW WR/SessionMomentum/NAS100_Session_Momentum.mq5',
     'PortfolioGuard': 'PortfolioGuard/E2_PortfolioGuard.mq5',
 }
 
@@ -44,10 +44,13 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 def historical_source(name, data):
-    """Undo only the added MID WR path level for immutable-code comparisons."""
-    if not name.startswith('strategies/MID WR/'):
+    """Undo only grouping-related path/include levels for immutable comparisons."""
+    if name.startswith('strategies/MID WR/'):
+        name = 'strategies/' + name[len('strategies/MID WR/'):]
+    elif name.startswith('strategies/LOW WR/SessionMomentum/'):
+        name = 'strategies/LOW WR/' + name[len('strategies/LOW WR/SessionMomentum/'):]
+    else:
         return name, data
-    name = 'strategies/' + name[len('strategies/MID WR/'):]
     parent = '..' + chr(92)*2
     lines = data.decode().splitlines(keepends=True)
     for i, line in enumerate(lines):
@@ -70,12 +73,12 @@ def build(destination):
         p = ROOT / name
         data = p.read_bytes()
         if p.suffix in ('.mq5', '.mqh') and not name.startswith('strategies/PortfolioGuard/'):
+            original_name, checked_data = historical_source(name, data)
             if name.startswith('strategies/LOW WR/'):
-                if data != git('show', LOW_WR_BASELINE + ':' + name):
+                if checked_data != git('show', LOW_WR_BASELINE + ':' + original_name):
                     raise RuntimeError('LOW WR differs from reviewed preset source: ' + name)
                 content['MQL5/Experts/E2/' + name] = data
                 continue
-            original_name, checked_data = historical_source(name, data)
             if original_name in GOTOBI_PATCH_SHA256:
                 if digest(checked_data) != GOTOBI_PATCH_SHA256[original_name]:
                     raise RuntimeError('Gotobi source differs from approved v1.17 patch: ' + name)

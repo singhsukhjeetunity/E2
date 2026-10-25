@@ -4,7 +4,7 @@ import re
 import subprocess
 import tempfile
 ROOT=Path(__file__).resolve().parents[2]
-EA=ROOT/"strategies/LOW WR"
+EA=ROOT/"strategies/LOW WR/SessionMomentum"
 def portable(text):
     text=re.sub(r'^#property.*\n|^input group.*\n', '', text, flags=re.M)
     text=re.sub(r'^input ', '', text, flags=re.M)

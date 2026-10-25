@@ -2,7 +2,7 @@
 #property version "0.12"
 #property description "E2 research: NY opening M5 close versus EMA12, both directions, EMA or ATR trailing stop."
 #include <Trade/Trade.mqh>
-#include "..\\shared\\PortfolioGate.mqh"
+#include "..\\..\\shared\\PortfolioGate.mqh"
 #include "SessionCore.mqh"
 #include "TrailingMethod.mqh"
 

@@ -1,6 +1,6 @@
 #ifndef E2_SM_ENTRY_STATE
 #define E2_SM_ENTRY_STATE
-#include "..\\shared\\ReportFolders.mqh"
+#include "..\\..\\shared\\ReportFolders.mqh"
 // One submission per NY day, durable BEFORE sending; uncertainty never expires.
 struct SMState { int status,day; datetime submitted; ulong order; };
 SMState sm_state;
