@@ -1,5 +1,5 @@
 #property strict
-#property version "0.15"
+#property version "0.16"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"

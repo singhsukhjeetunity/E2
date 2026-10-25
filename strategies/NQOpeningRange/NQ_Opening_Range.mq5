@@ -1,7 +1,7 @@
 #property strict
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\EMATrailing.mqh"
-#property version "0.11"
+#property version "0.12"
 #property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 
 // Independent research EA. Never attach alongside a second copy using the same magic.

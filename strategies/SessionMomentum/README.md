@@ -1,4 +1,4 @@
-# NAS100 Session Momentum — research candidate v0.10
+# NAS100 Session Momentum — research candidate v0.11
 
 Standalone E2 candidate, not an approved replacement or live allocation.
 Existing five systems are retained. No performance claim is made.
@@ -17,9 +17,12 @@ Existing five systems are retained. No performance claim is made.
 - Initial broker SL is that completed candle's EMA, rounded outward to tick size.
   No fixed target. If this SL is not on the protective side of the live quote or
   violates broker stop/freeze distances, do not submit.
-- Trail from the latest COMPLETED M5 candle's EMA. Long stops only rise; short
+- InpTrailingMethod chooses E2_TRAIL_EMA (default EMA12) or E2_TRAIL_ATR.
+  ATR uses the completed M5 close minus ATR x multiplier for buys, plus for sells;
+  InpTrailingATRPeriod=14 and InpTrailingATRMultiplier=2.0 are the defaults.
+  Initial stop and entry signal stay EMA12 in both modes. Long stops only rise; short
   stops only fall. Never loosen an existing stop. Retry unsuccessful modifications.
-  If the tighter EMA stop has already passed the executable market quote, request
+  If the tighter trailing stop has already passed the executable market quote, request
   a market close. If a modification is temporarily too close for the broker, keep
   the existing broker SL and retry; a missing protective SL triggers a close.
 - InpCloseAtSessionEnd defaults ON. InpSessionCloseNYHour/Minute default 16:00.
@@ -72,7 +75,7 @@ source for this strategy/account. Tester state is fresh and in memory only.
    Defaults are US seasonal winter +2 / summer +3; this is only a starting profile.
    Set InpBrokerClockVerified=true only after checking the broker's timestamps.
    New York DST is calculated separately; EU/US mismatch weeks are handled.
-4. Choose cash risk, spread limit (index price units), and session-close ON/OFF.
+4. Choose cash risk, spread limit (index price units), and session-close ON/OFF, plus EMA or ATR trailing.
    Run both close settings with identical data/costs before judging the candidate.
 5. Check sample buys/sells visually: 09:30 candle, 09:35 fill, EMA12 initial SL,
    ratchet, one daily attempt and session-close timestamp.
@@ -108,6 +111,7 @@ broker execution testing or historical performance evaluation.
 
 ## Other E2 systems: optional trailing experiments
 
-The same branch adds an optional EMA trailing overlay to the five existing trading
+The same branch adds an optional EMA/ATR trailing overlay to the five existing trading
 systems, default OFF. [Settings and backtest steps](../../docs/EMA_TRAILING_BACKTESTS.md).
-This candidate retains its built-in EMA12 stop and does not use the overlay inputs.
+This candidate uses the same method selector and ATR settings, with its built-in
+EMA12 signal/initial stop and M5 trailing timeframe. Trailing is always active here.

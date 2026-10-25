@@ -1,5 +1,5 @@
 #property strict
-#property version "4.4"
+#property version "4.5"
 #property description "E2 mechanical trading strategy with explicit broker-time handling."
 
 #include "..\\shared\\EMATrailing.mqh"

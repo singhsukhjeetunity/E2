@@ -5,6 +5,7 @@ int main() {
    test_positions.clear();test_deals.clear();test_deal_orders.clear();test_active_orders.clear();test_order_history.clear();
    test_tester=1;test_sends=0;test_retcode=TRADE_RETCODE_DONE;test_send_ok=true;test_defer_fill=false;
    test_order_rejected=false;test_on_send=nullptr;test_history_ok=true;test_guard=true;
+   InpTrailingMethod=E2_TRAIL_EMA;InpTrailingATRPeriod=14;InpTrailingATRMultiplier=2;test_atr=.5;test_atr_ok=true;test_atr_bars=120;test_atr_calls=0;
    test_modify_ok=true;test_modifies=0;test_ema=100;test_ema_bars=120;test_buffer_ok=true;test_indicator_ok=true;
    test_free=100000;test_balance=100000;test_min_lot=.01;test_mode=ACCOUNT_MARGIN_MODE_RETAIL_HEDGING;
    _Symbol="NAS100";_Point=.01;_Digits=2;
@@ -100,6 +101,23 @@ int main() {
  assert(test_sends==1&&sm_state.status==2);
  reset();test_defer_fill=true;test_send_ok=false;test_retcode=TRADE_RETCODE_TIMEOUT;OnTick();OnTick();
  assert(test_sends==1&&sm_state.status==1);
+ // ATR selection changes trailing only: the opening signal/initial stop stay EMA12.
+ reset();OnDeinit(0);InpTrailingMethod=E2_TRAIL_ATR;assert(OnInit()==INIT_SUCCEEDED&&sm_atr==2);
+ assert(test_atr_calls==1);OnTick();assert(test_sends==1&&test_positions[0].stop==100);
+ test_now+=300;test_tick={103,103.1,test_now};test_m30.push_back({test_now-300,101,104,100,103});
+ test_atr=.5;OnTick();assert(test_positions[0].stop==102&&test_positions[0].target==0);
+ test_atr=2;test_now++;test_tick.time=test_now;OnTick();assert(test_positions[0].stop==102);
+ test_atr_bars=0;test_now++;test_tick.time=test_now;OnTick();assert(test_positions[0].stop==102);
+ int released=test_releases;OnDeinit(0);assert(sm_ema==INVALID_HANDLE&&sm_atr==INVALID_HANDLE&&test_releases==released+2);
+ reset();OnDeinit(0);InpTrailingMethod=E2_TRAIL_ATR;assert(OnInit()==INIT_SUCCEEDED);
+ test_m30[0].close=99;test_tick={99,99.1,test_now};OnTick();assert(test_positions[0].stop==100);
+ test_now+=300;test_tick={97,97.1,test_now};test_m30.push_back({test_now-300,99,100,96,97});
+ test_atr=.5;OnTick();assert(test_positions[0].stop==98);
+ test_atr=0;test_now++;test_tick.time=test_now;OnTick();assert(test_positions[0].stop==98);
+ reset();OnDeinit(0);InpTrailingMethod=E2_TRAIL_ATR;test_atr_ok=false;
+ assert(OnInit()==INIT_FAILED&&sm_ema==INVALID_HANDLE&&sm_atr==INVALID_HANDLE);
+ reset();OnDeinit(0);InpTrailingMethod=E2_TRAIL_ATR;InpTrailingATRMultiplier=0;
+ assert(OnInit()==INIT_PARAMETERS_INCORRECT);
  // Actual research exporter supports no TP and initial stop risk for both sides.
  reset();InpExportCsv=true;assert(SMOpenReports());OnTick();
  test_positions.clear();test_now+=60;

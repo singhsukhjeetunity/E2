@@ -7,11 +7,12 @@ constexpr int TIME_DATE=1,TIME_SECONDS=2;
 using ENUM_DEAL_REASON=int;
 const double EMPTY_VALUE=1.7976931348623157e308;
 bool test_guard=true,test_modify_ok=true;int test_modifies=0,test_ema_bars=120;
-double test_ema=100;bool test_buffer_ok=true,test_indicator_ok=true;
+double test_ema=100,test_atr=.5;bool test_atr_ok=true;int test_atr_bars=120,test_atr_calls=0,test_releases=0;bool test_buffer_ok=true,test_indicator_ok=true;
 int iMA(const string&,int,int period,int,int mode,int price){assert(period==12&&mode==MODE_EMA&&price==PRICE_CLOSE);return test_indicator_ok?1:INVALID_HANDLE;}
-int BarsCalculated(int){return test_ema_bars;}
-int CopyBuffer(int,int,int shift,int count,std::vector<double> &out){assert(shift==1&&count==1);out={test_ema};return test_buffer_ok?1:0;}
-void IndicatorRelease(int){}
+int iATR(const string&,int frame,int period){assert(frame==PERIOD_M5&&period>0);test_atr_calls++;return test_atr_ok?2:INVALID_HANDLE;}
+int BarsCalculated(int handle){return handle==2?test_atr_bars:test_ema_bars;}
+int CopyBuffer(int handle,int,int shift,int count,std::vector<double> &out){assert(shift==1&&count==1);out={handle==2?test_atr:test_ema};return test_buffer_ok?1:0;}
+void IndicatorRelease(int){test_releases++;}
 bool EventSetTimer(int){return true;}void EventKillTimer(){}
 string TimeToString(datetime time,int){return std::to_string(time);}
 string E2UniqueReportRun(const string &run){return run+"_123";}

@@ -20,6 +20,14 @@ class TrailingIntegration(unittest.TestCase):
                 self.assertIn("E2TrailShutdown();",s)
                 self.assertIn("E2TrailRun();",s)
                 self.assertIn("bool E2TrailClose(const ulong ticket)",s)
+    def test_method_selector_reaches_all_six_hosts(self):
+        shared=self.text("shared/EMATrailing.mqh")
+        self.assertIn('#include "TrailingMethod.mqh"',shared)
+        self.assertIn('iATR(_Symbol,e2trail_frame,InpTrailingATRPeriod)',shared)
+        candidate=self.text("SessionMomentum/NAS100_Session_Momentum.mq5")
+        self.assertIn('TrailingMethod.mqh',candidate)
+        self.assertIn('iATR(_Symbol,PERIOD_M5,InpTrailingATRPeriod)',candidate)
+        self.assertIn('E2TrailMethodDigest()',self.text("SessionMomentum/SessionReport.mqh"))
     def test_recovery_keeps_original_risk_metadata(self):
         gold=self.text("GoldSessionFade/include/strategy/E2PositionRecovery.mqh")
         self.assertIn("E2TrailStopOK(recovered.direction==E2_DIRECTION_LONG?1:-1,recovered.submitted_stop,live_sl,tol)",gold)

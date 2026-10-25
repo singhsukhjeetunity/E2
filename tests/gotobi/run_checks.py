@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory() as directory:
     trail=re.sub(r'E2TrailAttempt (\w+)\[\];',r'std::vector<E2TrailAttempt> \1;',trail)
     trail=re.sub(r'\bdouble (\w+)\[\];',r'std::vector<double> \1;',trail)
     (tmp/'trailing.mqh').write_text(trail)
+    (tmp/'TrailingMethod.mqh').write_text(portable((test_root.parents[1]/'strategies/shared/TrailingMethod.mqh').read_text()))
     platform=(test_root/'platform.hpp').read_text()
     platform=platform.replace('struct MqlTick {double bid=100,ask=100.02;};',
                               'struct MqlTick {double bid=100,ask=100.02;datetime time=0;};')

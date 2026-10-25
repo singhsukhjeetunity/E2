@@ -12,7 +12,8 @@ def portable(text):
     text='\n'.join(
         'bool E2PGCanEnter(){return test_guard;}' if 'PortfolioGate.mqh' in line else
         '' if 'ReportFolders.mqh' in line else
-        '#include "SessionClock.mqh"' if 'SessionClock.mqh' in line else line
+        '#include "SessionClock.mqh"' if 'SessionClock.mqh' in line else
+        '#include "TrailingMethod.mqh"' if 'TrailingMethod.mqh' in line else line
         for line in text.splitlines())+'\n'
     return re.sub(r'\b(MqlRates|double|string|ulong) (\w+)\[\];',r'std::vector<\1> \2;',text)
 platform=(ROOT/'tests/gotobi/platform.hpp').read_text()
@@ -39,6 +40,7 @@ with tempfile.TemporaryDirectory() as folder:
     (tmp/'platform.hpp').write_text(platform)
     for name in ('NAS100_Session_Momentum.mq5','SessionCore.mqh','EntryState.mqh','SessionReport.mqh'):
         (tmp/name).write_text(portable((EA/name).read_text()))
+    (tmp/'TrailingMethod.mqh').write_text(portable((ROOT/'strategies/shared/TrailingMethod.mqh').read_text()))
     (tmp/'SessionClock.mqh').write_text((ROOT/'strategies/shared/SessionClock.mqh').read_text())
     prefix='#include "platform.hpp"\n'+(ROOT/'tests/session_momentum/platform_extra.hpp').read_text()
     prefix+='\n#define PositionGetInteger testPositionInteger\n#define PositionGetDouble testPositionValue\n#define iTime testITime\n'

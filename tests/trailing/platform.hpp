@@ -4,6 +4,8 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <sstream>
+#include <iomanip>
 #include <vector>
 using string=std::string;using datetime=long long;using ENUM_TIMEFRAMES=int;
 constexpr int PERIOD_CURRENT=0,PERIOD_M5=5,PERIOD_M30=30,PERIOD_H1=60,INVALID_HANDLE=-1;
@@ -21,14 +23,15 @@ struct Position {ulong ticket,magic;string symbol;int side;double sl,tp;};
 std::vector<Position> positions;int selected=0;
 datetime now=1800000000,bar_time=1799999700;
 MqlTick quote{110,110.1,now};
-double value=100,tick_size=.01;int stop_level=0,freeze_level=0,bars_calculated=200,indicator_calls=0,releases=0;
+double value=100,tick_size=.01,bar_close=110;int stop_level=0,freeze_level=0,bars_calculated=200,indicator_calls=0,releases=0;
 bool indicator_ok=true,rates_ok=true,buffer_ok=true,send_ok=true,close_ok=true;
-int last_tf=0,last_period=0;uint send_code=TRADE_RETCODE_DONE;
+int last_tf=0,last_period=0;bool last_atr=false;uint send_code=TRADE_RETCODE_DONE;
 std::vector<MqlTradeRequest> requests;std::vector<ulong> closes;
 double MathAbs(double v){return std::abs(v);}double MathMin(double a,double b){return std::min(a,b);}
 double MathMax(double a,double b){return std::max(a,b);}double MathFloor(double v){return std::floor(v);}
 double MathCeil(double v){return std::ceil(v);}bool MathIsValidNumber(double v){return std::isfinite(v);}
 double NormalizeDouble(double v,int digits){double k=std::pow(10,digits);return std::round(v*k)/k;}
+string DoubleToString(double v,int digits){std::ostringstream s;s<<std::fixed<<std::setprecision(digits)<<v;return s.str();}
 string IntegerToString(long long v){return std::to_string(v);}
 template<class... T>void Print(T...){}
 template<class T>int ArraySize(const std::vector<T> &v){return v.size();}
@@ -37,12 +40,16 @@ template<class T>void ZeroMemory(T &v){v=T{};}
 datetime TimeCurrent(){return now;}int PeriodSeconds(int frame){return frame*60;}
 int iMA(const string &symbol,int frame,int period,int shift,int mode,int price){
  assert(symbol==_Symbol&&shift==0&&mode==MODE_EMA&&price==PRICE_CLOSE);
- indicator_calls++;last_tf=frame;last_period=period;return indicator_ok?42:INVALID_HANDLE;
+ indicator_calls++;last_atr=false;last_tf=frame;last_period=period;return indicator_ok?42:INVALID_HANDLE;
+}
+int iATR(const string &symbol,int frame,int period){
+ assert(symbol==_Symbol);indicator_calls++;last_atr=true;last_tf=frame;last_period=period;
+ return indicator_ok?43:INVALID_HANDLE;
 }
 void IndicatorRelease(int){releases++;}
 int BarsCalculated(int){return bars_calculated;}
 int CopyRates(const string&,int frame,int shift,int count,std::vector<MqlRates> &out){
- assert(frame==last_tf&&shift==1&&count==1);out={{bar_time,99999}};return rates_ok?1:0;}
+ assert(frame==last_tf&&shift==1&&count==1);out={{bar_time,bar_close}};return rates_ok?1:0;}
 int CopyBuffer(int,int buffer,int shift,int count,std::vector<double> &out){
  assert(buffer==0&&shift==1&&count==1);out={value};return buffer_ok?1:0;}
 datetime iTime(const string&,int,int shift){assert(shift==1);return bar_time;}

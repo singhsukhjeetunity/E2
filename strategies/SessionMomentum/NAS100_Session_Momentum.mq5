@@ -1,9 +1,10 @@
 #property strict
-#property version "0.10"
-#property description "E2 research: NY opening M5 close versus EMA12, both directions, EMA trailing stop."
+#property version "0.11"
+#property description "E2 research: NY opening M5 close versus EMA12, both directions, EMA or ATR trailing stop."
 #include <Trade/Trade.mqh>
 #include "..\\shared\\PortfolioGate.mqh"
 #include "SessionCore.mqh"
+#include "..\\shared\\TrailingMethod.mqh"
 
 input group "=== SESSION MOMENTUM ==="
 input bool InpCloseAtSessionEnd=true;
@@ -26,9 +27,9 @@ input double InpServerUTCOffsetWinterHours=2.0;
 input double InpServerUTCOffsetSummerHours=3.0;
 
 CTrade sm_trade;
-int sm_ema=INVALID_HANDLE;
+int sm_ema=INVALID_HANDLE,sm_atr=INVALID_HANDLE;
 datetime sm_last_close_try=0,sm_last_modify_try=0,sm_cached_bar=0,sm_block_log=0;
-double sm_cached_ema=0;
+double sm_cached_ema=0,sm_cached_close=0; // Selected completed indicator (EMA or ATR), plus close.
 bool SMUtc(const datetime server,datetime &utc) {
    return NPProfileToUtc(server,InpBrokerClock,(int)MathRound(InpServerUTCOffsetWinterHours*3600),
       (int)MathRound(InpServerUTCOffsetSummerHours*3600),utc);
@@ -47,6 +48,19 @@ bool SMClosed(MqlRates &bar,double &ema) {
    if(bars[0].time!=iTime(_Symbol,PERIOD_M5,1)||bars[0].time+300>TimeCurrent()||
       !MathIsValidNumber(values[0])||values[0]<=0||values[0]==EMPTY_VALUE)return false;
    bar=bars[0];ema=values[0];return true;
+}
+bool SMClosedTrail(MqlRates &bar,double &indicator) {
+   if(InpTrailingMethod==E2_TRAIL_EMA)return SMClosed(bar,indicator);
+   if(sm_atr==INVALID_HANDLE||BarsCalculated(sm_atr)<InpTrailingATRPeriod+1)return false;
+   MqlRates bars[];double values[];
+   if(CopyRates(_Symbol,PERIOD_M5,1,1,bars)!=1||CopyBuffer(sm_atr,0,1,1,values)!=1)return false;
+   if(bars[0].time!=iTime(_Symbol,PERIOD_M5,1)||bars[0].time+300>TimeCurrent()||
+      !MathIsValidNumber(values[0])||values[0]<=0||values[0]==EMPTY_VALUE)return false;
+   bar=bars[0];indicator=values[0];return true;
+}
+void SMReleaseIndicators() {
+   if(sm_atr!=INVALID_HANDLE){IndicatorRelease(sm_atr);sm_atr=INVALID_HANDLE;}
+   if(sm_ema!=INVALID_HANDLE){IndicatorRelease(sm_ema);sm_ema=INVALID_HANDLE;}
 }
 bool SMHasOwn() {
    for(int i=PositionsTotal()-1;i>=0;i--)if(PositionGetTicket(i)>0&&
@@ -107,7 +121,7 @@ void SMClose(const ulong ticket,const string why) {
 void SMManage(const bool clock_ok) {
    if(!SMHasOwn())return;
    MqlRates bar;double ema=0;
-   if(SMClosed(bar,ema)){sm_cached_bar=bar.time;sm_cached_ema=ema;}
+   if(SMClosedTrail(bar,ema)){sm_cached_bar=bar.time;sm_cached_ema=ema;sm_cached_close=bar.close;}
    MqlTick tick;if(!SymbolInfoTick(_Symbol,tick)||tick.bid<=0||tick.ask<tick.bid)return;
    for(int i=PositionsTotal()-1;i>=0;i--) {
       ulong ticket=PositionGetTicket(i);
@@ -124,17 +138,18 @@ void SMManage(const bool clock_ok) {
       }
       // Never trail from a forming or stale pre-gap candle. Existing broker SL stays active.
       if(sm_cached_bar<=0||TimeCurrent()-sm_cached_bar>=600)continue;
-      double next=SMStop(direction,sm_cached_ema,SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE),_Digits);
+      double level=E2TrailLevel(direction,sm_cached_ema,sm_cached_close,sm_cached_ema);
+      double next=SMStop(direction,level,SymbolInfoDouble(_Symbol,SYMBOL_TRADE_TICK_SIZE),_Digits);
       if(!SMTightens(direction,old,next))continue;
       double reference=direction>0?tick.bid:tick.ask;
-      if((direction>0&&reference<=next)||(direction<0&&reference>=next)){SMClose(ticket,"EMA_PASSED_MARKET");continue;}
+      if((direction>0&&reference<=next)||(direction<0&&reference>=next)){SMClose(ticket,"TRAIL_PASSED_MARKET");continue;}
       double minimum=MathMax((double)SymbolInfoInteger(_Symbol,SYMBOL_TRADE_STOPS_LEVEL),
          (double)SymbolInfoInteger(_Symbol,SYMBOL_TRADE_FREEZE_LEVEL))*_Point;
       if(MathAbs(reference-next)<minimum)continue;
       if(sm_last_modify_try>0&&TimeCurrent()-sm_last_modify_try<1)continue;
       sm_last_modify_try=TimeCurrent();
       if(!SMTradeOK(sm_trade.PositionModify(ticket,next,tp)))
-         Print("[SM] EMA stop modification not confirmed: ",sm_trade.ResultRetcode());
+         Print("[SM] Trailing stop modification not confirmed: ",sm_trade.ResultRetcode());
    }
 }
 void SMAttempt(const datetime utc) {
@@ -177,7 +192,7 @@ void SMRun(const bool allow_entry) {
    SMEquity(TimeCurrent());
 }
 int OnInit() {
-   if(InpMagic==0||(int)InpRiskMode<0||(int)InpRiskMode>1||
+   if(!E2TrailMethodValid()||InpMagic==0||(int)InpRiskMode<0||(int)InpRiskMode>1||
       !MathIsValidNumber(InpFixedCashRisk)||InpFixedCashRisk<=0||
       !MathIsValidNumber(InpBalanceRiskPercent)||InpBalanceRiskPercent<=0||
       !MathIsValidNumber(InpMaxSpreadIndexPoints)||InpMaxSpreadIndexPoints<0||
@@ -192,12 +207,17 @@ int OnInit() {
    if(!sm_trade.SetTypeFillingBySymbol(_Symbol))return INIT_FAILED;
    sm_ema=iMA(_Symbol,PERIOD_M5,12,0,MODE_EMA,PRICE_CLOSE);
    if(sm_ema==INVALID_HANDLE)return INIT_FAILED;
-   if(!SMStateInit()){IndicatorRelease(sm_ema);sm_ema=INVALID_HANDLE;return INIT_FAILED;}
-   if(!SMOpenReports()){SMCloseReports();SMStateClose();IndicatorRelease(sm_ema);sm_ema=INVALID_HANDLE;return INIT_FAILED;}
-   if(!EventSetTimer(1)){SMCloseReports();SMStateClose();IndicatorRelease(sm_ema);sm_ema=INVALID_HANDLE;return INIT_FAILED;}
-   Print("[SM] Session Momentum v0.10 initialized. Symbol=",_Symbol,
+   if(InpTrailingMethod==E2_TRAIL_ATR) {
+      sm_atr=iATR(_Symbol,PERIOD_M5,InpTrailingATRPeriod);
+      if(sm_atr==INVALID_HANDLE){SMReleaseIndicators();return INIT_FAILED;}
+   }
+   if(!SMStateInit()){SMReleaseIndicators();return INIT_FAILED;}
+   if(!SMOpenReports()){SMCloseReports();SMStateClose();SMReleaseIndicators();return INIT_FAILED;}
+   if(!EventSetTimer(1)){SMCloseReports();SMStateClose();SMReleaseIndicators();return INIT_FAILED;}
+   Print("[SM] Session Momentum v0.11 initialized. Symbol=",_Symbol,
       " EMA=12 M5 NY=09:30-09:35; close_at_session_end=",InpCloseAtSessionEnd,
-      " clock_verified=",InpBrokerClockVerified," magic=",InpMagic);
+      " clock_verified=",InpBrokerClockVerified," magic=",InpMagic," trailing_method=",(int)InpTrailingMethod,
+      E2TrailMethodDigest());
    if(!InpBrokerClockVerified)Print("[SM] Verify the historical broker clock profile before enabling entries.");
    return INIT_SUCCEEDED;
 }
@@ -205,7 +225,7 @@ void OnTick(){SMRun(true);}
 void OnTimer(){SMRun(false);} // Timer manages existing trades; it never opens a stale signal.
 void OnDeinit(const int reason) {
    EventKillTimer();SMCloseReports();SMStateClose();
-   if(sm_ema!=INVALID_HANDLE){IndicatorRelease(sm_ema);sm_ema=INVALID_HANDLE;}
+   SMReleaseIndicators();
 }
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {
    SMReconcile(true);

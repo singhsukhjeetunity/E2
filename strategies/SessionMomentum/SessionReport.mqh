@@ -26,7 +26,7 @@ string SMConfig() {
       IntegerToString(InpSessionCloseNYMinute)+"|"+SMNumber(InpServerUTCOffsetWinterHours)+"|"+
       SMNumber(InpServerUTCOffsetSummerHours)+"|"+IntegerToString((int)InpBrokerClock)+"|"+SMId(InpMagic)+"|"+
       SMNumber(InpMaxSpreadIndexPoints)+"|"+IntegerToString((long)InpDeviationBrokerPoints)+"|"+
-      IntegerToString((int)InpBrokerClockVerified);
+      IntegerToString((int)InpBrokerClockVerified)+E2TrailMethodDigest();
 }
 void SMSignal(const datetime time,const string event,const string detail) {
    if(g_signalFile==INVALID_HANDLE)return;

@@ -11,6 +11,9 @@ source=re.sub(r'\b(E2TrailAttempt|MqlRates|double) (\w+)\[\];',r'std::vector<\1>
 with tempfile.TemporaryDirectory() as directory:
     p=Path(directory)
     (p/"trailing.mqh").write_text(source)
+    method=(ROOT/"strategies/shared/TrailingMethod.mqh").read_text()
+    method=re.sub(r'^input group.*\n|^input ', '', method, flags=re.M)
+    (p/"TrailingMethod.mqh").write_text(method)
     for name in ("checks.cpp","platform.hpp"):
         (p/name).write_text((ROOT/"tests/trailing"/name).read_text())
     binary=p/"checks"

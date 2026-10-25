@@ -2,6 +2,7 @@
 int main(){
  auto reset=[](){
   E2TrailShutdown();positions.clear();requests.clear();closes.clear();
+  InpTrailingMethod=E2_TRAIL_EMA;InpTrailingATRPeriod=14;InpTrailingATRMultiplier=2;bar_close=110;
   InpUseEMATrailingStop=true;InpTrailingEMAPeriod=12;InpTrailingTimeframe=PERIOD_M5;
   indicator_ok=true;rates_ok=true;buffer_ok=true;bars_calculated=200;
   send_ok=true;send_code=TRADE_RETCODE_DONE;close_ok=true;tick_size=.01;
@@ -68,10 +69,54 @@ int main(){
  E2TrailShutdown();assert(e2trail_handle==INVALID_HANDLE);
  InpTrailingEMAPeriod=0;assert(!E2TrailInit(420611));InpTrailingEMAPeriod=1001;assert(!E2TrailInit(420611));
  InpTrailingEMAPeriod=12;indicator_ok=false;assert(!E2TrailInit(420611));
+ // ATR uses closed candle close +/- ATR multiple, in each host scope and direction.
+ for(auto magic:magics)for(int side=0;side<2;side++){
+  reset();InpTrailingMethod=E2_TRAIL_ATR;assert(E2TrailInit(magic));
+  assert(last_atr&&last_period==14&&last_tf==PERIOD_M5);
+  assert(E2TrailDigest().find("atr_trailing=1")!=string::npos);
+  assert(E2TrailDigest().find("trail_atr_multiple=2.00000000")!=string::npos);
+  value=5;bar_close=side==0?110:90;quote=side==0?MqlTick{110,110.1,now}:MqlTick{90,90.1,now};
+  positions={{1,magic,_Symbol,side,side==0?90.0:110.0,side==0?120.0:80.0},
+             {2,magic+1,_Symbol,side,side==0?90.0:110.0,0}};
+  E2TrailRun();assert(requests.size()==1&&positions[0].sl==100);
+  assert(positions[0].tp==(side==0?120:80));
+  value=8;now++;quote.time=now;E2TrailRun();assert(requests.size()==1); // Expansion cannot loosen.
+  value=4;now++;quote.time=now;E2TrailRun();assert(positions[0].sl==(side==0?102:98));
+  value=8;E2TrailShutdown();assert(E2TrailInit(magic));now++;quote.time=now;
+  E2TrailRun();assert(positions[0].sl==(side==0?102:98)); // Broker stop survives restart.
+ }
+ reset();InpTrailingMethod=E2_TRAIL_ATR;InpTrailingATRPeriod=7;InpTrailingATRMultiplier=3;
+ InpTrailingTimeframe=PERIOD_M30;bar_time=now-1800;bar_close=115;value=5;quote={115,115.1,now};
+ assert(E2TrailInit(420611)&&last_tf==PERIOD_M30&&last_period==7);
+ positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};E2TrailRun();assert(positions[0].sl==100);
+ reset();InpTrailingMethod=E2_TRAIL_ATR;InpTrailingEMAPeriod=0;
+ assert(E2TrailInit(420611)); // Unselected EMA parameter must not block ATR.
+ positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};bar_close=110;value=5;
+ send_ok=false;E2TrailRun();assert(positions[0].sl==90);
+ send_ok=true;value=8;now++;quote.time=now;E2TrailRun();assert(positions[0].sl==100); // Retry keeps peak.
+ reset();InpTrailingMethod=E2_TRAIL_ATR;assert(E2TrailInit(420611));
+ positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};bar_close=110;value=2;quote={105,105.1,now};
+ E2TrailRun();assert(positions.empty()&&closes.size()==1); // Desired ATR level is beyond the quote.
+ for(int scenario=0;scenario<6;scenario++){
+  reset();InpTrailingMethod=E2_TRAIL_ATR;assert(E2TrailInit(420611));
+  positions={{1,420611,_Symbol,POSITION_TYPE_BUY,90,120}};
+  if(scenario==0)value=0;
+  if(scenario==1)value=NAN;
+  if(scenario==2)bar_close=NAN;
+  if(scenario==3)bars_calculated=14;
+  if(scenario==4)bar_time=now;
+  if(scenario==5){value=100;bar_close=110;} // Invalid nonpositive stop is skipped.
+  E2TrailRun();assert(requests.empty()&&closes.empty()&&positions[0].sl==90);
+ }
+ reset();InpTrailingMethod=E2_TRAIL_ATR;InpTrailingATRPeriod=0;assert(!E2TrailInit(420611));
+ InpTrailingATRPeriod=1001;assert(!E2TrailInit(420611));InpTrailingATRPeriod=14;
+ InpTrailingATRMultiplier=0;assert(!E2TrailInit(420611));InpTrailingATRMultiplier=NAN;assert(!E2TrailInit(420611));
+ InpTrailingATRMultiplier=2;assert(E2TrailInit(420611));
+ reset();assert(E2TrailDigest()=="|ema_trailing=1|trail_period=12|trail_timeframe=5");
  // Gold/Compression recovery accept tighter stops ONLY while enabled, never wider/missing.
  reset();assert(E2TrailStopOK(1,90,100,.005)&&E2TrailStopOK(-1,110,100,.005));
  assert(!E2TrailStopOK(1,90,80,.005)&&!E2TrailStopOK(-1,110,120,.005)&&!E2TrailStopOK(1,90,0,.005));
  InpUseEMATrailingStop=false;assert(!E2TrailStopOK(1,90,100,.005)&&E2TrailStopOK(1,90,90,.005));
  E2TrailShutdown();
- std::cout<<"EMA overlay: five strategy scopes, both sides, disabled baseline, TP preservation, ratchet/restart, completed bars, quote/freeze/retry, host close and recovery checks passed\n";
+ std::cout<<"EMA/ATR overlay: five strategy scopes, both sides, disabled baseline, TP preservation, ratchet/restart, completed bars, quote/freeze/retry, host close and recovery checks passed\n";
 }
