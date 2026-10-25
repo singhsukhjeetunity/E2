@@ -2,9 +2,9 @@
 #define E2_TRAILING_METHOD_MQH
 enum E2TrailingMethod { E2_TRAIL_EMA=0,E2_TRAIL_ATR=1 };
 input group "=== TRAILING STOP METHOD ==="
-input E2TrailingMethod InpTrailingMethod=E2_TRAIL_EMA;
+input E2TrailingMethod InpTrailingMethod=E2_TRAIL_ATR;
 input int InpTrailingATRPeriod=14;
-input double InpTrailingATRMultiplier=2.0;
+input double InpTrailingATRMultiplier=5.0;
 bool E2TrailMethodValid() {
    if(InpTrailingMethod!=E2_TRAIL_EMA&&InpTrailingMethod!=E2_TRAIL_ATR)return false;
    return InpTrailingMethod!=E2_TRAIL_ATR||(InpTrailingATRPeriod>=1&&InpTrailingATRPeriod<=1000&&

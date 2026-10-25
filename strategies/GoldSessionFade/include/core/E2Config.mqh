@@ -144,7 +144,7 @@ bool E2ValidateConfiguration(const E2Config &c,string &reason)
 
    return(true);
 }
-int E2ExposedInputCount(void){return(43);}
+int E2ExposedInputCount(void){return(37);}
 int E2DeadInputCount(void){return(0);}
 int E2DuplicateInputCount(void){return(0);}
 int E2InvalidInputMappingCount(void){return(0);}

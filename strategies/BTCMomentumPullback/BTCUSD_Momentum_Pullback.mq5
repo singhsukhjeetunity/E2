@@ -1,10 +1,9 @@
 #property strict
-#property version "0.16"
+#property version "0.14"
 #property description "BTCUSD H4 momentum / H1 entry RESEARCH adaptation with fixed 1R brackets."
 #include "..\\shared\\PortfolioGate.mqh"
 #include "..\\shared\\SessionClock.mqh"
 #include "MomentumCore.mqh"
-#include "..\\shared\\EMATrailing.mqh"
 
 input group "=== BTCUSD MOMENTUM RESEARCH ==="
 input ulong InpMagic=420609;
@@ -336,18 +335,10 @@ void ProcessEntry(const MqlTick &tick) {
       rsi,RStamp(ServerToUTC(zone_start)),entries,bars[count-1].close,zone_high,previous_high,kind));
    if(kind>0)AttemptEntry(tick,zone_start,kind==1?"BASE":(kind==2?"PULLBACK":"BREAKOUT"));
 }
-bool E2TrailClose(const ulong ticket) {
-   if(GlobalVariableGet(g_statePrefix+"EXIT_PENDING")>0||!PositionSelectByTicket(ticket)||
-      PositionGetString(POSITION_SYMBOL)!=_Symbol||(ulong)PositionGetInteger(POSITION_MAGIC)!=InpMagic)return false;
-   if(g_lastCloseAttempt>0&&TimeCurrent()-g_lastCloseAttempt<5)return false;
-   g_lastCloseAttempt=TimeCurrent();
-   return ClosePosition(ticket,PositionGetInteger(POSITION_TYPE),PositionGetDouble(POSITION_VOLUME),"EMA_TRAILING");
-}
 void Run(const bool allow_entries) {
    if(g_running)return;g_running=true;
    // SL/TP and optional exits operate independently of entry history/clock/guard.
    ManageExits();
-   E2TrailRun();
    MqlTick tick;
    if(allow_entries&&SymbolInfoTick(_Symbol,tick)&&MathIsValidNumber(tick.bid)&&
       MathIsValidNumber(tick.ask)&&tick.bid>0&&tick.ask>=tick.bid)ProcessEntry(tick);
@@ -377,7 +368,6 @@ bool ValidInputs() {
 }
 int OnInit() {
    if(!ValidInputs())return INIT_PARAMETERS_INCORRECT;
-   if(!E2TrailInit(InpMagic))return INIT_PARAMETERS_INCORRECT;
    g_statePrefix="E2B_"+StringFormat("%08X",RHash(AccountInfoString(ACCOUNT_SERVER)+"|"+_Symbol+"|"+StringFormat("%I64u",InpMagic)))+
       "_"+StringFormat("%I64d",AccountInfoInteger(ACCOUNT_LOGIN))+"_";
    if(MQLInfoInteger(MQL_TESTER))g_statePrefix="E2BT_"+StringFormat("%I64u",GetMicrosecondCount())+"_";
@@ -408,7 +398,7 @@ int OnInit() {
       Print("[BTCMP] Recovered unresolved order submission: reconcile broker history before clearing state.");
    return INIT_SUCCEEDED;
 }
-void OnDeinit(const int reason){E2TrailShutdown();EventKillTimer();RCloseReports();if(g_rsiHandle!=INVALID_HANDLE)IndicatorRelease(g_rsiHandle);}
+void OnDeinit(const int reason){EventKillTimer();RCloseReports();if(g_rsiHandle!=INVALID_HANDLE)IndicatorRelease(g_rsiHandle);}
 void OnTick(){Run(true);}
 void OnTimer(){Run(false);}
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {

@@ -1,7 +1,6 @@
 #property strict
 #include "..\\shared\\PortfolioGate.mqh"
-#include "..\\shared\\EMATrailing.mqh"
-#property version "0.12"
+#property version "0.10"
 #property description "E2 research EA: NQ 90-minute opening-range long breakout. NOT live validated."
 
 // Independent research EA. Never attach alongside a second copy using the same magic.
@@ -318,12 +317,6 @@ void AttemptEntry(const datetime ny) {
       vol,g_rangeLow,g_rangeHigh,stop,target,(int)sent,res.retcode,GetLastError());
    if(res.retcode==TRADE_RETCODE_TIMEOUT||(sent&&res.retcode==TRADE_RETCODE_PLACED))g_ambiguousEntry=true;
 }
-bool E2TrailClose(const ulong ticket) {
-   if(g_ambiguousExit||!PositionSelectByTicket(ticket)||PositionGetString(POSITION_SYMBOL)!=_Symbol||
-      (ulong)PositionGetInteger(POSITION_MAGIC)!=InpMagic)return false;
-   NQSignal(TimeCurrent(),"EMA_TRAILING_CLOSE","ticket="+IntegerToString((long)ticket));
-   return SendClose(ticket,PositionGetInteger(POSITION_TYPE),PositionGetDouble(POSITION_VOLUME));
-}
 void Run() {
    datetime server=TimeCurrent();
    if(server<=0)return;
@@ -336,7 +329,6 @@ void Run() {
    }
    // Timed exits also require a verified clock. Protective broker SL/TP remain active.
    if(InpBrokerClockVerified)ManageExits(ny);
-   E2TrailRun();
    if(MinuteOfDay(ny)>=InpRangeEndNYMinute&&!g_rangeReady) {
       g_rangeReady=BuildRange(key);
       if(g_rangeReady)NQSignal(server,"RANGE_FILTER",StringFormat("allowed=%d width=%.8f prior_d1_atr=%.8f ratio=%.6f min=%.6f max=%.6f",
@@ -367,7 +359,6 @@ int OnInit() {
    if(InpEnableEntries&&!InpBrokerClockVerified) {
       Print("[NQORB] Entries disabled: verify broker clock and set InpBrokerClockVerified=true");
    }
-   if(!E2TrailInit(InpMagic))return INIT_PARAMETERS_INCORRECT;
    if(!NQOpenReports()){Print("[NQORB] CSV reporting initialization failed; entries blocked.");return INIT_FAILED;}
    EventSetTimer(30);
    Print("[NQORB] Research EA initialized. Entry switch=",InpEnableEntries,
@@ -375,7 +366,7 @@ int OnInit() {
          ". Native MT5 compilation/backtest required.");
    return INIT_SUCCEEDED;
 }
-void OnDeinit(const int reason) {E2TrailShutdown();EventKillTimer();NQCloseReports();}
+void OnDeinit(const int reason) {EventKillTimer();NQCloseReports();}
 void OnTick() {Run();}
 void OnTimer() {Run();}
 void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &request,const MqlTradeResult &result) {

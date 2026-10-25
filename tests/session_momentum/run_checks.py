@@ -4,7 +4,7 @@ import re
 import subprocess
 import tempfile
 ROOT=Path(__file__).resolve().parents[2]
-EA=ROOT/"strategies/SessionMomentum"
+EA=ROOT/"strategies/LOW WR"
 def portable(text):
     text=re.sub(r'^#property.*\n|^input group.*\n', '', text, flags=re.M)
     text=re.sub(r'^input ', '', text, flags=re.M)
@@ -17,6 +17,8 @@ def portable(text):
         for line in text.splitlines())+'\n'
     return re.sub(r'\b(MqlRates|double|string|ulong) (\w+)\[\];',r'std::vector<\1> \2;',text)
 platform=(ROOT/'tests/gotobi/platform.hpp').read_text()
+platform=platform.replace('vsnprintf(buf,sizeof(buf),fmt,args);',
+    'string format=fmt;auto pos=format.find("I64");if(pos!=string::npos)format.replace(pos,3,"l");vsnprintf(buf,sizeof(buf),format.c_str(),args);')
 platform=platform.replace('struct MqlTick {double bid=100,ask=100.02;};',
                           'struct MqlTick {double bid=100,ask=100.02;datetime time=0;};')
 platform=platform.replace('double target=0;};','double target=0;int kind=0;};')
@@ -40,7 +42,7 @@ with tempfile.TemporaryDirectory() as folder:
     (tmp/'platform.hpp').write_text(platform)
     for name in ('NAS100_Session_Momentum.mq5','SessionCore.mqh','EntryState.mqh','SessionReport.mqh'):
         (tmp/name).write_text(portable((EA/name).read_text()))
-    (tmp/'TrailingMethod.mqh').write_text(portable((ROOT/'strategies/shared/TrailingMethod.mqh').read_text()))
+    (tmp/'TrailingMethod.mqh').write_text(portable((EA/'TrailingMethod.mqh').read_text()))
     (tmp/'SessionClock.mqh').write_text((ROOT/'strategies/shared/SessionClock.mqh').read_text())
     prefix='#include "platform.hpp"\n'+(ROOT/'tests/session_momentum/platform_extra.hpp').read_text()
     prefix+='\n#define PositionGetInteger testPositionInteger\n#define PositionGetDouble testPositionValue\n#define iTime testITime\n'

@@ -36,7 +36,7 @@ void SMSignal(const datetime time,const string event,const string detail) {
 bool SMOpenReports() {
    if(!InpExportCsv)return true;
    string folder;
-   if(!E2ReportFolder("SessionMomentum",folder))return false;
+   if(!E2ReportFolder("LOW WR",folder))return false;
    string config=SMConfig();g_reportHash=StringFormat("%08X",SMHash(config));
    string stamp=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);
    StringReplace(stamp,".","");StringReplace(stamp,":","");StringReplace(stamp," ","-");

@@ -1,9 +1,9 @@
-name: Session Momentum research checks
+name: LOW WR research checks
 on:
   push:
     branches: [research/session-momentum]
   pull_request:
-    paths: ['strategies/SessionMomentum/**', 'tests/session_momentum/**']
+    paths: ['strategies/LOW WR/**', 'tests/session_momentum/**']
   workflow_dispatch:
 permissions:
   contents: read

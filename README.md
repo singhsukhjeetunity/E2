@@ -3,32 +3,26 @@
 Five standalone MT5 trading systems, one account-wide PortfolioGuard, and one
 shared live closed-trade CSV per account. **Source release: compile in MetaEditor.**
 
-## Research candidate: Session Momentum
+## Research candidate: LOW WR
 
-A new, unallocated NAS100 M5 candidate is available on the research branch:
-[Session Momentum rules, inputs and backtest steps](strategies/SessionMomentum/README.md).
-It trades both directions from the first New York opening candle versus EMA12,
-with a selectable EMA/ATR trailing stop and optional session-end close. It does not replace or
-change any of the five existing trading systems. PortfolioGuard v1.02 adds only
-its journal magic mapping; guard risk/closure functions are unchanged. This branch
-is not a refreshed E2-Ultron release.
-
-## Optional trailing backtests
-
-All five existing systems now have an optional EMA/ATR trailing overlay, default OFF.
-See [inputs and backtest comparisons](docs/EMA_TRAILING_BACKTESTS.md).
-Original initial stops, risk, targets and timed exits remain active. This research
-branch includes updated shared/recovery headers; install the complete strategies tree.
+The Session Momentum candidate is isolated in
+[LOW WR](strategies/LOW%20WR/README.md). Its defaults reproduce the uploaded
+ATR(14) x 5 run: 1,000 fixed cash risk, EMA12 opening signal/initial stop, optional
+16:00 New York close ON, and the supplied US seasonal +2/+3 clock profile.
+The five existing trading systems are restored exactly to their pre-trailing
+source and contain no optional trailing-stop inputs or hooks.
+PortfolioGuard v1.02 retains the candidate's consolidated journal mapping; its
+risk/closure functions remain unchanged. This branch is not a new Ultron release.
 
 ## Components
 
 | Component | Market | Signal timeframe | Source version | Entry file |
 |---|---|---|---|---|
-| Gold Session Fade | XAUUSD | M5 | 4.5 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
-| Compression Breakout | USDJPY | M30, built from M1 | 0.14 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
-| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.19 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
-| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.12 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
-| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.16 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
+| Gold Session Fade | XAUUSD | M5 | 4.3 | `strategies/GoldSessionFade/XAU_Session_Fade.mq5` |
+| Compression Breakout | USDJPY | M30, built from M1 | 0.12 | `strategies/CompressionBreakout/Compression_Breakout_Long.mq5` |
+| Gotobi | EURJPY | Scheduled UTC entry; M1 chart | 1.17 | `strategies/EURJPYGotobi/EURJPY_Gotobi.mq5` |
+| Opening Range Long | USTEC / Nasdaq CFD | M5 | 0.10 | `strategies/NQOpeningRange/NQ_Opening_Range.mq5` |
+| BTC Momentum Pullback | Chart symbol (researched on BTCUSD) | Broker H4 regime / H1 entries | 0.14 | `strategies/BTCMomentumPullback/BTCUSD_Momentum_Pullback.mq5` |
 | PortfolioGuard + live journal | Entire MT5 account | One instance on any chart | 1.02 | `strategies/PortfolioGuard/E2_PortfolioGuard.mq5` |
 
 All five trading systems are long-only. EMA Pullback is not part of this release.

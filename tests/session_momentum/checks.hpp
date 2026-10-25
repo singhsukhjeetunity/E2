@@ -1,4 +1,12 @@
 int main() {
+ assert(InpTrailingMethod==E2_TRAIL_ATR&&InpTrailingATRPeriod==14&&InpTrailingATRMultiplier==5);
+ assert(InpCloseAtSessionEnd&&InpSessionCloseNYHour==16&&InpSessionCloseNYMinute==0);
+ assert(InpRiskMode==SM_FIXED_CASH&&InpFixedCashRisk==1000&&InpBalanceRiskPercent==1);
+ assert(InpBrokerClockVerified&&InpBrokerClock==NP_US_SEASONAL&&InpServerUTCOffsetWinterHours==2&&InpServerUTCOffsetSummerHours==3);
+ _Symbol="USTEC-2010";
+ assert(SMConfig()=="SESSION_MOMENTUM_V1|USTEC-2010|M5|EMA12|NY0930|0|1000.00000000|1.00000000|1|16|0|2.00000000|3.00000000|2|420611|10.00000000|50|1|trail_method=ATR|trail_atr_period=14|trail_atr_multiple=5.00000000");
+ assert(SMHash(SMConfig())==0xB6C95D9E);
+
  auto reset=[&](){
    if(sm_ema!=INVALID_HANDLE)OnDeinit(0);
    mock_files.clear();mock_handles.clear();mock_read_cursor.clear();mock_file_fail=false;mock_move_fail=false;

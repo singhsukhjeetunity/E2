@@ -1,4 +1,4 @@
-# NAS100 Session Momentum — research candidate v0.11
+# LOW WR — Session Momentum research candidate v0.12
 
 Standalone E2 candidate, not an approved replacement or live allocation.
 Existing five systems are retained. No performance claim is made.
@@ -17,9 +17,9 @@ Existing five systems are retained. No performance claim is made.
 - Initial broker SL is that completed candle's EMA, rounded outward to tick size.
   No fixed target. If this SL is not on the protective side of the live quote or
   violates broker stop/freeze distances, do not submit.
-- InpTrailingMethod chooses E2_TRAIL_EMA (default EMA12) or E2_TRAIL_ATR.
+- InpTrailingMethod defaults to E2_TRAIL_ATR; E2_TRAIL_EMA remains selectable (EMA12).
   ATR uses the completed M5 close minus ATR x multiplier for buys, plus for sells;
-  InpTrailingATRPeriod=14 and InpTrailingATRMultiplier=2.0 are the defaults.
+  InpTrailingATRPeriod=14 and InpTrailingATRMultiplier=5.0 are the defaults.
   Initial stop and entry signal stay EMA12 in both modes. Long stops only rise; short
   stops only fall. Never loosen an existing stop. Retry unsuccessful modifications.
   If the tighter trailing stop has already passed the executable market quote, request
@@ -66,14 +66,15 @@ source for this strategy/account. Tester state is fresh and in memory only.
 ## Install and backtest
 
 1. Use this research branch, preserving the full strategies/ tree. Compile
-   strategies/SessionMomentum/NAS100_Session_Momentum.mq5 in MetaEditor (F7).
+   strategies/LOW WR/NAS100_Session_Momentum.mq5 in MetaEditor (F7).
    Native MetaEditor compilation and a real-tick MT5 backtest are required.
 2. Select the broker's Nasdaq CFD on M5, Every tick based on real ticks, and an
    account currency/leverage matching the intended account.
 3. Verify the historical broker clock. InpBrokerClock supports fixed offset,
    US seasonal or EU seasonal. Offset inputs are HOURS (fractions allowed).
    Defaults are US seasonal winter +2 / summer +3; this is only a starting profile.
-   Set InpBrokerClockVerified=true only after checking the broker's timestamps.
+   InpBrokerClockVerified defaults true to reproduce the uploaded preset; this does
+   not independently verify any other broker/feed. Check its timestamps before use.
    New York DST is calculated separately; EU/US mismatch weeks are handled.
 4. Choose cash risk, spread limit (index price units), and session-close ON/OFF, plus EMA or ATR trailing.
    Run both close settings with identical data/costs before judging the candidate.
@@ -85,7 +86,7 @@ source for this strategy/account. Tester state is fresh and in memory only.
 ## Reporting and PortfolioGuard
 
 InpExportCsv defaults true for backtests and writes run-specific trade, equity,
-signal and settings files under Common/Files/E2/SessionMomentum. The research CSV
+signal and settings files under Common/Files/E2/LOW WR. The research CSV
 uses the existing E2_JOURNAL_V1 schema, supports LONG/SHORT and no TP, and includes
 actual closed P&L/costs. Its risk calculation uses entry-deal initial SL with current
 conversion: useful in tester research, not an authoritative historic live conversion.
@@ -109,9 +110,31 @@ duplicate/restart/storage behavior and zero-TP exports. Journal tests cover the
 new mapping in both directions. This does not replace native MT5 compilation,
 broker execution testing or historical performance evaluation.
 
-## Other E2 systems: optional trailing experiments
+## Uploaded-run defaults
 
-The same branch adds an optional EMA/ATR trailing overlay to the five existing trading
-systems, default OFF. [Settings and backtest steps](../../docs/EMA_TRAILING_BACKTESTS.md).
-This candidate uses the same method selector and ATR settings, with its built-in
-EMA12 signal/initial stop and M5 trailing timeframe. Trailing is always active here.
+The default settings match uploaded run config hash B6C95D9E when attached to
+USTEC-2010. Chart symbol and Strategy Tester dates/model remain terminal choices.
+
+| Setting | Default |
+|---|---|
+| Signal / initial stop | EMA12, completed New York opening M5 candle, both directions |
+| Trailing method | ATR |
+| ATR period / multiplier | 14 / 5.0 |
+| Cash risk mode / amount | Fixed account cash / 1,000 |
+| Session-end close | ON, 16:00 New York |
+| Broker clock | US seasonal, winter +2 / summer +3 hours, verified flag ON |
+| Magic | 420611 |
+| Maximum spread | 10 index price units |
+| Deviation | 50 broker points |
+| Per-run CSV export | ON, Common/Files/E2/LOW WR |
+
+This matches the supplied settings; it does not repair the historical session-exit
+rejections identified in that run. No exit rules or feed assumptions were changed
+as part of setting these defaults. Live entry-state storage remains under
+SessionMomentumEntry so moving the source folder cannot reset a pending reservation.
+The journal strategy label and magic remain unchanged for continuity.
+
+Gold, Compression, Gotobi, NQ ORB and BTC are restored to the exact source from
+before the optional trailing experiment. None of those five has trailing options.
+Compile LOW WR from its complete folder with the normal strategies/shared/ files
+beside it. Do not retain old trailing-enabled EX5 builds when testing restored EAs.

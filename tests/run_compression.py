@@ -33,7 +33,6 @@ with tempfile.TemporaryDirectory() as tmp:
       'double AccountInfoDouble(int){return 100000;}\n'
       'bool E2PGCanEnter(){return true;}\n'
       '#include "ema_deadline.mqh"')
-    h=h.replace('#include "ema_tick.mqh"', 'void CBManageTrailing(datetime){}\n#include "ema_tick.mqh"') # Disabled overlay baseline; real overlay has its own active tests.
     compile_run(p,'entry',absolute_includes(h))
     # Exact recovery implementation: new scope, restart/partial intent, ownership and durable writes.
     storage=s[s.index('string Hash('):s.index('void Fail(')]+s[s.index('int StateFlags('):s.index('void FinalBar(')]

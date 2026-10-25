@@ -1,10 +1,10 @@
 #property strict
-#property version "0.11"
+#property version "0.12"
 #property description "E2 research: NY opening M5 close versus EMA12, both directions, EMA or ATR trailing stop."
 #include <Trade/Trade.mqh>
 #include "..\\shared\\PortfolioGate.mqh"
 #include "SessionCore.mqh"
-#include "..\\shared\\TrailingMethod.mqh"
+#include "TrailingMethod.mqh"
 
 input group "=== SESSION MOMENTUM ==="
 input bool InpCloseAtSessionEnd=true;
@@ -21,7 +21,7 @@ input ulong InpMagic=420611;
 input double InpMaxSpreadIndexPoints=10.0; // Price units, 0 disables.
 input ulong InpDeviationBrokerPoints=50;
 input group "=== BROKER CLOCK PROFILE ==="
-input bool InpBrokerClockVerified=false;
+input bool InpBrokerClockVerified=true; // Uploaded LOW WR preset: US seasonal +2/+3 broker clock.
 input NPClockMode InpBrokerClock=NP_US_SEASONAL;
 input double InpServerUTCOffsetWinterHours=2.0;
 input double InpServerUTCOffsetSummerHours=3.0;
@@ -214,7 +214,7 @@ int OnInit() {
    if(!SMStateInit()){SMReleaseIndicators();return INIT_FAILED;}
    if(!SMOpenReports()){SMCloseReports();SMStateClose();SMReleaseIndicators();return INIT_FAILED;}
    if(!EventSetTimer(1)){SMCloseReports();SMStateClose();SMReleaseIndicators();return INIT_FAILED;}
-   Print("[SM] Session Momentum v0.11 initialized. Symbol=",_Symbol,
+   Print("[SM] LOW WR v0.12 initialized. Symbol=",_Symbol,
       " EMA=12 M5 NY=09:30-09:35; close_at_session_end=",InpCloseAtSessionEnd,
       " clock_verified=",InpBrokerClockVerified," magic=",InpMagic," trailing_method=",(int)InpTrailingMethod,
       E2TrailMethodDigest());
